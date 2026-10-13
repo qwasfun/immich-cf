@@ -67,3 +67,5 @@ Sync 使用补零整数序列不透明 ACK；按 seq 返回最多 20 张现有�
 官方 SyncStreamService 在 _handleSyncData 成功之后才 ACK；updateAssetsV2 失败会 rethrow。因此受影响会话应在下次同步补齐 UserV1 并重新接收未确认资产。若客户端仍报错，应继续收集日志，不将服务端修复当作真机显示已通过。
 
 新增回归使用真实 SQLite 引擎及从官方表定义提取的最小外键模型：仅插入 AuthUser 时可复现 FK 失败，按修复流顺序插入 UserV1/AssetV2 成功；覆盖已确认 AuthUser 的旧会话、ACK 后不重复、reset 重建顺序。该模型不是完整 Dart/Drift 或官方 iOS 运行时。
+
+修复提交 `ec0a34d`；完整检查通过（15 项测试）。Wrangler 两次发布遇到网络错误后，使用 cloudflare-api 发布同一 dry-run 构建产物，deployment ID `72ad0ef20d7f41209a89890b3dcad4a6`。无迁移待执行。公网验证原图去重仍为相同 ID、媒体读取 200、字节一致、未授权 401；事件顺序为 AuthUserV2 → UserV1 → AssetV2 → Complete，UserV1.id 与 AssetV2.ownerId 相等，ACK 204，增量不重复。未清空用户检查点或图片，待用户再次刷新确认实际显示。
