@@ -24,4 +24,11 @@
 
 部署需先应用 0003 再发布 Worker；无需重置 dev 测试账户。test/prod 保持未发布。本地迁移和公网部署执行结果以本轮交付说明为准，不把已实现等同已上线。
 
+### 本轮执行记录
+
+- 代码提交 `29946d0`；`pnpm check` 通过（12 项测试、格式、lint、类型检查与 dry-run 构建），`pnpm contracts:verify` 通过。
+- dev 迁移 0003 已成功应用，Worker 版本 `230051b0-7231-47fe-b782-4bfa43c22f7b`，入口 https://immich-cf-api-dev.fun.workers.dev。
+- 公网冒烟：health/discovery/ping 200、登录 201、users/me 200、Sync 200、ACK 204、preferences 200、sessions 200、删除本次当前会话 204；随后用该令牌访问 users/me 返回 401。
+- 未执行公网批量会话撤销，以保留用户既有登录；批量撤销及跨用户隔离由本地测试验证。没有操作 test/prod，也没有执行官方 iOS 真机验收。
+
 下一步：使用官方 iOS 连接 dev 记录实际阻塞请求，补齐 onboarding 和必要只读接口；固定图片读取及非空 Sync、并发 reset/ACK 差分、Free CPU 测量仍是 G1 前置项。
