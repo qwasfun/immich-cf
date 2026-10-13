@@ -8,7 +8,7 @@
 
 - [完整中文需求文档](outputs/immich-cf-完整需求文档.md)：纳入 Git 管理，作为需求基线。
 - [开发与环境说明](docs/development.md)：命令、目录、资源配置和验证边界。
-- [P0 调查报告与版本冻结](docs/p0-report.md)：v3.3.1 源码契约已冻结；iOS 安装构建与实机验证待完成。
+- [P0 调查报告与版本冻结](docs/p0-report.md)：v3.3.1 源码契约已冻结；iOS 3.3.1 build 23 已由用户确认，实机验证待完成。
 - [P0 契约验证清单](docs/p0-checklist.md)：源码调查、运行验证及关口状态。
 
 ## 本地启动

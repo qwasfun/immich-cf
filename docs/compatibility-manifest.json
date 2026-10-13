@@ -2,7 +2,7 @@
   "project": "immich-cf",
   "schemaVersion": 1,
   "checkedAt": "2026-10-13",
-  "freezeStatus": "source-contract-frozen-device-build-pending",
+  "freezeStatus": "source-contract-frozen-device-build-user-reported",
   "upstream": {
     "repository": "https://github.com/immich-app/immich",
     "tag": "v3.3.1",
@@ -20,7 +20,7 @@
     "platform": "iOS",
     "reportedVersion": "3.3.1",
     "evidence": "user-reported",
-    "installedBuild": null,
+    "installedBuild": "23",
     "osVersion": null,
     "distributionChannel": null,
     "binaryVerified": false,
@@ -171,7 +171,7 @@
     "G1": "not-run"
   },
   "pending": [
-    "iOS installed build, channel and OS",
+    "iOS distribution channel and OS; installed build independently unverified",
     "Reference server runtime and dependency image freeze",
     "Real device HTTP, cookie and Socket.IO capture",
     "Reset, interrupted stream and replay differential tests",
