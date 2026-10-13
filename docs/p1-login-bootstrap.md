@@ -33,3 +33,7 @@
 部署顺序为先应用 0004，再发布 dev；test/prod 不变。没有把用户 onboarding 状态等同于服务端配置中的管理员初始化标志。
 
 尚未验收：官方 iOS 完整登录及页面行为、Socket.IO 实时连接、参考服务端差分、网络中断和 reset/ACK 并发竞争、非空图库与媒体、Workers Free CPU。此交付是初始化 HTTP 与空库同步增量，不是完整 App 兼容性通过。
+
+## dev 发布记录
+
+代码提交 `10ed96f`；迁移 0004 已应用，Worker 版本 `a53b0fef-e4f5-4d71-95aa-db1c23ea6a3a`。公网验证：media-types 200、onboarding GET/PUT 200、UserMetadataV1 + Complete、ACK 204、DELETE 204、UserMetadataDeleteV1 + Complete。测试后恢复原逻辑 onboarding 状态并注销本次会话；删除墓碑与递增版本保留用于同步，不回滚数据库历史。test/prod 未操作。
