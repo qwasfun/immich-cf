@@ -40,6 +40,7 @@ before(async () => {
     '0004_onboarding.sql',
     '0005_small_assets.sql',
     '0006_upload_intents.sql',
+    '0007_sync_epochs.sql',
   ]) {
     const sql = await readFile(`migrations/${file}`, 'utf8');
     await db.batch(
@@ -239,8 +240,9 @@ test('22 家族空库同步、ACK 重放与隔离、reset 闭环', async () => {
     ['SyncCompleteV1'],
   );
   assert.equal((await stream(b.token))[0].type, 'AuthUserV2');
-  assert.equal((await stream(a.token, { reset: true }))[0].type, 'SyncResetV1');
-  assert.equal((await send('/api/sync/ack', { acks: ['SyncResetV1|reset'] }, a.token)).status, 204);
+  const reset = (await stream(a.token, { reset: true }))[0];
+  assert.equal(reset.type, 'SyncResetV1');
+  assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, a.token)).status, 204);
   assert.equal((await stream(a.token))[0].type, 'AuthUserV2');
   assert.equal(
     (await send('/api/sync/ack', { types: ['AssetV1'] }, a.token, 'DELETE')).status,
@@ -637,8 +639,8 @@ test('官方客户端资产 owner 外键：AuthUser 已确认的旧会话补发 
       (await stream(manifest.sync.requestedTypes)).map((x) => x.type),
       ['SyncCompleteV1'],
     );
-    await send('/api/sync/stream', { types: manifest.sync.requestedTypes, reset: true }, token);
-    await send('/api/sync/ack', { acks: ['SyncResetV1|reset'] }, token);
+    const reset = await streamReset(token);
+    await send('/api/sync/ack', { acks: [reset.ack] }, token);
     const rebuilt = await stream(manifest.sync.requestedTypes);
     assert.ok(
       rebuilt.findIndex((x) => x.type === 'UserV1') <
@@ -852,5 +854,247 @@ test('R2 写前失败、写后响应丢失、D1 提交后响应丢失均可重�
         .n,
       0,
     );
+  }
+});
+
+async function syncEvents(token, extra = {}, headers = {}) {
+  const r = await worker.fetch('/api/sync/stream', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}`, ...headers },
+    body: JSON.stringify({ types: manifest.sync.requestedTypes, ...extra }),
+  });
+  assert.equal(r.status, 200);
+  return (await r.text()).trim().split('\n').map(JSON.parse);
+}
+async function streamReset(token) {
+  return (await syncEvents(token, { reset: true }))[0];
+}
+async function checkpointRows(token) {
+  return (
+    await worker.fetch('/api/sync/ack', { headers: { Authorization: `Bearer ${token}` } })
+  ).json();
+}
+async function pausedSyncRequest(token, path, method, data) {
+  const gate = crypto.randomUUID();
+  const response = worker.fetch(path, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-test-sync-gate': gate,
+    },
+    body: JSON.stringify(data),
+  });
+  const gatePath = `/__test/gates/${gate}`;
+  for (let i = 0; i < 200; i++) {
+    if ((await (await worker.fetch(gatePath)).json()).waiting)
+      return { response, release: () => worker.fetch(gatePath, { method: 'POST' }) };
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Test request did not reach transaction gate');
+}
+
+test('reset ACK 丢失重试不清除重建检查点；旧轮次普通/reset ACK 和跨会话均拒绝', async () => {
+  const { token } = await reliabilityAccount();
+  const initial = await syncEvents(token);
+  const reset = await streamReset(token);
+  assert.notEqual(reset.ack, 'SyncResetV1|reset');
+  assert.deepEqual((await syncEvents(token))[0], reset); // lost reset response
+  assert.equal(
+    (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+    409,
+  );
+  const lost = await worker.fetch('/api/sync/ack', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-test-storage-fault': 'after-d1',
+    },
+    body: JSON.stringify({ acks: [reset.ack] }),
+  });
+  assert.equal(lost.status, 503);
+  const rebuilt = await syncEvents(token);
+  assert.ok(rebuilt.every((e) => e.ack.endsWith(reset.ack.slice(-37))));
+  assert.equal(
+    (await send('/api/sync/ack', { acks: rebuilt.map((e) => e.ack) }, token)).status,
+    204,
+  );
+  const rows = await checkpointRows(token);
+  assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 204);
+  assert.deepEqual(await checkpointRows(token), rows);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+    400,
+  );
+  const other = await reliabilityAccount();
+  await syncEvents(other.token);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: rebuilt.map((e) => e.ack) }, other.token)).status,
+    400,
+  );
+  const next = await streamReset(token);
+  assert.notEqual(next.ack, reset.ack);
+  assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 400);
+  assert.deepEqual((await syncEvents(token))[0], next);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: [next.ack, rebuilt[0].ack] }, token)).status,
+    400,
+  );
+  assert.equal((await send('/api/sync/ack', { acks: [next.ack] }, token)).status, 204);
+});
+
+test('确定性交错：旧 ACK/旧流/旧清除请求在 reset 完成后不能提交', async () => {
+  for (const operation of ['ack', 'stream', 'clear', 'reset']) {
+    const { token } = await reliabilityAccount();
+    const initial = await syncEvents(token);
+    const isStream = operation === 'stream' || operation === 'reset';
+    const pending = await pausedSyncRequest(
+      token,
+      isStream ? '/api/sync/stream' : '/api/sync/ack',
+      operation === 'clear' ? 'DELETE' : 'POST',
+      isStream
+        ? { types: manifest.sync.requestedTypes, reset: operation === 'reset' }
+        : operation === 'ack'
+          ? { acks: initial.map((e) => e.ack) }
+          : {},
+    );
+    try {
+      const reset = await streamReset(token);
+      assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 204);
+      const rebuilt = await syncEvents(token);
+      await send('/api/sync/ack', { acks: rebuilt.map((e) => e.ack) }, token);
+      const before = await checkpointRows(token);
+      await pending.release();
+      assert.equal((await pending.response).status, 409, operation);
+      assert.deepEqual(await checkpointRows(token), before);
+    } finally {
+      await pending.release();
+    }
+  }
+});
+
+test('部分清除保留其它游标但隔离旧投递；过期投递重新发送后才可确认', async () => {
+  const { token } = await reliabilityAccount();
+  const initial = await syncEvents(token);
+  await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token);
+  const held = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+  });
+  try {
+    assert.equal((await send('/api/sync/ack', { types: ['UserV1'] }, token, 'DELETE')).status, 204);
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    const events = await syncEvents(token);
+    assert.deepEqual(
+      events.map((e) => e.type),
+      ['UserV1', 'SyncCompleteV1'],
+    );
+    assert.equal((await send('/api/sync/ack', { acks: [initial[0].ack] }, token)).status, 400);
+    // Determine only this session via its unique complete ACK.
+    const session = await db
+      .prepare('SELECT session_id FROM sync_deliveries WHERE ack=?')
+      .bind(events.at(-1).ack)
+      .first();
+    await db
+      .prepare('UPDATE sync_deliveries SET issued_at=0 WHERE session_id=?')
+      .bind(session.session_id)
+      .run();
+    assert.equal((await send('/api/sync/ack', { acks: [events[0].ack] }, token)).status, 400);
+    const fresh = await syncEvents(token);
+    assert.equal(fresh[0].ack, events[0].ack);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: fresh.map((e) => e.ack) }, token)).status,
+      204,
+    );
+  } finally {
+    await held.release();
+  }
+});
+
+test('reset 确认事务失败不丢检查点，重启后恢复；撤销中的旧流不登记投递', async () => {
+  const { id, token } = await reliabilityAccount();
+  const initial = await syncEvents(token);
+  await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token);
+  const prior = await checkpointRows(token);
+  const reset = await streamReset(token);
+  await db
+    .prepare(
+      `CREATE TRIGGER test_reset_failure BEFORE UPDATE ON sessions
+    WHEN OLD.user_id='${id}' AND OLD.reset_pending=1 AND NEW.reset_pending=0
+    BEGIN SELECT RAISE(ABORT,'TEST_RESET_FAILURE'); END`,
+    )
+    .run();
+  try {
+    assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 503);
+    assert.deepEqual(await checkpointRows(token), prior);
+  } finally {
+    await db.prepare('DROP TRIGGER test_reset_failure').run();
+  }
+  await worker.stop();
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
+  assert.deepEqual((await syncEvents(token))[0], reset);
+  assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 204);
+  assert.deepEqual(await checkpointRows(token), []);
+  const held = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+  });
+  try {
+    await send('/api/auth/logout', {}, token);
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM sync_guards').first()).n, 0);
+  } finally {
+    await held.release();
+  }
+});
+
+test('并发重复 reset ACK 不清空重建结果；已完成 reset 的旧待重置流被拒绝', async () => {
+  const { token } = await reliabilityAccount();
+  const reset = await streamReset(token);
+  const oldAck = await pausedSyncRequest(token, '/api/sync/ack', 'POST', { acks: [reset.ack] });
+  const oldResetStream = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+  });
+  try {
+    assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, token)).status, 204);
+    const events = await syncEvents(token);
+    await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token);
+    const rows = await checkpointRows(token);
+    await oldAck.release();
+    assert.equal((await oldAck.response).status, 204);
+    assert.deepEqual(await checkpointRows(token), rows);
+    await oldResetStream.release();
+    assert.equal((await oldResetStream.response).status, 409);
+  } finally {
+    await oldAck.release();
+    await oldResetStream.release();
+  }
+});
+
+test('请求鉴权后会话过期，事务校验拒绝旧 ACK 且无部分写入', async () => {
+  const { id, token } = await reliabilityAccount();
+  const events = await syncEvents(token);
+  const held = await pausedSyncRequest(token, '/api/sync/ack', 'POST', {
+    acks: events.map((e) => e.ack),
+  });
+  try {
+    await db.prepare('UPDATE sessions SET expires_at=0 WHERE user_id=?').bind(id).run();
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    assert.equal(
+      (
+        await db
+          .prepare(
+            'SELECT COUNT(*) n FROM sync_checkpoints WHERE session_id IN (SELECT id FROM sessions WHERE user_id=?)',
+          )
+          .bind(id)
+          .first()
+      ).n,
+      0,
+    );
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM sync_guards').first()).n, 0);
+  } finally {
+    await held.release();
   }
 });

@@ -33,6 +33,8 @@ PartnerStacksV1, UserMetadataV1, PeopleV1, AssetFacesV3, AssetOcrV1
 
 客户端用 UTF-8 流解码后按 `\n` 分割，保留尚未闭合的尾部；EOF 时不解析没有换行的最后一段。因此**最后一行也必须有换行**。批量阈值为 5000 条，不是网络分块大小，不能将一个 HTTP chunk 当作一个事件。未知枚举在 `fromJson(...)!` 处可能失败，不保证可忽略。
 
+实现差异（2026-10-14）：下节为上游源码行为。immich-cf 的 reset/clear 后 ACK 加入同步轮次后缀，事务隔离和重复确认恢复见 [P1 Sync 恢复](p1-sync-recovery.md)；该后缀需官方 iOS 复测。
+
 ## 3. ACK、reset 和完成状态机
 
 1. 客户端先取得服务端版本；本地升级迁移可能 DELETE 旧的 AlbumV1、AssetV1/V2 和 EXIF 家族 ACK，再开启流。因此旧事件枚举仍要支持清理。
