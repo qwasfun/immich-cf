@@ -1,0 +1,40 @@
+name: Promote environment
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 已验收并合并的目标分支（dev → test → prod）
+        required: true
+        type: choice
+        options: [dev, test, prod]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.environment }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.environment }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm contracts:verify
+      - name: Apply migrations and deploy selected environment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TARGET_ENV: ${{ inputs.environment }}
+        run: node scripts/release.mjs "$TARGET_ENV"

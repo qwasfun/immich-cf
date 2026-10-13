@@ -2,7 +2,7 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
-当前已增加**本地 P1 身份与空库 Sync 实验**：提供测试用户、密码登录、Cookie/Bearer 会话和空库同步闭环，默认关闭。上传、媒体和完整 Sync 尚未实现，官方 App 兼容性未验收。`/healthz` 成功仅表示 Worker 正在运行。
+当前已增加**本地 P1 身份与空库 Sync 实验**：提供测试用户、密码登录、Cookie/Bearer 会话和空库同步闭环，dev 已开启。上传、媒体和完整 Sync 尚未实现，官方 App 兼容性未验收。`/healthz` 成功仅表示 Worker 正在运行。
 
 ## 需求与开发顺序
 
@@ -12,17 +12,17 @@
 - [P0 契约验证清单](docs/p0-checklist.md)：源码调查、运行验证及关口状态。
 - [P1 本地 PoC](docs/p1-local-poc.md)：启用方式、创建测试用户、验证结果与未完成范围。
 
-## 本地启动
+## 本地调试
 
 需要 Node.js 24（至少 24.9.0）、pnpm 11.25.0 和 Git。
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm db:migrate:local
+pnpm db:migrate:dev
 pnpm dev
 ```
 
-访问 `http://localhost:8787/healthz`。本地开发使用 dev 环境与本地模拟存储，无需 Cloudflare 登录。测试使用独立的非持久化存储，不读取开发图库。
+访问 `http://localhost:8787/healthz`。`pnpm dev` 使用本地代码与远程 dev D1/R2，需要 Cloudflare 授权；`pnpm dev:local` 使用纯本地存储。测试保持隔离。详见[三环境开发与发布](docs/environments.md)。
 
 ```sh
 pnpm check
@@ -32,14 +32,14 @@ pnpm check
 
 ## 环境与名称
 
-| 资源   | 生产（默认配置） | 开发（dev）         | 验收（staging）         |
-| ------ | ---------------- | ------------------- | ----------------------- |
-| Worker | immich-cf-api    | immich-cf-api-dev   | immich-cf-api-staging   |
-| D1     | immich-cf-db     | immich-cf-db-dev    | immich-cf-db-staging    |
-| R2     | immich-cf-media  | immich-cf-media-dev | immich-cf-media-staging |
+| 资源   | 生产（默认配置） | 开发（dev）         | 验收（test）         |
+| ------ | ---------------- | ------------------- | -------------------- |
+| Worker | immich-cf-api    | immich-cf-api-dev   | immich-cf-api-test   |
+| D1     | immich-cf-db     | immich-cf-db-dev    | immich-cf-db-test    |
+| R2     | immich-cf-media  | immich-cf-media-dev | immich-cf-media-test |
 
-生产不添加 `-prod` 后缀。dev 已绑定真实 D1/R2 资源并部署；生产和 staging 的 D1 ID 仍为占位值，尚未创建对应远程资源。
+生产不添加 `-prod` 后缀。dev 已绑定真实 D1/R2 资源并部署；生产和 test 的 D1 ID 仍为占位值，尚未创建对应远程资源。
 
 开发环境健康检查：<https://immich-cf-api-dev.fun.workers.dev/healthz>。资源、验证结果和后续部署步骤见[开发环境部署记录](docs/deployment-dev.md)。
 
-项目版本 `0.1.0` 是自身版本。远程实验开关仍关闭，`/api/*` 返回 501。本地启用 P1 后，仅已实现路由开放；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。
+项目版本 `0.1.0` 是自身版本。远程 dev 已开启 P1，仅已实现路由开放；test/prod 尚未发布；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。

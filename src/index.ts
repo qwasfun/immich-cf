@@ -19,10 +19,7 @@ export default {
           service: 'immich-cf',
           status: 'ok',
           version: env.APP_VERSION,
-          stage:
-            env.APP_ENV === 'development' && String(env.ENABLE_P1_POC) === 'true'
-              ? 'p1-empty-library-poc'
-              : 'scaffold',
+          stage: String(env.ENABLE_P1_POC) === 'true' ? 'p1-empty-library-poc' : 'scaffold',
         },
         200,
         requestId,
@@ -30,7 +27,7 @@ export default {
       return request.method === 'HEAD' ? new Response(null, response) : response;
     }
 
-    if (env.APP_ENV === 'development' && String(env.ENABLE_P1_POC) === 'true') {
+    if (String(env.ENABLE_P1_POC) === 'true') {
       const response = await route(request, env, requestId);
       if (response) return response;
     }

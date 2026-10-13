@@ -7,6 +7,8 @@
 > 本文记录需求基线制定时的状态；后续已完成开发环境骨架部署，尚未完成官方 App 真机兼容性测试。\
 > 2026-10-13 P0 补充：[契约调查与版本冻结报告](../docs/p0-report.md)。v3.3.1 源码契约已冻结，iOS 3.3.1 build 23 已由用户确认，安装构建独立核验与运行验证仍待完成；本文中的未验证项须结合该报告阅读。
 
+> 2026-10-14 环境更新：dev 已开放测试入口，本地默认对接远程 dev；验收环境命名调整为 test。逐级发布与实际可用性见[环境说明](../docs/environments.md)。
+
 ## 1. 决策摘要与证据边界
 
 ### 1.1 产品方向
@@ -22,7 +24,7 @@
 | H-01 | 官方 Immich App 完全不修改 | 不可通过开发定制 App、重新打包或客户端补丁绕过 |
 | H-02 | 优先 Cloudflare 有免费额度的产品，核心为 Workers / D1 / R2 | 免费额度优先，不等于承诺任何规模下永久零费用 |
 | H-03 | 允许不支持大文件上传 | 可以限制单文件大小，但不能把拒绝的文件标记为备份成功 |
-| H-04 | 项目及资源统一以 `immich-cf` 命名 | 用途采用后缀区分；生产不加环境后缀，开发和验收分别加 `-dev`、`-staging` |
+| H-04 | 项目及资源统一以 `immich-cf` 命名 | 用途采用后缀区分；生产不加环境后缀，开发和验收分别加 `-dev`、`-test` |
 | H-05 | 先形成需求，再分阶段开发 | 每阶段必须有依赖、交付证据和退出标准 |
 
 ### 1.3 原对话可恢复程度
@@ -363,14 +365,14 @@ D1 `batch()` 官方定义为事务，语句失败会使批次回滚；可用于�
 
 ### 8.3 统一命名
 
-生产资源直接使用对应名称，不添加 `-prod` 后缀；开发和验收资源分别添加 `-dev`、`-staging` 后缀。
+生产资源直接使用对应名称，不添加 `-prod` 后缀；开发和验收资源分别添加 `-dev`、`-test` 后缀。
 
 | 对象 | 建议名称 |
 | --- | --- |
 | 项目/仓库 | `immich-cf` |
-| Worker | `immich-cf-api-dev`、`immich-cf-api-staging`、`immich-cf-api`（生产） |
-| D1 数据库 | `immich-cf-db-dev`、`immich-cf-db-staging`、`immich-cf-db`（生产） |
-| R2 私有桶 | `immich-cf-media-dev`、`immich-cf-media-staging`、`immich-cf-media`（生产） |
+| Worker | `immich-cf-api-dev`、`immich-cf-api-test`、`immich-cf-api`（生产） |
+| D1 数据库 | `immich-cf-db-dev`、`immich-cf-db-test`、`immich-cf-db`（生产） |
+| R2 私有桶 | `immich-cf-media-dev`、`immich-cf-media-test`、`immich-cf-media`（生产） |
 | 独立备份桶（如启用） | `immich-cf-backup`（生产），其费用单独计入预算 |
 | Binding | `IMMICH_CF_DB`、`IMMICH_CF_MEDIA` |
 | 文档/日志标识 | `immich-cf` + 环境 + 实现版本 |

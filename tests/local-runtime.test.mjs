@@ -14,6 +14,7 @@ before(async () => {
     ip: '127.0.0.1',
     port: 0,
     persist: false,
+    vars: { ENABLE_P1_POC: 'false' },
     experimental: { disableExperimentalWarning: true, forceLocal: true, watch: false },
   });
   platform = await getPlatformProxy({

@@ -32,34 +32,36 @@
       "vars": {
         "APP_ENV": "development",
         "APP_VERSION": "0.1.0",
-        "ENABLE_P1_POC": "false"
+        "ENABLE_P1_POC": "true"
       },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
           "database_name": "immich-cf-db-dev",
           "database_id": "a8754a88-bb89-4d30-af2a-e19a793b253e",
-          "migrations_dir": "migrations"
+          "migrations_dir": "migrations",
+          "remote": true
         }
       ],
       "r2_buckets": [
         {
           "binding": "IMMICH_CF_MEDIA",
-          "bucket_name": "immich-cf-media-dev"
+          "bucket_name": "immich-cf-media-dev",
+          "remote": true
         }
       ]
     },
-    "staging": {
-      "name": "immich-cf-api-staging",
+    "test": {
+      "name": "immich-cf-api-test",
       "vars": {
-        "APP_ENV": "staging",
+        "APP_ENV": "test",
         "APP_VERSION": "0.1.0",
         "ENABLE_P1_POC": "false"
       },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
-          "database_name": "immich-cf-db-staging",
+          "database_name": "immich-cf-db-test",
           "database_id": "00000000-0000-0000-0000-000000000002",
           "migrations_dir": "migrations"
         }
@@ -67,10 +69,33 @@
       "r2_buckets": [
         {
           "binding": "IMMICH_CF_MEDIA",
-          "bucket_name": "immich-cf-media-staging"
+          "bucket_name": "immich-cf-media-test"
+        }
+      ]
+    },
+    "prod": {
+      "name": "immich-cf-api",
+      "vars": {
+        "APP_ENV": "production",
+        "APP_VERSION": "0.1.0",
+        "ENABLE_P1_POC": "false"
+      },
+      "d1_databases": [
+        {
+          "binding": "IMMICH_CF_DB",
+          "database_name": "immich-cf-db",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "IMMICH_CF_MEDIA",
+          "bucket_name": "immich-cf-media"
         }
       ]
     }
   },
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "f94fe289bd879e05e4a9faac06dfdf40"
 }
