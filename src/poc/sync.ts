@@ -40,7 +40,9 @@ export async function sync(
       await db.batch([
         db.prepare('DELETE FROM sync_checkpoints WHERE session_id = ?').bind(session),
         db.prepare('DELETE FROM sync_deliveries WHERE session_id = ?').bind(session),
-        db.prepare('UPDATE sessions SET reset_pending = 0 WHERE id = ?').bind(session),
+        db
+          .prepare('UPDATE sessions SET reset_pending = 0, updated_at = ? WHERE id = ?')
+          .bind(Date.now(), session),
       ]);
       return new Response(null, { status: 204 });
     }
@@ -79,7 +81,10 @@ export async function sync(
     ? Number.parseInt(complete.ack.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
     : Date.now();
   if (input.reset || identity.reset_pending || Date.now() - completeTime > 30 * 86400000) {
-    await db.prepare('UPDATE sessions SET reset_pending = 1 WHERE id = ?').bind(session).run();
+    await db
+      .prepare('UPDATE sessions SET reset_pending = 1, updated_at = ? WHERE id = ?')
+      .bind(Date.now(), session)
+      .run();
     return lines([{ type: 'SyncResetV1', data: {}, ack: 'SyncResetV1|reset' }]);
   }
   const events: { type: string; data: unknown; ack: string }[] = [];

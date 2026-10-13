@@ -33,7 +33,11 @@ before(async () => {
     remoteBindings: false,
   });
   db = platform.env.IMMICH_CF_DB;
-  for (const file of ['0001_project_metadata.sql', '0002_p1_identity.sql']) {
+  for (const file of [
+    '0001_project_metadata.sql',
+    '0002_p1_identity.sql',
+    '0003_session_details.sql',
+  ]) {
     const sql = await readFile(`migrations/${file}`, 'utf8');
     await db.batch(
       sql
@@ -253,4 +257,89 @@ test('登录限流在昂贵密码校验之前生效', async () => {
   const r = await send('/api/auth/login', { email: 'limited@example.invalid', password: 'wrong' });
   assert.equal(r.status, 429);
   assert.equal(r.headers.get('retry-after'), '60');
+});
+
+test('App 并行用户刷新所需偏好读取，默认值符合冻结契约且写入不伪成功', async () => {
+  await db.prepare('DELETE FROM login_buckets').run();
+  assert.equal((await worker.fetch('/api/users/me/preferences')).status, 401);
+  const { token } = await login();
+  const headers = { Authorization: `Bearer ${token}` };
+  const [me, prefs] = await Promise.all([
+    worker.fetch('/api/users/me', { headers }),
+    worker.fetch('/api/users/me/preferences', { headers }),
+  ]);
+  assert.equal(me.status, 200);
+  assert.equal(prefs.status, 200);
+  const value = await prefs.json();
+  schema(value, 'UserPreferencesResponseDto');
+  assert.equal(value.download.archiveSize, 4294967296);
+  assert.equal(value.people.minimumFaces, 3);
+  assert.equal(value.albums.defaultAssetOrder, 'desc');
+  assert.equal(prefs.headers.get('cache-control'), 'no-store');
+  assert.equal(
+    (await send('/api/users/me/preferences', { memories: { enabled: false } }, token, 'PUT'))
+      .status,
+    501,
+  );
+  assert.deepEqual(
+    await (await worker.fetch('/api/users/me/preferences', { headers })).json(),
+    value,
+  );
+});
+
+test('会话列表无秘密、隔离用户、批量撤销保留当前会话并清理同步状态', async () => {
+  await db.prepare('DELETE FROM login_buckets').run();
+  const a = await login(),
+    b = await login();
+  const get = (token) =>
+    worker.fetch('/api/sessions', { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal((await worker.fetch('/api/sessions')).status, 401);
+  const rows = await (await get(a.token)).json();
+  for (const row of rows) schema(row, 'SessionResponseDto');
+  assert.equal(rows.filter((row) => row.current).length, 1);
+  assert.ok(rows.every((row) => !('token' in row) && !('token_hash' in row)));
+  const bId = (await (await get(b.token)).json()).find((row) => row.current).id;
+  await send('/api/sync/stream', { types: ['AuthUsersV2'] }, b.token);
+  const foreignUser = crypto.randomUUID(),
+    foreignSession = crypto.randomUUID();
+  await db
+    .prepare(
+      'INSERT INTO users SELECT ?, ?, name, password_hash, created_at, update_id, disabled FROM users WHERE id = ?',
+    )
+    .bind(foreignUser, 'other@example.invalid', userId)
+    .run();
+  await db
+    .prepare('INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)')
+    .bind(foreignSession, foreignUser, 'foreign-hash', Date.now() + 86400000)
+    .run();
+  assert.ok(!(await (await get(a.token)).json()).some((row) => row.id === foreignSession));
+  assert.equal((await send(`/api/sessions/${foreignSession}`, {}, a.token, 'DELETE')).status, 400);
+  const invalidId = await send('/api/sessions/not-a-uuid', {}, a.token, 'DELETE');
+  assert.equal(invalidId.status, 400);
+  assert.deepEqual((await invalidId.json()).errors[0].path, ['id']);
+  assert.equal(
+    (
+      await worker.fetch('/api/sessions', {
+        method: 'DELETE',
+        headers: { Cookie: `immich_access_token=${a.token}`, Origin: 'https://evil.invalid' },
+      })
+    ).status,
+    403,
+  );
+  assert.equal((await send('/api/sessions', {}, a.token, 'DELETE')).status, 204);
+  assert.equal((await get(b.token)).status, 401);
+  assert.equal((await get(a.token)).status, 200);
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT count(*) AS n FROM sync_deliveries WHERE session_id = ?')
+        .bind(bId)
+        .first()
+    ).n,
+    0,
+  );
+  assert.ok(await db.prepare('SELECT id FROM sessions WHERE id = ?').bind(foreignSession).first());
+  const aId = (await (await get(a.token)).json()).find((row) => row.current).id;
+  assert.equal((await send(`/api/sessions/${aId}`, {}, a.token, 'DELETE')).status, 204);
+  assert.equal((await get(a.token)).status, 401);
 });

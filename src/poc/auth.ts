@@ -85,8 +85,10 @@ export async function login(request: Request, db: D1Database) {
   await db.batch([
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now),
     db
-      .prepare('INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
-      .bind(crypto.randomUUID(), user.id, await digest(token), expires),
+      .prepare(
+        'INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(crypto.randomUUID(), user.id, await digest(token), expires, now, now),
   ]);
   return { token, expires, user };
 }

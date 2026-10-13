@@ -1,6 +1,8 @@
 import { authenticate, cookies, login, userDto } from './auth';
 import { HttpError } from './http';
 import { sync } from './sync';
+import { defaultPreferences } from './preferences';
+import { sessions } from './sessions';
 
 const methods: Record<string, string[]> = {
   '/.well-known/immich': ['GET'],
@@ -13,6 +15,8 @@ const methods: Record<string, string[]> = {
   '/api/auth/validateToken': ['POST'],
   '/api/auth/status': ['GET'],
   '/api/users/me': ['GET'],
+  '/api/users/me/preferences': ['GET', 'PUT'],
+  '/api/sessions': ['GET', 'DELETE', 'POST'],
   '/api/sync/stream': ['POST'],
   '/api/sync/ack': ['GET', 'POST', 'DELETE'],
 };
@@ -23,7 +27,8 @@ export async function route(
   requestId: string,
 ): Promise<Response | null> {
   const path = new URL(request.url).pathname;
-  const allowed = methods[path];
+  const allowed =
+    methods[path] ?? (/^\/api\/sessions\/[^/]+$/.test(path) ? ['DELETE', 'PUT'] : undefined);
   if (!allowed) return null;
   let response: Response;
   try {
@@ -123,6 +128,16 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/users/me/preferences') {
+    if (request.method === 'PUT')
+      throw new HttpError(501, '偏好设置：暂不支持保存，请保留默认设置');
+    return Response.json(defaultPreferences());
+  }
+  if (path === '/api/sessions' || path.startsWith('/api/sessions/')) {
+    if (request.method === 'POST' || request.method === 'PUT')
+      throw new HttpError(501, '会话：暂不支持创建子会话或修改同步状态');
+    return sessions(request, db, identity);
+  }
   if (path === '/api/users/me') return Response.json(userDto(identity));
   if (path === '/api/auth/validateToken') return Response.json({ authStatus: true });
   if (path === '/api/auth/status')

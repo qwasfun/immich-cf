@@ -1,0 +1,26 @@
+{
+  "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "checkedAt": "2026-10-14",
+  "sources": [
+    {
+      "path": "mobile/lib/infrastructure/repositories/user_api.repository.dart",
+      "sha256": "f9071407bf819876403978f83dc9083a95c4efccccbb50fd23bef54ffcf5d4e0",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/user_api.repository.dart"
+    },
+    {
+      "path": "server/src/utils/preferences.ts",
+      "sha256": "c9dd2908412ca62e0b6976814ac180466cec191529b58ad595995843a55ab325",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/utils/preferences.ts"
+    },
+    {
+      "path": "server/src/services/session.service.ts",
+      "sha256": "7c8696f155e729d8216630da5cd6fd7d297d93ffce3e87be2efb889f538a589e",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/session.service.ts"
+    },
+    {
+      "path": "server/src/dtos/user-preferences.dto.ts",
+      "sha256": "ef0bcca86a979454d0dc53b7fdbc05fc9714d8a1fdb233cd3f6e55b0e3044318",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/dtos/user-preferences.dto.ts"
+    }
+  ]
+}
