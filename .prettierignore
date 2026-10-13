@@ -1,0 +1,9 @@
+node_modules
+.wrangler
+dist
+coverage
+work
+worker-configuration.d.ts
+pnpm-lock.yaml
+# 保持已交付需求文档的原始排版。
+outputs/immich-cf-完整需求文档.md

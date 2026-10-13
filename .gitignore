@@ -1,0 +1,22 @@
+node_modules/
+.wrangler/
+dist/
+coverage/
+work/
+worker-configuration.d.ts
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+.DS_Store
+Thumbs.db
+
+# 测试素材可能包含私人照片，默认不入库。
+tests/private-fixtures/

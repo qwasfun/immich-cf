@@ -1,0 +1,31 @@
+{
+  "name": "immich-cf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare 上的 Immich 兼容服务端验证项目",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.9.0 <25",
+    "pnpm": "11.x"
+  },
+  "scripts": {
+    "dev": "wrangler dev --env dev --local",
+    "types": "wrangler types --env dev",
+    "typecheck": "pnpm types && tsc --noEmit",
+    "lint": "eslint src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "build": "wrangler deploy --env dev --dry-run --outdir dist",
+    "db:migrate:local": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --local",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "eslint": "10.12.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "wrangler": "4.149.0"
+  }
+}

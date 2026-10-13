@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "immich-cf-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-13",
+  "workers_dev": true,
+  "preview_urls": false,
+  "send_metrics": false,
+  "vars": { "APP_ENV": "production", "APP_VERSION": "0.1.0" },
+  "d1_databases": [
+    {
+      "binding": "IMMICH_CF_DB",
+      "database_name": "immich-cf-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media" }],
+  "env": {
+    "dev": {
+      "name": "immich-cf-api-dev",
+      "vars": { "APP_ENV": "development", "APP_VERSION": "0.1.0" },
+      "d1_databases": [
+        {
+          "binding": "IMMICH_CF_DB",
+          "database_name": "immich-cf-db-dev",
+          "database_id": "00000000-0000-0000-0000-000000000001",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media-dev" }]
+    },
+    "staging": {
+      "name": "immich-cf-api-staging",
+      "vars": { "APP_ENV": "staging", "APP_VERSION": "0.1.0" },
+      "d1_databases": [
+        {
+          "binding": "IMMICH_CF_DB",
+          "database_name": "immich-cf-db-staging",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media-staging" }]
+    }
+  }
+}
