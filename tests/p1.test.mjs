@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
@@ -26,6 +28,25 @@ const config = {
 };
 before(async () => {
   await mkdir(state, { recursive: true });
+  const require = createRequire(import.meta.url);
+  const cli = path.resolve(path.dirname(require.resolve('wrangler')), '../bin/wrangler.js');
+  // Exercise the release SQL parser too: hand-splitting SQL hid a CASE/END migration failure.
+  execFileSync(
+    process.execPath,
+    [
+      cli,
+      'd1',
+      'migrations',
+      'apply',
+      'IMMICH_CF_DB',
+      '--env',
+      'dev',
+      '--local',
+      '--persist-to',
+      state,
+    ],
+    { stdio: 'pipe' },
+  );
   platform = await getPlatformProxy({
     configPath: 'wrangler.json',
     environment: 'dev',
@@ -33,25 +54,6 @@ before(async () => {
     remoteBindings: false,
   });
   db = platform.env.IMMICH_CF_DB;
-  for (const file of [
-    '0001_project_metadata.sql',
-    '0002_p1_identity.sql',
-    '0003_session_details.sql',
-    '0004_onboarding.sql',
-    '0005_small_assets.sql',
-    '0006_upload_intents.sql',
-    '0007_sync_epochs.sql',
-  ]) {
-    const sql = await readFile(`migrations/${file}`, 'utf8');
-    await db.batch(
-      sql
-        .replace(/--[^\n]*/g, '')
-        .split(/;(?!\s*END;)/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => db.prepare(s)),
-    );
-  }
   await db
     .prepare(
       'INSERT INTO users (id,email,name,password_hash,created_at,update_id) VALUES (?,?,?,?,?,?)',
