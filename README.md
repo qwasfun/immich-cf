@@ -2,7 +2,7 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
-当前为 **P1 小图片实验**：dev 支持身份、会话、onboarding、少量 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 2 MiB / 400 万像素，每账户最多 20 张；完整备份与官方 App 非空图库显示仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
+当前为 **P1 小图片实验**：dev 支持身份、会话、onboarding、少量 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 2 MiB / 400 万像素，每账户最多 20 张；官方 iOS 单张上传、显示与预览已获用户确认；完整备份仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
 
 ## 需求与开发顺序
 
@@ -13,6 +13,7 @@
 - [P1 本地 PoC](docs/p1-local-poc.md)：启用方式、创建测试用户、验证结果与未完成范围。
 - [P1 用户初始化与会话管理](docs/p1-initialization.md)：偏好读取、会话列表与撤销、迁移及验证边界。
 - [P1 登录初始化 HTTP 接口](docs/p1-login-bootstrap.md)：官方登录调用核对、onboarding 读写及元数据同步、媒体能力边界。
+- [P1 上传可靠性与异常恢复](docs/p1-reliability.md)：持久化上传预约、故障注入、同步重试及剩余关口。
 - [P1 小图片闭环](docs/p1-small-images.md)：上传限制、Sync 与私有读取、真机步骤及剩余风险。
 
 ## 本地调试

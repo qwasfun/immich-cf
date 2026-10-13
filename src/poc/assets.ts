@@ -135,59 +135,105 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   const db = env.IMMICH_CF_DB;
   const find = () =>
     db
-      .prepare('SELECT id FROM assets WHERE owner_id = ? AND checksum = ?')
+      .prepare('SELECT id,object_key,mime FROM assets WHERE owner_id = ? AND checksum = ?')
       .bind(identity.id, hash)
-      .first<{ id: string }>();
-  const existing = await find();
-  if (existing) return Response.json({ id: existing.id, status: 'duplicate' });
-  const count = await db
-    .prepare('SELECT COUNT(*) AS n FROM assets WHERE owner_id = ?')
-    .bind(identity.id)
-    .first<{ n: number }>();
-  if (count!.n >= 20)
-    throw new HttpError(409, 'assetData：当前实验账户最多 20 张，请停止批量备份', 'assetData');
-  const id = crypto.randomUUID(),
-    key = `${identity.id}/${id}/original`;
-  await env.IMMICH_CF_MEDIA.put(key, bytes, { httpMetadata: { contentType: info.mime } });
-  // R2 first: never publish a D1 row pointing at a not-yet-written object.
-  // An ambiguous database failure retains the object for reconciliation instead of risking data loss.
+      .first<{ id: string; object_key: string; mime: string }>();
+  const duplicate = async (existing: { id: string; object_key: string; mime: string }) => {
+    // A retry also repairs a missing object, without changing the published asset or cursor.
+    if (!(await env.IMMICH_CF_MEDIA.head(existing.object_key)))
+      await env.IMMICH_CF_MEDIA.put(existing.object_key, bytes, {
+        httpMetadata: { contentType: existing.mime },
+      });
+    return Response.json({ id: existing.id, status: 'duplicate' });
+  };
   try {
+    const existing = await find();
+    if (existing) return await duplicate(existing);
+    const candidate = crypto.randomUUID();
+    // Reserve before R2, so every retry/concurrent request reuses the same private key.
+    // The SELECT also handles an upload that committed since the initial lookup.
     await db
       .prepare(
-        `INSERT INTO assets (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,checksum) DO NOTHING`,
+        `INSERT INTO upload_intents (owner_id,checksum,id,object_key,created_at)
+        SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM assets WHERE owner_id=? AND checksum=?)
+        ON CONFLICT(owner_id,checksum) DO NOTHING`,
       )
       .bind(
-        id,
         identity.id,
         hash,
-        key,
-        name,
-        info.mime,
-        file.size,
-        info.width,
-        info.height,
+        candidate,
+        `${identity.id}/${candidate}/original`,
         new Date().toISOString(),
-        created,
-        modified,
-        favorite === 'true' ? 1 : 0,
-        JSON.stringify(metadata),
+        identity.id,
+        hash,
       )
       .run();
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('ASSET_LIMIT')) {
-      await env.IMMICH_CF_MEDIA.delete(key);
-      throw new HttpError(409, 'assetData：当前实验账户最多 20 张，请停止批量备份', 'assetData');
+    const intent = await db
+      .prepare(
+        'SELECT id,object_key,created_at FROM upload_intents WHERE owner_id=? AND checksum=?',
+      )
+      .bind(identity.id, hash)
+      .first<{ id: string; object_key: string; created_at: string }>();
+    if (!intent) {
+      const committed = await find();
+      if (committed) return await duplicate(committed);
+      throw new HttpError(503, 'assetData：上传状态暂不可确认，请重试同一图片', 'assetData');
     }
-    throw error;
+    await env.IMMICH_CF_MEDIA.put(intent.object_key, bytes, {
+      httpMetadata: { contentType: info.mime },
+    });
+    // D1 batch is transactional: publishing and removing the intent succeed together.
+    // Never delete this shared R2 key on an ambiguous failure or a competing retry.
+    const result = await db.batch([
+      db
+        .prepare(
+          `INSERT INTO assets
+        (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,checksum) DO NOTHING`,
+        )
+        .bind(
+          intent.id,
+          identity.id,
+          hash,
+          intent.object_key,
+          name,
+          info.mime,
+          file.size,
+          info.width,
+          info.height,
+          intent.created_at,
+          created,
+          modified,
+          favorite === 'true' ? 1 : 0,
+          JSON.stringify(metadata),
+        ),
+      db
+        .prepare(
+          `DELETE FROM upload_intents WHERE owner_id=? AND checksum=?
+          AND EXISTS (SELECT 1 FROM assets WHERE id=?)`,
+        )
+        .bind(identity.id, hash, intent.id),
+    ]);
+    const saved = await find();
+    if (!saved)
+      throw new HttpError(503, 'assetData：保存结果暂不可确认，请重试同一图片', 'assetData');
+    // An older in-flight Worker may have published a different ID during rollout.
+    // Return the actual row and retain the unused intent for later reconciliation.
+    if (saved.id !== intent.id) return await duplicate(saved);
+    return Response.json(
+      { id: intent.id, status: result[0]!.meta.changes ? 'created' : 'duplicate' },
+      { status: result[0]!.meta.changes ? 201 : 200 },
+    );
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    if (error instanceof Error && error.message.includes('ASSET_LIMIT'))
+      throw new HttpError(
+        409,
+        'assetData：当前实验账户最多 20 张（含待恢复上传），请重试未完成图片或停止批量备份',
+        'assetData',
+      );
+    throw new HttpError(503, 'assetData：图片暂未确认保存，请稍后重试同一图片', 'assetData');
   }
-  const saved = await find();
-  if (!saved) throw new HttpError(503, 'assetData：保存结果暂不可确认，请重试');
-  if (saved.id !== id) {
-    await env.IMMICH_CF_MEDIA.delete(key);
-    return Response.json({ id: saved.id, status: 'duplicate' });
-  }
-  return Response.json({ id, status: 'created' }, { status: 201 });
 }
 export async function bulkCheck(request: Request, db: D1Database, identity: Identity) {
   const input = await body(request);

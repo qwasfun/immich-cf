@@ -39,6 +39,7 @@ before(async () => {
     '0003_session_details.sql',
     '0004_onboarding.sql',
     '0005_small_assets.sql',
+    '0006_upload_intents.sql',
   ]) {
     const sql = await readFile(`migrations/${file}`, 'utf8');
     await db.batch(
@@ -63,7 +64,7 @@ before(async () => {
       '019e0000-0000-7000-8000-000000000001',
     )
     .run();
-  worker = await unstable_dev('src/index.ts', config);
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
 });
 after(async () => {
   try {
@@ -163,7 +164,7 @@ test('Cookie/Bearer、持久化、会话隔离、撤销和过期', async () => {
   const stored = await db.prepare('SELECT token_hash FROM sessions').all();
   assert.ok(stored.results.every((r) => r.token_hash !== a.token && r.token_hash !== b.token));
   await worker.stop();
-  worker = await unstable_dev('src/index.ts', config);
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
   assert.equal(
     (await worker.fetch('/api/users/me', { headers: { Authorization: `Bearer ${a.token}` } }))
       .status,
@@ -374,7 +375,7 @@ test('初始化 onboarding 持久化、字段校验、隔离、Sync 增量与删
   assert.equal(save.status, 200);
   schema(await save.json(), 'OnboardingResponseDto');
   await worker.stop();
-  worker = await unstable_dev('src/index.ts', config);
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
   assert.deepEqual(await (await get()).json(), { isOnboarded: true });
   const initial = await stream();
   assert.equal(initial[0].type, 'UserMetadataV1');
@@ -575,7 +576,7 @@ test('小图片上传、重复检测、Sync 资产、详情与私有媒体读取
   await send('/api/sync/ack', { types: ['AssetV2', 'AssetMetadataV1'] }, token, 'DELETE');
   assert.equal((await stream()).filter((x) => x.type === 'AssetV2').length, 2);
   await worker.stop();
-  worker = await unstable_dev('src/index.ts', config);
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
   assert.deepEqual(
     Buffer.from(
       await (await worker.fetch(`/api/assets/${saved.id}/original`, { headers })).arrayBuffer(),
@@ -645,5 +646,211 @@ test('官方客户端资产 owner 外键：AuthUser 已确认的旧会话补发 
     );
   } finally {
     client.close();
+  }
+});
+
+async function reliabilityAccount() {
+  const { createHash } = await import('node:crypto');
+  const id = crypto.randomUUID(),
+    token = crypto.randomUUID().replaceAll('-', '').repeat(2);
+  await db
+    .prepare(
+      'INSERT INTO users SELECT ?, ?, name, password_hash, created_at, update_id, disabled FROM users WHERE id=?',
+    )
+    .bind(id, `${id}@example.invalid`, userId)
+    .run();
+  await db
+    .prepare('INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)')
+    .bind(
+      crypto.randomUUID(),
+      id,
+      createHash('sha256').update(token).digest('hex'),
+      Date.now() + 86400000,
+    )
+    .run();
+  return { id, token };
+}
+async function uploadFixture(token, file = 'small.png', fault = '') {
+  const form = new FormData();
+  form.set('assetData', new File([await readFile(`tests/fixtures/${file}`)], `恢复测试-${file}`));
+  form.set('fileCreatedAt', '2026-10-14T00:00:00Z');
+  form.set('fileModifiedAt', '2026-10-14T00:00:00Z');
+  const encoded = new Request('http://localhost/api/assets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'x-test-storage-fault': fault },
+    body: form,
+  });
+  return worker.fetch('/api/assets', {
+    method: 'POST',
+    headers: Object.fromEntries(encoded.headers),
+    body: await encoded.arrayBuffer(),
+  });
+}
+
+test('上传 D1 事务失败可恢复：保留意图、重启复用 R2、响应丢失和并发只生成一个资产', async () => {
+  const { id, token } = await reliabilityAccount();
+  // Fail the second statement: asset insertion must roll back with intent deletion.
+  await db
+    .prepare(
+      `CREATE TRIGGER test_upload_failure BEFORE DELETE ON upload_intents
+    WHEN OLD.owner_id = '${id}' BEGIN SELECT RAISE(ABORT, 'TEST_D1_FAILURE'); END`,
+    )
+    .run();
+  try {
+    for (let n = 0; n < 2; n++) {
+      const failure = await uploadFixture(token);
+      assert.equal(failure.status, 503);
+      assert.deepEqual((await failure.json()).errors[0].path, ['assetData']);
+    }
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+      0,
+    );
+    const intents = (
+      await db.prepare('SELECT * FROM upload_intents WHERE owner_id=?').bind(id).all()
+    ).results;
+    assert.equal(intents.length, 1);
+    const objects = await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${id}/` });
+    assert.deepEqual(
+      objects.objects.map((x) => x.key),
+      [intents[0].object_key],
+    );
+    await worker.stop();
+    worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
+  } finally {
+    await db.prepare('DROP TRIGGER test_upload_failure').run();
+  }
+  const pending = await db
+    .prepare('SELECT id,object_key FROM upload_intents WHERE owner_id=?')
+    .bind(id)
+    .first();
+  const recovered = await uploadFixture(token);
+  assert.equal(recovered.status, 201);
+  const saved = await recovered.json();
+  assert.equal(saved.id, pending.id);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first()).n,
+    0,
+  );
+  // Simulate a caller losing the successful response, then repeating the entire upload.
+  assert.deepEqual(await (await uploadFixture(token)).json(), {
+    id: saved.id,
+    status: 'duplicate',
+  });
+  const raced = await Promise.all([1, 2, 3].map(() => uploadFixture(token, 'small.jpg')));
+  assert.deepEqual(raced.map((r) => r.status).sort(), [200, 200, 201]);
+  const bodies = await Promise.all(raced.map((r) => r.json()));
+  assert.equal(new Set(bodies.map((x) => x.id)).size, 1);
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${id}/` })).objects.length, 2);
+  // An existing D1 row must not silently report duplicate when its object is missing.
+  await platform.env.IMMICH_CF_MEDIA.delete(pending.object_key);
+  const headers = { Authorization: `Bearer ${token}` };
+  assert.equal((await worker.fetch(`/api/assets/${saved.id}/original`, { headers })).status, 503);
+  assert.equal((await uploadFixture(token)).status, 200);
+  const restored = await worker.fetch(`/api/assets/${saved.id}/original`, { headers });
+  assert.equal(restored.status, 200);
+  assert.deepEqual(
+    Buffer.from(await restored.arrayBuffer()),
+    await readFile('tests/fixtures/small.png'),
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+    2,
+  );
+});
+
+test('未完成上传占用容量，超限拒绝在 R2 写入之前；已有预约仍可恢复', async () => {
+  const { id, token } = await reliabilityAccount();
+  const { createHash } = await import('node:crypto');
+  const pngHash = createHash('sha1')
+    .update(await readFile('tests/fixtures/small.png'))
+    .digest('base64');
+  for (let i = 0; i < 20; i++) {
+    const asset = crypto.randomUUID();
+    await db
+      .prepare('INSERT INTO upload_intents VALUES (?,?,?,?,?)')
+      .bind(
+        id,
+        i === 0 ? pngHash : `pending-${i}`,
+        asset,
+        `${id}/${asset}/original`,
+        new Date().toISOString(),
+      )
+      .run();
+  }
+  const denied = await uploadFixture(token, 'small.jpg');
+  assert.equal(denied.status, 409);
+  assert.deepEqual((await denied.json()).errors[0].path, ['assetData']);
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${id}/` })).objects.length, 0);
+  assert.equal((await uploadFixture(token)).status, 201);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first()).n,
+    19,
+  );
+});
+
+test('非空 Sync 未确认重拉、部分 ACK、混合非法 ACK 原子拒绝、乱序重放不回退', async () => {
+  await db.prepare('DELETE FROM login_buckets').run();
+  const { token } = await login();
+  const stream = async () => {
+    const r = await send('/api/sync/stream', { types: manifest.sync.requestedTypes }, token);
+    assert.equal(r.status, 200);
+    return (await r.text()).trim().split('\n').map(JSON.parse);
+  };
+  const interrupted = await send(
+    '/api/sync/stream',
+    { types: manifest.sync.requestedTypes },
+    token,
+  );
+  const reader = interrupted.body.getReader();
+  await reader.read();
+  await reader.cancel(); // Client stops consuming without committing any ACK.
+  const first = await stream();
+  // No ACK after an interrupted/failed client application: same asset events replay.
+  const assets = (events) => events.filter((e) => e.type === 'AssetV2');
+  assert.deepEqual(assets(await stream()), assets(first));
+  const prefix = first.slice(0, first.findIndex((e) => e.type === 'AssetV2') + 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: [...prefix.map((e) => e.ack), 'AssetV2|unknown'] }, token))
+      .status,
+    400,
+  );
+  assert.deepEqual(assets(await stream()), assets(first));
+  assert.equal(
+    (await send('/api/sync/ack', { acks: prefix.map((e) => e.ack) }, token)).status,
+    204,
+  );
+  const remaining = await stream();
+  assert.deepEqual(assets(remaining), assets(first).slice(1));
+  const all = first.map((e) => e.ack);
+  const responses = await Promise.all([
+    send('/api/sync/ack', { acks: all }, token),
+    send('/api/sync/ack', { acks: prefix.map((e) => e.ack) }, token),
+  ]);
+  assert.ok(responses.every((r) => r.status === 204));
+  assert.deepEqual(assets(await stream()), []);
+});
+
+test('R2 写前失败、写后响应丢失、D1 提交后响应丢失均可重复上传恢复', async () => {
+  for (const fault of ['before-r2', 'after-r2', 'after-d1']) {
+    const { id, token } = await reliabilityAccount();
+    const failed = await uploadFixture(token, 'small.png', fault);
+    assert.equal(failed.status, 503, fault);
+    const intent = await db
+      .prepare('SELECT id FROM upload_intents WHERE owner_id=?')
+      .bind(id)
+      .first();
+    const asset = await db.prepare('SELECT id FROM assets WHERE owner_id=?').bind(id).first();
+    assert.equal(!!asset, fault === 'after-d1');
+    assert.equal(!!intent, fault !== 'after-d1');
+    const retry = await uploadFixture(token);
+    assert.equal(retry.status, fault === 'after-d1' ? 200 : 201);
+    assert.equal((await retry.json()).id, (asset ?? intent).id);
+    assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${id}/` })).objects.length, 1);
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first())
+        .n,
+      0,
+    );
   }
 });
