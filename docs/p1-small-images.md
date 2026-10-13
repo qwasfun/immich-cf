@@ -45,3 +45,13 @@ Sync 使用补零整数序列不透明 ACK；按 seq 返回最多 20 张现有�
 3. 打开该图片，确认预览正常；重启后再查看。该图片不是手机本地照片，能显示才有助于确认远程读取链路。
 4. 再手动上传一张缩小后的静态 JPEG/PNG（小于 2 MiB、400 万像素），确认上传成功并刷新。不要直接启用整个系统相册备份。
 5. 报告图片是否出现、预览是否清晰、上传/Sync/图片加载日志及北京时间。请勿发送含访问令牌的完整请求头。
+
+## 2026-10-14 部署记录
+
+- 代码提交 `89cb6df`；`pnpm check` 通过（14 项测试、类型、lint、格式、构建），冻结契约校验通过。
+- dev 已应用 0005；Worker 版本 `6a8e5c92-2d9e-4629-a602-2520c33af3ae`。test/prod 未变更。
+- 公网合成 PNG 上传 201、重复上传 200；thumbnail/preview 与 original 均 200，SHA-256 与本地原文件一致；未登录读取 401。
+- Sync 返回 AuthUserV2、AssetV2、SyncCompleteV1，ACK 204，后续 AssetsV2 拉取不重复返回已确认资产。
+- 留给官方 App 验收的资产 ID：`79abe1b1-2bab-4e42-9d77-2aa2dbb2e984`，文件名 `immich-cf-dev-test.png`，320×240；仅 dev 测试账户可读。冒烟会话已注销，不改动用户既有会话。
+- 首次 PowerShell `-Form` 上传被 multipart 解析拒绝（400）；显式构造标准 multipart、采用 application/octet-stream 文件段后通过。具体编码差异尚未定位，不能据此声称接受所有合法 multipart 变体；官方 iOS 实际上传仍需验证。
+- 尚未收到本增量的官方 iOS 显示结果；仅服务端上传→Sync→媒体读取闭环通过，不将其记为 App 已显示或非空图库全量兼容。
