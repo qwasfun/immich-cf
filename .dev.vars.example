@@ -1,0 +1,2 @@
+# 仅限本地 P1 空库实验。复制为 .dev.vars 后生效，真实部署默认关闭。
+ENABLE_P1_POC=true

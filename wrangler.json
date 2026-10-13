@@ -6,7 +6,11 @@
   "workers_dev": true,
   "preview_urls": false,
   "send_metrics": false,
-  "vars": { "APP_ENV": "production", "APP_VERSION": "0.1.0" },
+  "vars": {
+    "APP_ENV": "production",
+    "APP_VERSION": "0.1.0",
+    "ENABLE_P1_POC": "false"
+  },
   "d1_databases": [
     {
       "binding": "IMMICH_CF_DB",
@@ -15,12 +19,21 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media" }],
+  "r2_buckets": [
+    {
+      "binding": "IMMICH_CF_MEDIA",
+      "bucket_name": "immich-cf-media"
+    }
+  ],
   "env": {
     "dev": {
       "name": "immich-cf-api-dev",
       "account_id": "f94fe289bd879e05e4a9faac06dfdf40",
-      "vars": { "APP_ENV": "development", "APP_VERSION": "0.1.0" },
+      "vars": {
+        "APP_ENV": "development",
+        "APP_VERSION": "0.1.0",
+        "ENABLE_P1_POC": "false"
+      },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
@@ -29,11 +42,20 @@
           "migrations_dir": "migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media-dev" }]
+      "r2_buckets": [
+        {
+          "binding": "IMMICH_CF_MEDIA",
+          "bucket_name": "immich-cf-media-dev"
+        }
+      ]
     },
     "staging": {
       "name": "immich-cf-api-staging",
-      "vars": { "APP_ENV": "staging", "APP_VERSION": "0.1.0" },
+      "vars": {
+        "APP_ENV": "staging",
+        "APP_VERSION": "0.1.0",
+        "ENABLE_P1_POC": "false"
+      },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
@@ -42,7 +64,13 @@
           "migrations_dir": "migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "IMMICH_CF_MEDIA", "bucket_name": "immich-cf-media-staging" }]
+      "r2_buckets": [
+        {
+          "binding": "IMMICH_CF_MEDIA",
+          "bucket_name": "immich-cf-media-staging"
+        }
+      ]
     }
-  }
+  },
+  "compatibility_flags": ["nodejs_compat"]
 }

@@ -1,7 +1,8 @@
 import { errorResponse, jsonResponse } from './http/responses';
+import { route } from './poc/routes';
 
 export default {
-  fetch(request, env): Response {
+  async fetch(request, env): Promise<Response> {
     const requestId = crypto.randomUUID();
     const { pathname } = new URL(request.url);
 
@@ -14,17 +15,30 @@ export default {
 
       // 存活检查不代表数据库可用或 Immich 兼容性已通过。
       const response = jsonResponse(
-        { service: 'immich-cf', status: 'ok', version: env.APP_VERSION, stage: 'scaffold' },
+        {
+          service: 'immich-cf',
+          status: 'ok',
+          version: env.APP_VERSION,
+          stage:
+            env.APP_ENV === 'development' && String(env.ENABLE_P1_POC) === 'true'
+              ? 'p1-empty-library-poc'
+              : 'scaffold',
+        },
         200,
         requestId,
       );
       return request.method === 'HEAD' ? new Response(null, response) : response;
     }
 
+    if (env.APP_ENV === 'development' && String(env.ENABLE_P1_POC) === 'true') {
+      const response = await route(request, env, requestId);
+      if (response) return response;
+    }
+
     if (pathname === '/api' || pathname.startsWith('/api/')) {
       return errorResponse(
         'NOT_IMPLEMENTED',
-        'Immich 兼容接口尚未实现，当前版本仅用于项目初始化',
+        '此 Immich 接口尚未实现或实验入口未启用',
         501,
         requestId,
       );
