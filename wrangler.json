@@ -19,12 +19,13 @@
   "env": {
     "dev": {
       "name": "immich-cf-api-dev",
+      "account_id": "f94fe289bd879e05e4a9faac06dfdf40",
       "vars": { "APP_ENV": "development", "APP_VERSION": "0.1.0" },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
           "database_name": "immich-cf-db-dev",
-          "database_id": "00000000-0000-0000-0000-000000000001",
+          "database_id": "a8754a88-bb89-4d30-af2a-e19a793b253e",
           "migrations_dir": "migrations"
         }
       ],

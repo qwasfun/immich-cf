@@ -36,6 +36,8 @@ pnpm check
 | D1     | immich-cf-db     | immich-cf-db-dev    | immich-cf-db-staging    |
 | R2     | immich-cf-media  | immich-cf-media-dev | immich-cf-media-staging |
 
-生产不添加 `-prod` 后缀。配置中的 D1 ID 是明确的占位值，尚未创建远程资源。发布前须创建目标资源并替换对应环境的 ID，详情见开发说明。
+生产不添加 `-prod` 后缀。dev 已绑定真实 D1/R2 资源并部署；生产和 staging 的 D1 ID 仍为占位值，尚未创建对应远程资源。
+
+开发环境健康检查：<https://immich-cf-api-dev.fun.workers.dev/healthz>。资源、验证结果和后续部署步骤见[开发环境部署记录](docs/deployment-dev.md)。
 
 项目版本 `0.1.0` 是自身版本，不是伪装的 Immich 服务端版本。当前 `/api/*` 返回 501，避免未实现的写操作返回假成功。

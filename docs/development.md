@@ -25,17 +25,19 @@ wrangler.json                   生产、dev、staging 配置
 | `pnpm check`            | 执行完整基础检查                           |
 | `pnpm build`            | dry-run 打包到 dist，不部署                |
 
+远程开发环境命令：`pnpm db:migrate:dev` 应用开发库迁移；`pnpm deploy:dev` 发布开发 Worker。两条命令均显式指定 dev，执行前需要有效的 Wrangler 登录。
+
 `pnpm check` 中的 TypeScript 类型检查会自动生成 `worker-configuration.d.ts`。该文件随工具链重新生成，不提交。pnpm 仅允许 esbuild/workerd 的安装构建脚本，依赖版本及 lockfile 均固定。
 
 本地运行时检查不代表 Cloudflare Free CPU/请求预算已通过，也不代表官方 App 已兼容。完整质量矩阵以需求文档为准。
 
 ## 远程资源配置
 
-`wrangler.json` 顶层是生产；dev/staging 显式声明各自绑定与变量，避免误用生产存储。D1 占位 ID 末尾分别为 000、001、002，本地可用，远程部署前必须替换。R2 桶保持私有。
+`wrangler.json` 顶层是生产；dev/staging 显式声明各自绑定与变量，避免误用生产存储。dev 已配置真实账户和 D1 ID；生产与 staging 的 D1 ID 仍为末尾 000、002 的占位值，远程部署前必须替换。R2 桶保持私有。本地开发即使使用真实 dev ID，仍由 `--local` 使用本地模拟资源；ID 变更后请重新执行本地迁移。
 
 正式进入远程 PoC 时，按选定环境逐项创建 D1/R2、记录真实资源 ID、替换配置，再应用该环境迁移并部署。开发用 `--env dev`，验收用 `--env staging`；生产使用顶层配置（`--env` 的值为空字符串）。不要在未指定环境时进行试验性远程操作。
 
-本次初始化没有创建或部署任何云资源。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见需求文档第 4、13 节。
+开发环境已于 2026-10-13 首次部署，详见[部署记录](deployment-dev.md)。生产和 staging 尚未部署。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见需求文档第 4、13 节。
 
 ## 配置与秘密
 
