@@ -3,3 +3,4 @@
 *.jpg binary
 *.jpeg binary
 *.webp binary
+docs/contracts/upstream/* -text -whitespace

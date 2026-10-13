@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "contracts:verify": "node scripts/verify-contracts.mjs",
     "build": "wrangler deploy --env dev --dry-run --outdir dist",
     "deploy:dev": "wrangler deploy --env dev",
     "db:migrate:local": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --local",

@@ -1,14 +1,14 @@
 # P0：兼容性契约调查
 
-状态：**未开始运行验证**。项目初始化不代表 P0、P1 或任何 Go 关口已完成。
+更新：2026-10-13。**源码契约已冻结，运行验证未完成；G0 仅有条件允许有限技术验证。** 详见 [P0 报告](p0-report.md)。
 
-- [ ] P0-01：取得 Android/iOS 官方 App，记录版本、build、渠道和系统。
-- [ ] P0-02：运行参考服务端，固定 tag、完整 commit SHA 和镜像摘要。
-- [ ] P0-03：归档 OpenAPI，梳理初始化、鉴权、备份与媒体调用。
-- [ ] P0-04：审计 Sync 序列化、类型版本、ACK、reset、完成事件和移动端解析器。
+- [ ] P0-01：用户确认 iOS v3.3.1；安装 build、渠道、系统和 Android 验证未完成。
+- [ ] P0-02：tag、完整 SHA 和镜像摘要已固定；参考服务端未运行。
+- [x] P0-03：归档 OpenAPI，完成初始化、鉴权、备份与媒体源码矩阵；实际路径/频率待抓包。
+- [x] P0-04：完成双端 Sync 序列化、类型版本、ACK、reset、完成事件和解析器静态审计；运行用例待执行。
 - [ ] P0-05：使用非私密测试媒体采集参考请求与响应，形成可复现差分夹具。
 - [ ] P0-06：检查目标账户、资源额度、R2 账单条件和非目标端点降级路径。
 
-需求文档曾核实 GitHub latest 指向 v3.3.1，但没有确定商店 App 的实际构建版本。不得直接把此信息当作兼容性版本冻结结果。
+勾选只代表对应源码调查完成，不代表 P0 整体或官方 App 兼容性通过。商店安装构建不能用 pubspec 的 build 代替。
 
-P0 完成后再形成 `compatibility-manifest.json`、`api-contract-matrix.md`、`sync-contract.md` 和脱敏 fixtures。缺失证据保持“未验证”，不得填造构建号、测试结果或兼容承诺。
+交付：[冻结清单](compatibility-manifest.json)、[API 矩阵](api-contract-matrix.md)、[Sync 契约](sync-contract.md)、[上游证据](contracts/README.md)。真实脱敏 fixtures 尚未采集，缺失证据保持“未验证”。

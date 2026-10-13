@@ -7,3 +7,5 @@ worker-configuration.d.ts
 pnpm-lock.yaml
 # 保持已交付需求文档的原始排版。
 outputs/immich-cf-完整需求文档.md
+# 上游证据保持原始字节，摘要用于冻结校验。
+docs/contracts/upstream/
