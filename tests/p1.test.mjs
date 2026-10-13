@@ -38,12 +38,13 @@ before(async () => {
     '0002_p1_identity.sql',
     '0003_session_details.sql',
     '0004_onboarding.sql',
+    '0005_small_assets.sql',
   ]) {
     const sql = await readFile(`migrations/${file}`, 'utf8');
     await db.batch(
       sql
         .replace(/--[^\n]*/g, '')
-        .split(';')
+        .split(/;(?!\s*END;)/)
         .map((s) => s.trim())
         .filter(Boolean)
         .map((s) => db.prepare(s)),
@@ -124,7 +125,7 @@ test('发现、版本、能力和配置符合冻结 schema，非目标写入明�
     assert.equal(r.status, 200);
     schema(await r.json(), name);
   }
-  assert.equal((await send('/api/assets', {})).status, 501);
+  assert.equal((await send('/api/assets', {})).status, 401);
   assert.equal((await send('/api/server/ping', {})).status, 405);
 });
 
@@ -453,5 +454,132 @@ test('初始化 onboarding 持久化、字段校验、隔离、Sync 增量与删
   assert.equal(media.status, 200);
   const types = await media.json();
   schema(types, 'ServerMediaTypesResponseDto');
-  assert.deepEqual(types, { image: [], video: [], sidecar: [] });
+  assert.deepEqual(types, { image: ['image/jpeg', 'image/png'], video: [], sidecar: [] });
+});
+
+test('小图片上传、重复检测、Sync 资产、详情与私有媒体读取闭环', async () => {
+  await db.prepare('DELETE FROM login_buckets').run();
+  const { token } = await login();
+  const headers = { Authorization: `Bearer ${token}` };
+  const png = await readFile('tests/fixtures/small.png');
+  const jpg = await readFile('tests/fixtures/small.jpg');
+  const upload = async (
+    bytes,
+    extra = {},
+    mime = 'application/octet-stream',
+    uploadHeaders = headers,
+  ) => {
+    const form = new FormData();
+    form.set('assetData', new File([bytes], 'small.png', { type: mime }));
+    form.set('fileCreatedAt', '2026-10-14T02:00:00+08:00');
+    form.set('fileModifiedAt', '2026-10-14T02:00:00+08:00');
+    form.set('deviceAssetId', 'ios-test-id');
+    form.set('deviceId', 'ios-test-device');
+    form.set('duration', '0');
+    for (const [k, v] of Object.entries(extra)) form.set(k, v);
+    const encoded = new Request('http://localhost/api/assets', {
+      method: 'POST',
+      headers: uploadHeaders,
+      body: form,
+    });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: Object.fromEntries(encoded.headers),
+      body: await encoded.arrayBuffer(),
+    });
+  };
+  assert.equal((await upload(png, {}, '', {})).status, 401);
+  assert.equal((await upload(Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
+  assert.equal((await upload(Buffer.from('<svg></svg>'))).status, 400);
+  assert.equal((await upload(png, { fileCreatedAt: 'invalid-secret' })).status, 400);
+  assert.equal((await upload(png, { visibility: 'hidden' })).status, 400);
+  assert.equal((await upload(png, { sidecarData: 'not-supported' })).status, 400);
+  assert.equal(
+    (await upload(png, {}, '', { ...headers, 'x-immich-checksum': '0'.repeat(40) })).status,
+    400,
+  );
+  const meta = JSON.stringify([{ key: 'mobile-app', value: { cloudId: 'fixture-only' } }]);
+  const first = await upload(png, { metadata: meta });
+  assert.equal(first.status, 201);
+  const saved = await first.json();
+  schema(saved, 'AssetMediaResponseDto');
+  assert.equal(saved.status, 'created');
+  const duplicate = await upload(png, { metadata: meta });
+  assert.equal(duplicate.status, 200);
+  assert.deepEqual(await duplicate.json(), { id: saved.id, status: 'duplicate' });
+  const concurrent = await Promise.all([upload(jpg), upload(jpg)]);
+  assert.deepEqual(concurrent.map((x) => x.status).sort(), [200, 201]);
+  const ids = await Promise.all(concurrent.map((x) => x.json()));
+  assert.equal(ids[0].id, ids[1].id);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) AS n FROM assets WHERE owner_id=?').bind(userId).first()).n,
+    2,
+  );
+  const info = await worker.fetch(`/api/assets/${saved.id}`, { headers });
+  assert.equal(info.status, 200);
+  const detail = await info.json();
+  schema(detail, 'AssetResponseDto');
+  assert.equal(detail.width, 320);
+  const check = await send(
+    '/api/assets/bulk-upload-check',
+    { assets: [{ id: 'local-fixture', checksum: detail.checksum }] },
+    token,
+  );
+  schema(await check.clone().json(), 'AssetBulkUploadCheckResponseDto');
+  assert.equal((await check.json()).results[0].assetId, saved.id);
+  for (const suffix of [
+    'original',
+    'thumbnail?size=thumbnail',
+    'thumbnail?size=preview&edited=true',
+    'thumbnail?size=fullsize',
+  ]) {
+    const media = await worker.fetch(`/api/assets/${saved.id}/${suffix}`, { headers });
+    assert.equal(media.status, 200);
+    assert.equal(media.headers.get('content-type'), 'image/png');
+    assert.deepEqual(Buffer.from(await media.arrayBuffer()), png);
+    assert.equal((await worker.fetch(`/api/assets/${saved.id}/${suffix}`)).status, 401);
+  }
+  const otherToken = 'e'.repeat(64); // other user created by onboarding isolation test
+  assert.equal(
+    (
+      await worker.fetch(`/api/assets/${saved.id}/original`, {
+        headers: { Authorization: `Bearer ${otherToken}` },
+      })
+    ).status,
+    404,
+  );
+  const stream = async () => {
+    const response = await send(
+      '/api/sync/stream',
+      { types: ['AssetsV2', 'AssetMetadataV1'] },
+      token,
+    );
+    assert.equal(response.status, 200);
+    return (await response.text()).trim().split('\n').map(JSON.parse);
+  };
+  const events = await stream();
+  const assets = events.filter((x) => x.type === 'AssetV2');
+  assert.equal(assets.length, 2);
+  for (const event of assets) schema(event.data, 'SyncAssetV2');
+  const metadata = events.find((x) => x.type === 'AssetMetadataV1');
+  schema(metadata.data, 'SyncAssetMetadataV1');
+  assert.equal(metadata.data.value.cloudId, 'fixture-only');
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((x) => x.ack) }, token)).status,
+    204,
+  );
+  assert.deepEqual(
+    (await stream()).map((x) => x.type),
+    ['SyncCompleteV1'],
+  );
+  await send('/api/sync/ack', { types: ['AssetV2', 'AssetMetadataV1'] }, token, 'DELETE');
+  assert.equal((await stream()).filter((x) => x.type === 'AssetV2').length, 2);
+  await worker.stop();
+  worker = await unstable_dev('src/index.ts', config);
+  assert.deepEqual(
+    Buffer.from(
+      await (await worker.fetch(`/api/assets/${saved.id}/original`, { headers })).arrayBuffer(),
+    ),
+    png,
+  );
 });

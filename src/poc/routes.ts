@@ -4,8 +4,11 @@ import { sync } from './sync';
 import { defaultPreferences } from './preferences';
 import { sessions } from './sessions';
 import { onboarding } from './onboarding';
+import { upload, bulkCheck, readAsset } from './assets';
 
 const methods: Record<string, string[]> = {
+  '/api/assets': ['POST'],
+  '/api/assets/bulk-upload-check': ['POST'],
   '/.well-known/immich': ['GET'],
   '/api/server/ping': ['GET'],
   '/api/server/version': ['GET'],
@@ -30,8 +33,14 @@ export async function route(
   requestId: string,
 ): Promise<Response | null> {
   const path = new URL(request.url).pathname;
+  const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
   const allowed =
-    methods[path] ?? (/^\/api\/sessions\/[^/]+$/.test(path) ? ['DELETE', 'PUT'] : undefined);
+    methods[path] ??
+    (assetPath
+      ? ['GET', 'HEAD']
+      : /^\/api\/sessions\/[^/]+$/.test(path)
+        ? ['DELETE', 'PUT']
+        : undefined);
   if (!allowed) return null;
   let response: Response;
   try {
@@ -61,7 +70,7 @@ export async function route(
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Request-Id', requestId);
-  response.headers.set('X-Immich-Cf-Stage', 'p1-empty-library-poc');
+  response.headers.set('X-Immich-Cf-Stage', 'p1-small-images-poc');
   return response;
 }
 
@@ -69,9 +78,9 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
   const db = env.IMMICH_CF_DB;
   if (path === '/.well-known/immich') return Response.json({ api: { endpoint: '/api' } });
   if (path === '/api/server/ping') return Response.json({ res: 'pong' });
-  // Upload/processing are not implemented; do not advertise upstream media capabilities.
+  // Only static small JPEG/PNG files are supported by this experiment.
   if (path === '/api/server/media-types')
-    return Response.json({ image: [], video: [], sidecar: [] });
+    return Response.json({ image: ['image/jpeg', 'image/png'], video: [], sidecar: [] });
   if (path === '/api/server/version')
     return Response.json({ major: 3, minor: 3, patch: 1, prerelease: null });
   if (path === '/api/server/features')
@@ -101,7 +110,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
       externalDomain: '',
       isInitialized: initialized,
       isOnboarded: initialized,
-      loginPageMessage: 'immich-cf P1 空库实验，尚未通过官方 App 兼容验收',
+      loginPageMessage: 'immich-cf P1 小图片实验，尚未通过完整兼容验收',
       maintenanceMode: false,
       mapDarkStyleUrl: '',
       mapLightStyleUrl: '',
@@ -134,6 +143,10 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/assets') return upload(request, env, identity);
+  if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, db, identity);
+  const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
+  if (assetPath) return readAsset(request, env, identity, assetPath[1]!, assetPath[2]);
   if (path === '/api/users/me/onboarding') return onboarding(request, db, identity);
   if (path === '/api/users/me/preferences') {
     if (request.method === 'PUT')

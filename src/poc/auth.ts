@@ -9,6 +9,8 @@ export interface User {
   created_at: string;
   update_id: string;
   disabled: number;
+  quota_usage?: number;
+  asset_revision?: number;
 }
 export interface Identity extends User {
   session_id: string;
@@ -34,7 +36,7 @@ export function userDto(user: User) {
     profileChangedAt: user.created_at,
     profileImagePath: '',
     quotaSizeInBytes: null,
-    quotaUsageInBytes: 0,
+    quotaUsageInBytes: user.quota_usage ?? 0,
     shouldChangePassword: false,
     status: 'active',
     storageLabel: null,
@@ -110,7 +112,7 @@ export async function authenticate(request: Request, db: D1Database): Promise<Id
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, '请先登录');
   const identity = await db
     .prepare(
-      'SELECT users.*, sessions.id AS session_id, sessions.expires_at, sessions.reset_pending FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND disabled = 0',
+      'SELECT users.*, sessions.id AS session_id, sessions.expires_at, sessions.reset_pending, (SELECT COALESCE(SUM(bytes),0) FROM assets WHERE owner_id = users.id) AS quota_usage, (SELECT COALESCE(MAX(seq),0) FROM assets WHERE owner_id = users.id) AS asset_revision FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND disabled = 0',
     )
     .bind(await digest(token), Date.now())
     .first<Identity>();

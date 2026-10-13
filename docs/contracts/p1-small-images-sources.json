@@ -1,0 +1,26 @@
+{
+  "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "checkedAt": "2026-10-14",
+  "sources": [
+    {
+      "path": "mobile/lib/repositories/upload.repository.dart",
+      "sha256": "46bafe24d952a768f5f6452c0caf928ae81c690badd27c95233d6c39275fa557",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/upload.repository.dart"
+    },
+    {
+      "path": "mobile/lib/services/foreground_upload.service.dart",
+      "sha256": "db066b2a8ece802035c3d9311319e1283d1ddf6c89d532244d38ed6ab083ab3a",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/foreground_upload.service.dart"
+    },
+    {
+      "path": "mobile/lib/utils/image_url_builder.dart",
+      "sha256": "7df073b71b22ef5ade7b1506f1e7086d608b35cf573516cfcf576c81511f9826",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/utils/image_url_builder.dart"
+    },
+    {
+      "path": "mobile/lib/presentation/widgets/images/remote_image_provider.dart",
+      "sha256": "44917ff6816df8adaf579707b5510e8236a15755c50adc5fb414f506cb674aa5",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/presentation/widgets/images/remote_image_provider.dart"
+    }
+  ]
+}

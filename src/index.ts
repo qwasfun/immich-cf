@@ -19,7 +19,7 @@ export default {
           service: 'immich-cf',
           status: 'ok',
           version: env.APP_VERSION,
-          stage: String(env.ENABLE_P1_POC) === 'true' ? 'p1-empty-library-poc' : 'scaffold',
+          stage: String(env.ENABLE_P1_POC) === 'true' ? 'p1-small-images-poc' : 'scaffold',
         },
         200,
         requestId,

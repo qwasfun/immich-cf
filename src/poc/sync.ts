@@ -2,6 +2,7 @@ import type { Identity } from './auth';
 import { body, HttpError, invalid, strings, uuid7 } from './http';
 import { entityTypes, supportedTypes } from './types';
 import { onboardingEvents } from './onboarding';
+import { assetEvents } from './assets';
 
 export async function sync(
   request: Request,
@@ -90,7 +91,7 @@ export async function sync(
   }
   const events: { type: string; data: unknown; ack: string }[] = [];
   if (types.includes('AuthUsersV2')) {
-    const ack = `AuthUserV2|${identity.update_id}`;
+    const ack = `AuthUserV2|${identity.update_id}:${String(identity.asset_revision ?? 0).padStart(20, '0')}`;
     const prior = await db
       .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'AuthUserV2'")
       .bind(session)
@@ -110,13 +111,14 @@ export async function sync(
           pinCode: null,
           profileChangedAt: identity.created_at,
           quotaSizeInBytes: null,
-          quotaUsageInBytes: 0,
+          quotaUsageInBytes: identity.quota_usage ?? 0,
           storageLabel: null,
           avatarColor: 'primary',
         },
       });
   }
   if (types.includes('UserMetadataV1')) events.push(...(await onboardingEvents(db, identity)));
+  events.push(...(await assetEvents(db, identity, types)));
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // 有限空库流在发出之前持久化可确认记录；不支持资产写入或关系 backfill。
   await db.batch([
