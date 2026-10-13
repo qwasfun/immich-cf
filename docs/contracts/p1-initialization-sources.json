@@ -21,6 +21,41 @@
       "path": "server/src/dtos/user-preferences.dto.ts",
       "sha256": "ef0bcca86a979454d0dc53b7fdbc05fc9714d8a1fdb233cd3f6e55b0e3044318",
       "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/dtos/user-preferences.dto.ts"
+    },
+    {
+      "path": "mobile/lib/providers/auth.provider.dart",
+      "sha256": "0f9b6aecd235e20fe56eb9dc0a02132dcab6b5733f13b8ce649c6275d156fc6b",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/auth.provider.dart"
+    },
+    {
+      "path": "mobile/lib/widgets/forms/login/login_form.dart",
+      "sha256": "1729149201613f6b20dd3680be717fab5b4b8dab2db535a860cf5a23fbba2927",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/widgets/forms/login/login_form.dart"
+    },
+    {
+      "path": "mobile/lib/providers/server_info.provider.dart",
+      "sha256": "5c0f47e188b3d5bbc54be4c2d984d925bb5c55f3a06974b6e23cc8ed1aa5af41",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/server_info.provider.dart"
+    },
+    {
+      "path": "mobile/lib/pages/common/tab_shell.page.dart",
+      "sha256": "6eafd3b64af4515ebf70ff8bbcc11c0eea9acdb4585be9442cfd23f78b55ab2d",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/pages/common/tab_shell.page.dart"
+    },
+    {
+      "path": "mobile/lib/providers/websocket.provider.dart",
+      "sha256": "abfd3daf2e48eaee149ac45b63f7ffe9f6a9e6b92ece6c9da0aa9b105845fd74",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/websocket.provider.dart"
+    },
+    {
+      "path": "mobile/lib/infrastructure/repositories/sync_api.repository.dart",
+      "sha256": "9f4b01deaa6ca24e141ee786b07d5a69062d295d4ab255aca0047710ed7bc2aa",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/sync_api.repository.dart"
+    },
+    {
+      "path": "server/src/services/user.service.ts",
+      "sha256": "4d7339b2ed6c711810ad50040927a829359755c50a488a9d2ec439560ff3ff9f",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/user.service.ts"
     }
   ]
 }

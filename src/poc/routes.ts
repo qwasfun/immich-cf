@@ -3,6 +3,7 @@ import { HttpError } from './http';
 import { sync } from './sync';
 import { defaultPreferences } from './preferences';
 import { sessions } from './sessions';
+import { onboarding } from './onboarding';
 
 const methods: Record<string, string[]> = {
   '/.well-known/immich': ['GET'],
@@ -10,12 +11,14 @@ const methods: Record<string, string[]> = {
   '/api/server/version': ['GET'],
   '/api/server/features': ['GET'],
   '/api/server/config': ['GET'],
+  '/api/server/media-types': ['GET'],
   '/api/auth/login': ['POST'],
   '/api/auth/logout': ['POST'],
   '/api/auth/validateToken': ['POST'],
   '/api/auth/status': ['GET'],
   '/api/users/me': ['GET'],
   '/api/users/me/preferences': ['GET', 'PUT'],
+  '/api/users/me/onboarding': ['GET', 'PUT', 'DELETE'],
   '/api/sessions': ['GET', 'DELETE', 'POST'],
   '/api/sync/stream': ['POST'],
   '/api/sync/ack': ['GET', 'POST', 'DELETE'],
@@ -66,6 +69,9 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
   const db = env.IMMICH_CF_DB;
   if (path === '/.well-known/immich') return Response.json({ api: { endpoint: '/api' } });
   if (path === '/api/server/ping') return Response.json({ res: 'pong' });
+  // Upload/processing are not implemented; do not advertise upstream media capabilities.
+  if (path === '/api/server/media-types')
+    return Response.json({ image: [], video: [], sidecar: [] });
   if (path === '/api/server/version')
     return Response.json({ major: 3, minor: 3, patch: 1, prerelease: null });
   if (path === '/api/server/features')
@@ -128,6 +134,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/users/me/onboarding') return onboarding(request, db, identity);
   if (path === '/api/users/me/preferences') {
     if (request.method === 'PUT')
       throw new HttpError(501, '偏好设置：暂不支持保存，请保留默认设置');

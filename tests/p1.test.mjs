@@ -37,6 +37,7 @@ before(async () => {
     '0001_project_metadata.sql',
     '0002_p1_identity.sql',
     '0003_session_details.sql',
+    '0004_onboarding.sql',
   ]) {
     const sql = await readFile(`migrations/${file}`, 'utf8');
     await db.batch(
@@ -342,4 +343,115 @@ test('会话列表无秘密、隔离用户、批量撤销保留当前会话并�
   const aId = (await (await get(a.token)).json()).find((row) => row.current).id;
   assert.equal((await send(`/api/sessions/${aId}`, {}, a.token, 'DELETE')).status, 204);
   assert.equal((await get(a.token)).status, 401);
+});
+
+test('初始化 onboarding 持久化、字段校验、隔离、Sync 增量与删除重建', async () => {
+  await db.prepare('DELETE FROM login_buckets').run();
+  const { token } = await login();
+  const headers = { Authorization: `Bearer ${token}` };
+  const get = () => worker.fetch('/api/users/me/onboarding', { headers });
+  const stream = async () => {
+    const r = await send('/api/sync/stream', { types: ['UserMetadataV1'] }, token);
+    assert.equal(r.status, 200);
+    return (await r.text()).trim().split('\n').map(JSON.parse);
+  };
+  const ack = async (events) =>
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token)).status,
+      204,
+    );
+  assert.equal((await worker.fetch('/api/users/me/onboarding')).status, 401);
+  assert.deepEqual(await (await get()).json(), { isOnboarded: false });
+  for (const value of [null, 'private-input', 1]) {
+    const r = await send('/api/users/me/onboarding', { isOnboarded: value }, token, 'PUT');
+    assert.equal(r.status, 400);
+    const error = await r.json();
+    assert.deepEqual(error.errors[0].path, ['isOnboarded']);
+    assert.ok(!JSON.stringify(error).includes('private-input'));
+  }
+  const save = await send('/api/users/me/onboarding', { isOnboarded: true }, token, 'PUT');
+  assert.equal(save.status, 200);
+  schema(await save.json(), 'OnboardingResponseDto');
+  await worker.stop();
+  worker = await unstable_dev('src/index.ts', config);
+  assert.deepEqual(await (await get()).json(), { isOnboarded: true });
+  const initial = await stream();
+  assert.equal(initial[0].type, 'UserMetadataV1');
+  schema(initial[0].data, 'SyncUserMetadataV1');
+  assert.equal(initial[0].data.value.isOnboarded, true);
+  await ack(initial);
+  assert.deepEqual(
+    (await stream()).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  assert.equal((await send('/api/users/me/onboarding', {}, token, 'DELETE')).status, 204);
+  const deleted = await stream();
+  assert.equal(deleted[0].type, 'UserMetadataDeleteV1');
+  schema(deleted[0].data, 'SyncUserMetadataDeleteV1');
+  await ack(deleted);
+  await ack(initial); // replay of an old value ACK must not resurrect it
+  assert.deepEqual(
+    (await stream()).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  assert.deepEqual(await (await get()).json(), { isOnboarded: false });
+  await Promise.all(
+    [true, false, true].map((isOnboarded) =>
+      send('/api/users/me/onboarding', { isOnboarded }, token, 'PUT'),
+    ),
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT revision FROM user_onboarding WHERE user_id = ?')
+        .bind(userId)
+        .first()
+    ).revision,
+    5,
+  );
+  const recreated = await stream();
+  assert.equal(recreated[0].type, 'UserMetadataV1');
+  assert.ok(recreated[0].ack.split('|')[1] > deleted[0].ack.split('|')[1]);
+  await ack(recreated);
+  const otherUser = crypto.randomUUID(),
+    otherSession = crypto.randomUUID(),
+    otherToken = 'e'.repeat(64);
+  const { createHash } = await import('node:crypto');
+  await db
+    .prepare(
+      'INSERT INTO users SELECT ?, ?, name, password_hash, created_at, update_id, disabled FROM users WHERE id = ?',
+    )
+    .bind(otherUser, 'onboarding-other@example.invalid', userId)
+    .run();
+  await db
+    .prepare('INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)')
+    .bind(
+      otherSession,
+      otherUser,
+      createHash('sha256').update(otherToken).digest('hex'),
+      Date.now() + 86400000,
+    )
+    .run();
+  assert.deepEqual(
+    await (
+      await worker.fetch('/api/users/me/onboarding', {
+        headers: { Authorization: `Bearer ${otherToken}` },
+      })
+    ).json(),
+    { isOnboarded: false },
+  );
+  const otherStream = await send('/api/sync/stream', { types: ['UserMetadataV1'] }, otherToken);
+  assert.deepEqual(
+    (await otherStream.text())
+      .trim()
+      .split('\n')
+      .map(JSON.parse)
+      .map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  const media = await worker.fetch('/api/server/media-types');
+  assert.equal(media.status, 200);
+  const types = await media.json();
+  schema(types, 'ServerMediaTypesResponseDto');
+  assert.deepEqual(types, { image: [], video: [], sidecar: [] });
 });

@@ -1,6 +1,7 @@
 import type { Identity } from './auth';
 import { body, HttpError, invalid, strings, uuid7 } from './http';
 import { entityTypes, supportedTypes } from './types';
+import { onboardingEvents } from './onboarding';
 
 export async function sync(
   request: Request,
@@ -115,6 +116,7 @@ export async function sync(
         },
       });
   }
+  if (types.includes('UserMetadataV1')) events.push(...(await onboardingEvents(db, identity)));
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // 有限空库流在发出之前持久化可确认记录；不支持资产写入或关系 backfill。
   await db.batch([

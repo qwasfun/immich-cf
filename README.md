@@ -12,6 +12,7 @@
 - [P0 契约验证清单](docs/p0-checklist.md)：源码调查、运行验证及关口状态。
 - [P1 本地 PoC](docs/p1-local-poc.md)：启用方式、创建测试用户、验证结果与未完成范围。
 - [P1 用户初始化与会话管理](docs/p1-initialization.md)：偏好读取、会话列表与撤销、迁移及验证边界。
+- [P1 登录初始化 HTTP 接口](docs/p1-login-bootstrap.md)：官方登录调用核对、onboarding 读写及元数据同步、媒体能力边界。
 
 ## 本地调试
 
