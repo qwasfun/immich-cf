@@ -117,6 +117,29 @@ export async function sync(
         },
       });
   }
+  // AuthUserV2 populates auth_user_entity only. Asset owner_id references user_entity,
+  // so the separate UserV1 must be applied before any owned asset arrives.
+  if (types.includes('UsersV1')) {
+    const ack = `UserV1|${identity.update_id}`;
+    const prior = await db
+      .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'UserV1'")
+      .bind(session)
+      .first<{ ack: string }>();
+    if (!prior || prior.ack < ack)
+      events.push({
+        type: 'UserV1',
+        ack,
+        data: {
+          id: identity.id,
+          email: identity.email,
+          name: identity.name,
+          deletedAt: null,
+          hasProfileImage: false,
+          profileChangedAt: identity.created_at,
+          avatarColor: 'primary',
+        },
+      });
+  }
   if (types.includes('UserMetadataV1')) events.push(...(await onboardingEvents(db, identity)));
   events.push(...(await assetEvents(db, identity, types)));
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });

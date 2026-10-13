@@ -55,3 +55,15 @@ Sync 使用补零整数序列不透明 ACK；按 seq 返回最多 20 张现有�
 - 留给官方 App 验收的资产 ID：`79abe1b1-2bab-4e42-9d77-2aa2dbb2e984`，文件名 `immich-cf-dev-test.png`，320×240；仅 dev 测试账户可读。冒烟会话已注销，不改动用户既有会话。
 - 首次 PowerShell `-Form` 上传被 multipart 解析拒绝（400）；显式构造标准 multipart、采用 application/octet-stream 文件段后通过。具体编码差异尚未定位，不能据此声称接受所有合法 multipart 变体；官方 iOS 实际上传仍需验证。
 - 尚未收到本增量的官方 iOS 显示结果；仅服务端上传→Sync→媒体读取闭环通过，不将其记为 App 已显示或非空图库全量兼容。
+
+## 真机缺陷：资产 owner 外键与 UserV1 修复
+
+用户于北京时间 2026-10-14 02:44:57 提供日志：SyncStreamRepository.updateAssetsV2 写 remote_asset_entity 失败，SQLite 787 FOREIGN KEY constraint failed，测试图未显示。此前服务端测试只校验 DTO 和字节，没有覆盖客户端关系约束，遗漏了此问题。
+
+冻结源码确认 remote_asset_entity.owner_id 引用 UserEntity.id；AuthUserV2 仅更新 auth_user_entity，不能代替 UserV1 更新 user_entity。此前服务端接受 UsersV1 请求但未发出当前用户，故缺少资产所有者外键记录。
+
+修复：在请求 UsersV1 且尚未 ACK 时发出当前用户 UserV1，顺序为 AuthUserV2（如需）、UserV1、用户元数据、资产、Complete；不会返回其他账户。UserV1 采用独立检查点，不受已有 AuthUserV2/Complete ACK 影响。无数据库迁移、不删除会话、不重置手机数据、不重传图片。
+
+官方 SyncStreamService 在 _handleSyncData 成功之后才 ACK；updateAssetsV2 失败会 rethrow。因此受影响会话应在下次同步补齐 UserV1 并重新接收未确认资产。若客户端仍报错，应继续收集日志，不将服务端修复当作真机显示已通过。
+
+新增回归使用真实 SQLite 引擎及从官方表定义提取的最小外键模型：仅插入 AuthUser 时可复现 FK 失败，按修复流顺序插入 UserV1/AssetV2 成功；覆盖已确认 AuthUser 的旧会话、ACK 后不重复、reset 重建顺序。该模型不是完整 Dart/Drift 或官方 iOS 运行时。

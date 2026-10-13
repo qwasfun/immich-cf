@@ -21,6 +21,26 @@
       "path": "mobile/lib/presentation/widgets/images/remote_image_provider.dart",
       "sha256": "44917ff6816df8adaf579707b5510e8236a15755c50adc5fb414f506cb674aa5",
       "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/presentation/widgets/images/remote_image_provider.dart"
+    },
+    {
+      "path": "mobile/lib/data/db/main/table/remote/asset.dart",
+      "sha256": "b86836f9022decd5c3c7ab4c7ca427883937b61ffd3444610ea164cde4e2b6c6",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/data/db/main/table/remote/asset.dart"
+    },
+    {
+      "path": "mobile/lib/data/db/main/table/user/user.dart",
+      "sha256": "1551404962b715458149323ea8512567814ace4757c3828a46bac307ece445dd",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/data/db/main/table/user/user.dart"
+    },
+    {
+      "path": "mobile/lib/domain/services/sync_stream.service.dart",
+      "sha256": "752cc65d3a75385adc82bf91405b4170bfc027860783b54bfa3cb30231bffd9e",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/services/sync_stream.service.dart"
+    },
+    {
+      "path": "mobile/lib/infrastructure/repositories/sync_stream.repository.dart",
+      "sha256": "432863d171adb12cba054b8715c3c20e4189295b6b7945fa0e62830f8b5239e0",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/sync_stream.repository.dart"
     }
   ]
 }

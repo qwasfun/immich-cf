@@ -226,7 +226,7 @@ test('22 家族空库同步、ACK 重放与隔离、reset 闭环', async () => {
   const initial = await stream(a.token);
   assert.deepEqual(
     initial.map((x) => x.type),
-    ['AuthUserV2', 'SyncCompleteV1'],
+    ['AuthUserV2', 'UserV1', 'SyncCompleteV1'],
   );
   schema(initial[0].data, 'SyncAuthUserV2');
   const acks = initial.map((x) => x.ack);
@@ -582,4 +582,68 @@ test('小图片上传、重复检测、Sync 资产、详情与私有媒体读取
     ),
     png,
   );
+});
+
+test('官方客户端资产 owner 外键：AuthUser 已确认的旧会话补发 UserV1 后重试资产', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const client = new DatabaseSync(':memory:');
+  client.exec(`PRAGMA foreign_keys=ON;
+    CREATE TABLE auth_user_entity (id TEXT PRIMARY KEY);
+    CREATE TABLE user_entity (id TEXT PRIMARY KEY);
+    CREATE TABLE remote_asset_entity (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES user_entity(id));`);
+  try {
+    await db.prepare('DELETE FROM login_buckets').run();
+    const { token } = await login();
+    const stream = async (types) => {
+      const r = await send('/api/sync/stream', { types }, token);
+      assert.equal(r.status, 200);
+      return (await r.text()).trim().split('\n').map(JSON.parse);
+    };
+    const auth = await stream(['AuthUsersV2']);
+    client.prepare('INSERT INTO auth_user_entity VALUES (?)').run(auth[0].data.id);
+    await send('/api/sync/ack', { acks: auth.map((x) => x.ack) }, token);
+    const events = await stream(manifest.sync.requestedTypes);
+    const owner = events.find((x) => x.type === 'UserV1');
+    assert.ok(owner);
+    schema(owner.data, 'SyncUserV1');
+    assert.equal(owner.data.id, userId);
+    assert.ok(!events.some((x) => x.type === 'AuthUserV2'));
+    const asset = events.find((x) => x.type === 'AssetV2');
+    assert.ok(asset);
+    // Reproduce the old stream failure even though AuthUserV2 was applied successfully.
+    assert.throws(
+      () =>
+        client
+          .prepare('INSERT INTO remote_asset_entity VALUES (?,?)')
+          .run(asset.data.id, asset.data.ownerId),
+      /FOREIGN KEY/,
+    );
+    assert.ok(events.indexOf(owner) < events.indexOf(asset));
+    for (const event of events) {
+      if (event.type === 'UserV1')
+        client.prepare('INSERT INTO user_entity VALUES (?)').run(event.data.id);
+      if (event.type === 'AssetV2')
+        client
+          .prepare('INSERT INTO remote_asset_entity VALUES (?,?)')
+          .run(event.data.id, event.data.ownerId);
+    }
+    assert.equal(client.prepare('SELECT COUNT(*) AS n FROM remote_asset_entity').get().n, 2);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((x) => x.ack) }, token)).status,
+      204,
+    );
+    assert.deepEqual(
+      (await stream(manifest.sync.requestedTypes)).map((x) => x.type),
+      ['SyncCompleteV1'],
+    );
+    await send('/api/sync/stream', { types: manifest.sync.requestedTypes, reset: true }, token);
+    await send('/api/sync/ack', { acks: ['SyncResetV1|reset'] }, token);
+    const rebuilt = await stream(manifest.sync.requestedTypes);
+    assert.ok(
+      rebuilt.findIndex((x) => x.type === 'UserV1') <
+        rebuilt.findIndex((x) => x.type === 'AssetV2'),
+    );
+  } finally {
+    client.close();
+  }
 });
