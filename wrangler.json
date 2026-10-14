@@ -49,7 +49,15 @@
           "bucket_name": "immich-cf-media-dev",
           "remote": true
         }
-      ]
+      ],
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true,
+          "head_sampling_rate": 1
+        }
+      }
     },
     "test": {
       "name": "immich-cf-api-test",
