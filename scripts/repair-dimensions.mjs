@@ -66,7 +66,8 @@ try {
     checked: results.length,
     changed: results.filter((r) => r.changed).length,
     applied: results.filter((r) => r.applied).length,
-    incrementalVerified: true,
+    syncRoundTripVerified: true,
+    repairedUpdateDeliveryVerified: results.some((r) => r.applied) ? true : null,
     logout: 200,
   };
   await writeFile('work/repair-dimensions-report.json', JSON.stringify(report, null, 2));
