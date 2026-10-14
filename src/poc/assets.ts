@@ -1,6 +1,7 @@
 import type { Identity } from './auth';
 import { body, HttpError, invalid } from './http';
 import { imageHeader } from './image-header';
+import { media } from './media';
 
 export const MAX_IMAGE = 2 * 1024 * 1024;
 interface Asset {
@@ -313,15 +314,7 @@ export async function readAsset(
   const size = new URL(request.url).searchParams.get('size');
   if (size && !['thumbnail', 'preview', 'fullsize', 'original'].includes(size))
     invalid('size', '必须为 thumbnail、preview、fullsize 或 original');
-  const object = await env.IMMICH_CF_MEDIA.get(row.object_key);
-  if (!object) throw new HttpError(503, '图片暂不可读取，请稍后重试');
-  return new Response(request.method === 'HEAD' ? null : object.body, {
-    headers: {
-      'Content-Type': row.mime,
-      'Content-Length': String(object.size),
-      ETag: object.httpEtag,
-    },
-  });
+  return media(request, env.IMMICH_CF_MEDIA, row.object_key, row.mime);
 }
 export async function assetEvents(
   db: D1Database,

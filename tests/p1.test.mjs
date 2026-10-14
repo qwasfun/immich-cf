@@ -1469,3 +1469,57 @@ test('连续五次 reset 保持非空资产集合，旧代 ACK 被拒绝且本�
     previous = acks;
   }
 });
+
+test('私有媒体支持 Range、HEAD、ETag，条件请求不能绕过归属和会话撤销', async () => {
+  const { token } = await reliabilityAccount();
+  const saved = await (await uploadFixture(token)).json();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const url = `/api/assets/${saved.id}/original`;
+  const get = (extra = {}, method = 'GET', auth = token) =>
+    worker.fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${auth}`, ...extra },
+    });
+  const full = await get();
+  const etag = full.headers.get('etag');
+  assert.deepEqual(Buffer.from(await full.arrayBuffer()), bytes);
+  for (const [value, begin, end] of [
+    ['bytes=0-7', 0, 8],
+    ['bytes=8-', 8, bytes.length],
+    ['bytes=-8', bytes.length - 8, bytes.length],
+    ['bytes=0-999999', 0, bytes.length],
+  ]) {
+    const r = await get({ Range: value });
+    assert.equal(r.status, 206);
+    assert.equal(r.headers.get('content-range'), `bytes ${begin}-${end - 1}/${bytes.length}`);
+    assert.equal(r.headers.get('content-length'), String(end - begin));
+    assert.deepEqual(Buffer.from(await r.arrayBuffer()), bytes.subarray(begin, end));
+  }
+  for (const value of [`bytes=${bytes.length}-`, 'bytes=-0', 'bytes=8-2']) {
+    const r = await get({ Range: value });
+    assert.equal(r.status, 416);
+    assert.equal(r.headers.get('content-range'), `bytes */${bytes.length}`);
+  }
+  for (const value of ['bytes=0-1,4-5', 'garbage', 'bytes=90071992547409999-']) {
+    assert.equal((await get({ Range: value })).status, 200);
+  }
+  assert.equal((await get({ Range: 'bytes=0-7', 'If-Range': etag })).status, 206);
+  assert.equal((await get({ Range: 'bytes=0-7', 'If-Range': '"stale"' })).status, 200);
+  assert.equal((await get({ Range: 'bytes=0-7', 'If-Range': `W/${etag}` })).status, 200);
+  for (const tag of [etag, `W/${etag}`, '*', `"other", ${etag}`]) {
+    const r = await get({ 'If-None-Match': tag, Range: 'bytes=0-7' });
+    assert.equal(r.status, 304);
+    assert.equal(await r.text(), '');
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+  }
+  const head = await get({ Range: 'bytes=0-7' }, 'HEAD');
+  assert.equal(head.status, 200);
+  assert.equal(head.headers.get('content-length'), String(bytes.length));
+  assert.equal(await head.text(), '');
+  const other = await reliabilityAccount();
+  const denied = await get({ 'If-None-Match': etag }, 'GET', other.token);
+  assert.equal(denied.status, 404);
+  assert.equal(denied.headers.get('etag'), null);
+  await send('/api/auth/logout', {}, token);
+  assert.equal((await get({ 'If-None-Match': etag })).status, 401);
+});
