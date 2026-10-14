@@ -40,3 +40,10 @@
 - `pnpm contracts:verify` 通过：279 个操作、53 份冻结来源。
 - 实际官方容器与本地 immich-cf 均通过本页非空图库硬断言。证据：[脱敏双端报告](contracts/p1-nonempty-reference-comparison.json)，重点查看 `nonempty.targets`；既有 16 项身份/空库投影为 10 项相同、6 项不同。
 - 参考容器已停止，合成测试卷保留。本轮未重新执行 iOS 真机验收。
+
+## dev 发布与公网验收
+
+- 实现提交 `17a8a036934297fa9ed857f73039da561aefe9e2`；Worker 版本 `649d95b7-fdf5-4965-936a-4363d6204f14`，地址 `https://immich-cf-api-dev.fun.workers.dev`。无待执行迁移，数据库保持 0008。
+- 公网快照观察到三条 AssetV2 后才出现 AssetMetadataV1，家族顺序断言通过。显式 reset 直接快照、重复 reset、ACK 后空增量、旧 ACK 400、按家族清除恢复均通过。
+- JPEG 夹具重复上传保持原 ID；预览和原图 200，字节哈希一致；未登录媒体读取 401。此次公网检查复用 dev 已有合成夹具，未批量导入参考图库。
+- 验收仅使用新建临时会话，结束后已退出；test/prod 未变更。本轮不改变图片内容或现有用户会话。

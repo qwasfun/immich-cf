@@ -38,8 +38,8 @@
     "runtimeVerified": true,
     "runtimeEvidence": {
       "checkedAt": "2026-10-14",
-      "scope": "isolated-empty-library-http-and-sync",
-      "report": "contracts/p1-reference-comparison.json",
+      "scope": "isolated-identity-and-two-image-library-http-and-sync",
+      "report": "contracts/p1-nonempty-reference-comparison.json",
       "fullCompatibilityVerified": false
     }
   },
