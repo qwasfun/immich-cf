@@ -6,6 +6,8 @@
 
 ## 需求与开发顺序
 
+- [P2 混合队列恢复](docs/p2-mixed-queue.md)：大小边界、格式拒绝、重复失败、存储对账及官方 App/Live Photo 未验证风险。
+
 - [历史 EXIF 安全修复](docs/p2-exif-repair.md)：预检、原图校验、原子同步版本、并发与重试。
 
 - [P2 EXIF 方向](docs/p2-exif-orientation.md)：新上传图片方向解析、布局尺寸、原始字节保留与真机验收边界。

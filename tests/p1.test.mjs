@@ -1697,6 +1697,78 @@ async function historicalExif() {
 }
 const repairPath = '/api/immich-cf/repair-dimensions';
 
+test('混合队列精确大小边界、格式拒绝、重复失败与截断恢复无孤儿', async () => {
+  const { mixedCases, encodedUpload } = await import('./fixtures/mixed-queue.mjs');
+  const { id, token } = await reliabilityAccount();
+  const items = await mixedCases();
+  const submit = async (item, truncate = false) => {
+    const encoded = await encodedUpload(item);
+    const data = truncate ? encoded.bytes.subarray(0, encoded.bytes.length - 40) : encoded.bytes;
+    let offset = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (offset >= data.length) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(data.subarray(offset, offset + 16384));
+        offset += 16384;
+      },
+    });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': encoded.type,
+      },
+      body: stream,
+      duplex: 'half',
+    });
+  };
+  const saved = [];
+  for (const item of items) {
+    const r = await submit(item);
+    assert.equal(r.status, item.status, item.name);
+    const result = await r.json();
+    if (item.field) {
+      assert.deepEqual(result.errors[0].path, [item.field]);
+      assert.equal((await submit(item)).status, item.status);
+    } else saved.push({ id: result.id, bytes: item.bytes });
+  }
+  const interrupted = await submit(items[0], true);
+  assert.equal(interrupted.status, 400);
+  assert.deepEqual((await interrupted.json()).errors[0].path, ['assetData']);
+  const rejected = items.filter((i) => i.field);
+  const concurrent = await Promise.all(rejected.map((item) => submit(item)));
+  assert.deepEqual(
+    concurrent.map((r) => r.status),
+    rejected.map((i) => i.status),
+  );
+  assert.equal((await submit(items[0])).status, 200);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+    4,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first()).n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${id}/` })).objects.length, 4);
+  for (const asset of saved) {
+    const response = await worker.fetch(`/api/assets/${asset.id}/original`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), asset.bytes);
+  }
+  const events = await syncEvents(token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 4);
+  await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token);
+  assert.deepEqual(
+    (await syncEvents(token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+});
+
 test('历史尺寸预检无写入，修复推进游标，旧流 ACK 不吞更新，重试不再推进', async () => {
   const { token, id, bytes } = await historicalExif();
   const prior = await syncEvents(token);
