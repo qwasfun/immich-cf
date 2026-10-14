@@ -42,3 +42,10 @@ ACK 继续携带服务器 epoch；它是不透明确认值，不能假定与官�
 - 冻结官方容器及本地 immich-cf 均通过显式 reset 直接快照、快照 ACK 204、后续仅 Complete 的硬断言。脱敏证据见 [双端报告](contracts/p1-explicit-reset-comparison.json) 的 `resetRecovery`；源码摘要见 [来源](contracts/p1-explicit-reset-sources.json)。
 - 16 项字段投影比较仍为 10 项相同、6 项不同：reset 的控制流程已对齐，但用户可见范围、avatarColor 和 epoch ACK 段数仍使完整 reset 投影不同，不能将其写成逐字段完全一致。历史报告保留原结果。
 - 官方参考容器已停止，测试卷保留。本轮没有操作 test/prod，也没有重新执行官方 iOS 真机测试。
+
+## dev 发布结果
+
+- 实现提交：`d64a3dd398da846941a2d33f3c5369675b83799d`。2026-10-14 应用迁移 0008，发布 `immich-cf-api-dev`，Worker 版本 `3941f3b8-33df-419b-9fd9-16212ecc9e36`。
+- 公网显式 reset 同一响应返回用户、资产及 Complete，无 SyncResetV1；ACK 204 后回到增量，旧 ACK 返回 400。再次显式 reset 切换轮次并可正常确认；按类型清除恢复通过。
+- 重复小图片上传保持同一资产，预览/原图均 200 且哈希一致，未登录媒体读取 401；配置与会话期限检查通过。临时验收会话已退出。
+- test/prod 未变更。迁移兼容旧服务端控制流程，但不要回滚到缺少轮次隔离的历史实现；如需止损，关闭实验入口并前向修复。已经发送到网络的旧响应不能由服务端撤回，客户端消费并发响应的真机行为仍需观察。

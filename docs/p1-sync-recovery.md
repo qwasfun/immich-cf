@@ -1,5 +1,7 @@
 # P1 Sync reset / ACK 并发隔离
 
+后续更新：显式 `reset:true` 已改为直接快照；本文的控制 ACK 流程仅适用于服务端主动重置。详见 [显式 reset 对齐](p1-explicit-reset.md)，以下保留历史实现记录。
+
 日期：2026-10-14。仅 dev，有界小图片实验；官方 App 保持不修改，冻结 Immich v3.3.1 / iOS 3.3.1 build 23。
 
 ## 缺陷与修复
