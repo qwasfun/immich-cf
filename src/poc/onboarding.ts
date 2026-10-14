@@ -34,7 +34,7 @@ export async function onboarding(request: Request, db: D1Database, identity: Ide
   return deleted ? new Response(null, { status: 204 }) : Response.json({ isOnboarded: value });
 }
 
-export async function onboardingEvents(db: D1Database, identity: Identity) {
+export async function onboardingEvents(db: D1Database, identity: Identity, reset = false) {
   const row = await db
     .prepare('SELECT is_onboarded, deleted, revision FROM user_onboarding WHERE user_id = ?')
     .bind(identity.id)
@@ -48,7 +48,7 @@ export async function onboardingEvents(db: D1Database, identity: Identity) {
     .bind(identity.session_id)
     .all<{ ack: string }>();
   // Both families describe the same key: an acknowledged deletion must suppress an older value.
-  if (checkpoints.results.some(({ ack }) => ack.split('|')[1]! >= cursor)) return [];
+  if (!reset && checkpoints.results.some(({ ack }) => ack.split('|')[1]! >= cursor)) return [];
   const type = row.deleted ? 'UserMetadataDeleteV1' : 'UserMetadataV1';
   return [
     {

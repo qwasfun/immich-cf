@@ -130,11 +130,12 @@ export async function sync(
   const completeTime = complete
     ? Number.parseInt(complete.ack.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
     : Date.now();
-  if (state.reset_pending) {
+  const explicitReset = input.reset === true;
+  if (!explicitReset && state.reset_pending) {
     await guarded(db, session, epoch, 'pending', []);
     return lines([{ type: 'SyncResetV1', data: {}, ack: state.reset_ack! }]);
   }
-  if (input.reset || Date.now() - completeTime > 30 * 86400000) {
+  if (!explicitReset && Date.now() - completeTime > 30 * 86400000) {
     const next = crypto.randomUUID();
     const ack = `SyncResetV1|reset|${next}`;
     await guarded(db, session, epoch, 'reset', [
@@ -155,7 +156,7 @@ export async function sync(
       .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'AuthUserV2'")
       .bind(session)
       .first<{ ack: string }>();
-    if (!prior || prior.ack < ack)
+    if (explicitReset || !prior || prior.ack < ack)
       events.push({
         type: 'AuthUserV2',
         ack,
@@ -184,7 +185,7 @@ export async function sync(
       .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'UserV1'")
       .bind(session)
       .first<{ ack: string }>();
-    if (!prior || prior.ack < ack)
+    if (explicitReset || !prior || prior.ack < ack)
       events.push({
         type: 'UserV1',
         ack,
@@ -199,12 +200,27 @@ export async function sync(
         },
       });
   }
-  if (types.includes('UserMetadataV1')) events.push(...(await onboardingEvents(db, identity)));
-  events.push(...(await assetEvents(db, identity, types)));
+  if (types.includes('UserMetadataV1'))
+    events.push(...(await onboardingEvents(db, identity, explicitReset)));
+  events.push(...(await assetEvents(db, identity, types, explicitReset)));
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // Cursor comparisons above use the unchanged cursor prefix; wire ACKs bind to a generation.
-  if (epoch) for (const event of events) event.ack += `|${epoch}`;
-  await guarded(db, session, epoch, 'stream', [
+  const deliveryEpoch = explicitReset ? crypto.randomUUID() : epoch;
+  if (deliveryEpoch) for (const event of events) event.ack += `|${deliveryEpoch}`;
+  // Progress reset and snapshot delivery registration share the generation guard transaction.
+  await guarded(db, session, epoch, explicitReset ? 'reset-snapshot' : 'stream', [
+    ...(explicitReset
+      ? [
+          db.prepare('DELETE FROM sync_checkpoints WHERE session_id=?').bind(session),
+          db.prepare('DELETE FROM sync_deliveries WHERE session_id=?').bind(session),
+          db
+            .prepare(
+              `UPDATE sessions SET sync_epoch=?,reset_pending=0,reset_ack=NULL,
+        last_reset_ack=NULL,updated_at=? WHERE id=?`,
+            )
+            .bind(deliveryEpoch, Date.now(), session),
+        ]
+      : []),
     db
       .prepare('DELETE FROM sync_deliveries WHERE session_id = ? AND issued_at < ?')
       .bind(session, Date.now() - 86400000),

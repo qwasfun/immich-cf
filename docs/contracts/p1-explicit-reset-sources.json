@@ -1,0 +1,15 @@
+{
+  "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "sources": [
+    {
+      "path": "server/src/services/sync.service.ts",
+      "sha256": "b79fff69b6081fa1e19e48ce415ed3ae7ec89292430a57bb19dcf41aac323c14",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/sync.service.ts"
+    },
+    {
+      "path": "server/src/repositories/session.repository.ts",
+      "sha256": "7ddbcadcc437aaf49b20f3dce8380c6a3acfe2bd726c8153379c3af8ebe81419",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/repositories/session.repository.ts"
+    }
+  ]
+}

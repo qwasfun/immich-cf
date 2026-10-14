@@ -243,9 +243,9 @@ test('22 家族空库同步、ACK 重放与隔离、reset 闭环', async () => {
   );
   assert.equal((await stream(b.token))[0].type, 'AuthUserV2');
   const reset = (await stream(a.token, { reset: true }))[0];
-  assert.equal(reset.type, 'SyncResetV1');
+  assert.equal(reset.type, 'AuthUserV2');
   assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, a.token)).status, 204);
-  assert.equal((await stream(a.token))[0].type, 'AuthUserV2');
+  assert.equal((await stream(a.token))[0].type, 'UserV1');
   assert.equal(
     (await send('/api/sync/ack', { types: ['AssetV1'] }, a.token, 'DELETE')).status,
     204,
@@ -869,7 +869,20 @@ async function syncEvents(token, extra = {}, headers = {}) {
   return (await r.text()).trim().split('\n').map(JSON.parse);
 }
 async function streamReset(token) {
-  return (await syncEvents(token, { reset: true }))[0];
+  // Exercise server-requested expiry reset separately from explicit client reset.
+  const events = await syncEvents(token);
+  const session = await db
+    .prepare('SELECT session_id FROM sync_deliveries WHERE ack=?')
+    .bind(events.at(-1).ack)
+    .first();
+  await db
+    .prepare(
+      `INSERT INTO sync_checkpoints(session_id,type,ack) VALUES (?,'SyncCompleteV1',?)
+    ON CONFLICT(session_id,type) DO UPDATE SET ack=excluded.ack`,
+    )
+    .bind(session.session_id, 'SyncCompleteV1|00000000-0000-7000-8000-000000000000')
+    .run();
+  return (await syncEvents(token))[0];
 }
 async function checkpointRows(token) {
   return (
@@ -1018,8 +1031,8 @@ test('reset 确认事务失败不丢检查点，重启后恢复；撤销中的�
   const { id, token } = await reliabilityAccount();
   const initial = await syncEvents(token);
   await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token);
-  const prior = await checkpointRows(token);
   const reset = await streamReset(token);
+  const prior = await checkpointRows(token);
   await db
     .prepare(
       `CREATE TRIGGER test_reset_failure BEFORE UPDATE ON sessions
@@ -1163,4 +1176,183 @@ test('参考 3.3.1 初始化字段：OAuth 空管理地址，会话到期与 PIN
   assert.ok(Date.parse(status.expiresAt) > Date.now());
   assert.equal(Object.hasOwn(status, 'pinExpiresAt'), false);
   assert.equal((await worker.fetch('/api/auth/status')).status, 401);
+});
+
+test('显式 reset 直接重放用户、图片与元数据；ACK 后回到增量且隔离旧轮次', async () => {
+  const { token } = await reliabilityAccount();
+  assert.equal((await uploadFixture(token)).status, 201);
+  await send('/api/users/me/onboarding', { isOnboarded: true }, token, 'PUT');
+  const initial = await syncEvents(token);
+  await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token);
+  const reset = await syncEvents(token, { reset: true });
+  assert.deepEqual(
+    reset.map((e) => e.type),
+    initial.map((e) => e.type),
+  );
+  assert.ok(reset.some((e) => e.type === 'AssetV2'));
+  assert.ok(reset.some((e) => e.type === 'UserMetadataV1'));
+  assert.equal(reset.at(-1).type, 'SyncCompleteV1');
+  assert.ok(!reset.some((e) => e.type === 'SyncResetV1'));
+  assert.deepEqual(await checkpointRows(token), []);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+    400,
+  );
+  assert.equal((await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, token)).status, 204);
+  assert.deepEqual(
+    (await syncEvents(token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  const again = await syncEvents(token, { reset: true });
+  assert.notEqual(again[0].ack, reset[0].ack);
+  assert.equal((await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, token)).status, 400);
+});
+
+test('显式 reset 与旧 ACK、流、清除及另一个 reset 交错：旧事务不能写回', async () => {
+  for (const operation of ['ack', 'stream', 'clear', 'reset']) {
+    const { token } = await reliabilityAccount();
+    const initial = await syncEvents(token);
+    const isStream = ['stream', 'reset'].includes(operation);
+    const held = await pausedSyncRequest(
+      token,
+      isStream ? '/api/sync/stream' : '/api/sync/ack',
+      operation === 'clear' ? 'DELETE' : 'POST',
+      isStream
+        ? { types: manifest.sync.requestedTypes, reset: operation === 'reset' }
+        : operation === 'ack'
+          ? { acks: initial.map((e) => e.ack) }
+          : {},
+    );
+    try {
+      const reset = await syncEvents(token, { reset: true });
+      await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, token);
+      const before = await checkpointRows(token);
+      await held.release();
+      assert.equal((await held.response).status, 409, operation);
+      assert.deepEqual(await checkpointRows(token), before);
+    } finally {
+      await held.release();
+    }
+  }
+});
+
+test('显式 reset 接管待重置会话，拒绝并发旧 reset ACK 和待重置流', async () => {
+  const { token } = await reliabilityAccount();
+  const control = await streamReset(token);
+  const heldAck = await pausedSyncRequest(token, '/api/sync/ack', 'POST', { acks: [control.ack] });
+  const heldStream = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+  });
+  try {
+    const reset = await syncEvents(token, { reset: true });
+    assert.equal(reset[0].type, 'AuthUserV2');
+    await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, token);
+    const before = await checkpointRows(token);
+    await heldAck.release();
+    assert.equal((await heldAck.response).status, 409);
+    await heldStream.release();
+    assert.equal((await heldStream.response).status, 409);
+    assert.equal((await send('/api/sync/ack', { acks: [control.ack] }, token)).status, 400);
+    assert.deepEqual(await checkpointRows(token), before);
+  } finally {
+    await heldAck.release();
+    await heldStream.release();
+  }
+});
+
+test('显式 reset 事务失败全部回滚；提交后响应丢失与进程重启可恢复快照', async () => {
+  const { id, token } = await reliabilityAccount();
+  const initial = await syncEvents(token);
+  await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token);
+  const before = await checkpointRows(token);
+  const stateBefore = await db.prepare('SELECT * FROM sessions WHERE user_id=?').bind(id).first();
+  await db
+    .prepare(
+      `CREATE TRIGGER test_explicit_reset_failure BEFORE INSERT ON sync_deliveries
+    WHEN NEW.session_id='${stateBefore.id}' BEGIN SELECT RAISE(ABORT,'TEST_RESET_FAILURE'); END`,
+    )
+    .run();
+  try {
+    assert.equal(
+      (await send('/api/sync/stream', { types: manifest.sync.requestedTypes, reset: true }, token))
+        .status,
+      503,
+    );
+    assert.deepEqual(await checkpointRows(token), before);
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM sessions WHERE user_id=?').bind(id).first(),
+      stateBefore,
+    );
+  } finally {
+    await db.prepare('DROP TRIGGER test_explicit_reset_failure').run();
+  }
+  const lost = await worker.fetch('/api/sync/stream', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-test-storage-fault': 'after-d1',
+    },
+    body: JSON.stringify({ types: manifest.sync.requestedTypes, reset: true }),
+  });
+  assert.equal(lost.status, 503);
+  assert.deepEqual(await checkpointRows(token), []);
+  await worker.stop();
+  worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
+  const recovered = await syncEvents(token);
+  assert.deepEqual(
+    recovered.map((e) => e.type),
+    initial.map((e) => e.type),
+  );
+  assert.equal(
+    (await send('/api/sync/ack', { acks: recovered.map((e) => e.ack) }, token)).status,
+    204,
+  );
+  assert.equal(
+    (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+    400,
+  );
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM sync_guards').first()).n, 0);
+});
+
+test('旧 ACK 先提交也不裁剪显式 reset 快照；请求类型过滤及无效字段不修改状态', async () => {
+  const { token } = await reliabilityAccount();
+  const initial = await syncEvents(token);
+  const held = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+    reset: true,
+  });
+  try {
+    assert.equal(
+      (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+      204,
+    );
+    await held.release();
+    const response = await held.response;
+    assert.equal(response.status, 200);
+    const reset = (await response.text()).trim().split('\n').map(JSON.parse);
+    assert.deepEqual(
+      reset.map((e) => e.type),
+      initial.map((e) => e.type),
+    );
+    assert.equal(
+      (await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, token)).status,
+      204,
+    );
+    const before = await checkpointRows(token);
+    for (const input of [
+      { types: [], reset: 'yes' },
+      { types: ['invalid'], reset: true },
+    ]) {
+      assert.equal((await send('/api/sync/stream', input, token)).status, 400);
+      assert.deepEqual(await checkpointRows(token), before);
+    }
+    assert.deepEqual(
+      (await syncEvents(token, { types: ['UsersV1'], reset: true })).map((e) => e.type),
+      ['UserV1', 'SyncCompleteV1'],
+    );
+    assert.deepEqual(await checkpointRows(token), []);
+  } finally {
+    await held.release();
+  }
 });

@@ -323,7 +323,12 @@ export async function readAsset(
     },
   });
 }
-export async function assetEvents(db: D1Database, identity: Identity, types: string[]) {
+export async function assetEvents(
+  db: D1Database,
+  identity: Identity,
+  types: string[],
+  reset = false,
+) {
   if (!types.includes('AssetsV2') && !types.includes('AssetMetadataV1')) return [];
   const rows = await db
     .prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY seq')
@@ -338,7 +343,7 @@ export async function assetEvents(db: D1Database, identity: Identity, types: str
     const cursor = String(row.seq).padStart(20, '0');
     const add = (type: string, data: unknown) => {
       const ack = `${type}|${cursor}`;
-      if (!checkpoints.results.some((p) => p.type === type && p.ack >= ack))
+      if (reset || !checkpoints.results.some((p) => p.type === type && p.ack >= ack))
         events.push({ type, ack, data });
     };
     if (types.includes('AssetsV2')) add('AssetV2', assetDto(row));

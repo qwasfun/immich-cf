@@ -50,3 +50,5 @@ pnpm check
 开发环境健康检查：<https://immich-cf-api-dev.fun.workers.dev/healthz>。资源、验证结果和后续部署步骤见[开发环境部署记录](docs/deployment-dev.md)。
 
 项目版本 `0.1.0` 是自身版本。远程 dev 已开启 P1，仅已实现路由开放；test/prod 尚未发布；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。
+
+- [P1 显式 reset 对齐](docs/p1-explicit-reset.md)：直接快照、并发隔离、失败恢复与验收。

@@ -290,12 +290,43 @@ try {
     };
     if (!report.cases.includes(resetRow)) report.cases.push(resetRow);
     resetRow[key] = { status: reset.status, body: summarize(reset.value) };
-    const resetAck = reset.value.find((event) => event.type === 'SyncResetV1')?.ack;
-    if (resetAck)
-      assert.equal(
-        (await request(fetcher, '/api/sync/ack', 'POST', { acks: [resetAck] }, tokens[key])).status,
-        204,
-      );
+    assert.equal(reset.status, 200);
+    assert.deepEqual(
+      reset.value.map((e) => e.type),
+      initial.value.map((e) => e.type),
+      `${key} reset must directly rebuild snapshot`,
+    );
+    assert.ok(!reset.value.some((e) => e.type === 'SyncResetV1'));
+    assert.equal(
+      (
+        await request(
+          fetcher,
+          '/api/sync/ack',
+          'POST',
+          { acks: reset.value.map((e) => e.ack) },
+          tokens[key],
+        )
+      ).status,
+      204,
+    );
+    const afterReset = await request(
+      fetcher,
+      '/api/sync/stream',
+      'POST',
+      { types: manifest.sync.requestedTypes },
+      tokens[key],
+    );
+    assert.equal(afterReset.status, 200);
+    assert.deepEqual(
+      afterReset.value.map((e) => e.type),
+      ['SyncCompleteV1'],
+    );
+    report.resetRecovery ??= {};
+    report.resetRecovery[key] = {
+      directSnapshot: true,
+      ackStatus: 204,
+      incrementalTypes: ['SyncCompleteV1'],
+    };
   }
   for (const row of report.cases) row.equal = isDeepStrictEqual(row.reference, row.immichCf);
   await writeFile('work/reference-comparison.json', JSON.stringify(report, null, 2) + '\n');
