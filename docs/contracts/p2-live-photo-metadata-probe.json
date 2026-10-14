@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-10-14T18:24:00.524Z",
+  "results": [
+    {
+      "name": "apple-jpeg",
+      "status": 400
+    },
+    {
+      "name": "apple-png",
+      "status": 400
+    },
+    {
+      "name": "malformed",
+      "status": 400
+    },
+    {
+      "name": "xmp-jpeg",
+      "status": 400
+    },
+    {
+      "name": "xmp-png",
+      "status": 400
+    }
+  ],
+  "standaloneStatus": 200,
+  "syncAndAck": true,
+  "officialAppVerified": false,
+  "realLivePhotoFixtureVerified": false
+}

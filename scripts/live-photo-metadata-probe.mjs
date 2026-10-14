@@ -22,6 +22,21 @@ try {
   token = (await login.json()).accessToken;
   const jpg = await readFile('tests/fixtures/small.jpg'),
     png = await readFile('tests/fixtures/small.png');
+  // Readiness check: the deliberately wrong checksum prevents an older Worker
+  // from publishing this fixture while a new deployment is propagating.
+  const readiness = await encodedUpload({ name: 'readiness', bytes: withXmp(jpg) });
+  const ready = await fetch(base + '/api/assets', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': readiness.type,
+      'x-immich-checksum': '0'.repeat(40),
+    },
+    body: readiness.bytes,
+    signal: AbortSignal.timeout(30000),
+  });
+  assert.equal(ready.status, 400);
+  assert.match((await ready.json()).message, /XMP/);
   const bad = appleExif(1);
   bad.writeUInt32LE(0xffffffff, 36);
   const cases = [
