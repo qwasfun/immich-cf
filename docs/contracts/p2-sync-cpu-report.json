@@ -1,0 +1,109 @@
+{
+  "checkedAt": "2026-10-14T14:17:47.392Z",
+  "version": "57a5f646-8808-4da7-a91d-a94670eb9cc4",
+  "source": "Cloudflare Workers invocation cpuTimeMs/wallTimeMs, correlated by CF-Ray, version and status",
+  "accountPlan": "unverified-subscriptions-api-authentication-error",
+  "samples": [
+    {
+      "name": "health",
+      "status": 200,
+      "cpuMs": 0,
+      "wallMs": 1,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-success",
+      "status": 201,
+      "cpuMs": 361,
+      "wallMs": 1122,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-wrong-password",
+      "status": 401,
+      "cpuMs": 349,
+      "wallMs": 943,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-unknown-user",
+      "status": 401,
+      "cpuMs": 471,
+      "wallMs": 1095,
+      "outcome": "ok"
+    },
+    {
+      "name": "user",
+      "status": 200,
+      "cpuMs": 1,
+      "wallMs": 190,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot",
+      "status": 200,
+      "cpuMs": 16,
+      "wallMs": 992,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack",
+      "status": 204,
+      "cpuMs": 6,
+      "wallMs": 597,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-1",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    },
+    {
+      "name": "incremental-2",
+      "status": 200,
+      "cpuMs": 10,
+      "wallMs": 1008,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-3",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    },
+    {
+      "name": "incremental-4",
+      "status": 200,
+      "cpuMs": 6,
+      "wallMs": 964,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-5",
+      "status": 200,
+      "cpuMs": 9,
+      "wallMs": 915,
+      "outcome": "ok"
+    },
+    {
+      "name": "logout",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    }
+  ],
+  "assessment": {
+    "decision": "no-go-current-free-cpu",
+    "count": 13,
+    "measured": 10,
+    "missing": 3,
+    "thresholdMs": 10,
+    "maxCpuMs": 471,
+    "exceeded": 4
+  },
+  "fullGo": false
+}
