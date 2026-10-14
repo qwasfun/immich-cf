@@ -2029,3 +2029,82 @@ test('Live Photo 标记先于文件大小拒绝且饱和不淘汰证据', async 
     257,
   );
 });
+
+test('文件内 Live Photo 标记不依赖动态先行或设备标识，JPEG/PNG 双字节序拒绝无孤儿', async () => {
+  const { appleExif } = await import('./fixtures/live-photo-exif.mjs');
+  const { withExif } = await import('./fixtures/exif.mjs');
+  const a = await reliabilityAccount();
+  for (const format of ['jpg', 'png']) {
+    const image = await readFile(`tests/fixtures/small.${format}`);
+    for (const little of [true, false])
+      for (const makerLittle of [true, false])
+        for (const tag of [0x11, 0x17]) {
+          const bytes = withExif(image, appleExif(tag, little, makerLittle), format);
+          const r = await uploadBytes(a.token, bytes);
+          assert.equal(r.status, 400);
+          const error = await r.json();
+          assert.deepEqual(error.errors[0].path, ['assetData']);
+          assert.match(error.message, /Live Photo/);
+        }
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    0,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM live_photo_blocks WHERE owner_id=?')
+        .bind(a.id)
+        .first()
+    ).n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
+  assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 0);
+  const image = await readFile('tests/fixtures/small.jpg');
+  // Supported unmarked Apple MakerNote stays usable; lack of a marker is NOT proof of origin.
+  assert.equal((await uploadBytes(a.token, withExif(image, appleExif(1)))).status, 201);
+  assert.equal((await uploadBytes(a.token, image)).status, 201);
+});
+
+test('私有元数据越界、循环、未知格式和 XMP 保守拒绝，不能借格式损坏绕过', async () => {
+  const { appleExif, withXmp } = await import('./fixtures/live-photo-exif.mjs');
+  const { withExif } = await import('./fixtures/exif.mjs');
+  const a = await reliabilityAccount();
+  const jpg = await readFile('tests/fixtures/small.jpg');
+  const mutations = [
+    (b) => b.writeUInt32LE(0xffffffff, 18),
+    (b) => b.writeUInt32LE(8, 18),
+    (b) => b.writeUInt16LE(3, 12),
+    (b) => b.writeUInt32LE(2, 14),
+    (b) => b.writeUInt32LE(0xffffffff, 32),
+    (b) => b.writeUInt32LE(0xffffffff, 36),
+    (b) => b.write('Other', 44),
+    (b) => (b[55] = 2),
+    (b) => b.write('??', 56),
+    (b) => b.writeUInt16BE(65535, 58),
+    (b) => b.writeUInt32BE(1, 72),
+  ];
+  for (const mutate of mutations) {
+    const payload = appleExif(1);
+    mutate(payload);
+    const r = await uploadBytes(a.token, withExif(jpg, payload));
+    assert.equal(r.status, 400);
+    assert.deepEqual((await r.json()).errors[0].path, ['assetData']);
+  }
+  assert.equal((await uploadBytes(a.token, withXmp(jpg))).status, 400);
+  const png = await readFile('tests/fixtures/small.png');
+  for (const type of ['iTXt', 'zTXt', 'tEXt'])
+    assert.equal((await uploadBytes(a.token, withXmp(png, 'png', type))).status, 400);
+  assert.equal((await uploadBytes(a.token, png)).status, 201);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    1,
+  );
+});

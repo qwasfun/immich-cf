@@ -1,5 +1,6 @@
 import { invalid } from './http';
 import { exifOrientation } from './exif';
+import { rejectLivePhotoExif } from './live-photo-exif';
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -20,6 +21,7 @@ export function imageHeader(bytes: Uint8Array) {
     if (sawExif) invalid('assetData', 'EXIF 块重复，请重新导出只有一份方向信息的图片');
     sawExif = true;
     orientation = exifOrientation(data);
+    rejectLivePhotoExif(data);
   };
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let width = 0,
@@ -45,6 +47,15 @@ export function imageHeader(bytes: Uint8Array) {
         height = view.getUint32(offset + 12);
       }
       if (type === 'acTL') invalid('assetData', '暂不支持动画 PNG，请选择静态图片');
+      if (
+        ['iTXt', 'tEXt', 'zTXt'].includes(type) &&
+        new TextDecoder().decode(bytes.subarray(offset + 8, offset + 8 + Math.min(length, 18))) ===
+          'XML:com.adobe.xmp\0'
+      )
+        invalid(
+          'assetData',
+          'XMP 元数据暂不能安全排除动态照片关联；请保留原件并从当前备份相册移除此项',
+        );
       if (type === 'eXIf') readExif(bytes.subarray(offset + 8, offset + 8 + length));
       if (type === 'IDAT') sawData = true;
       offset += length + 12;
@@ -71,12 +82,15 @@ export function imageHeader(bytes: Uint8Array) {
       if (offset + 2 > bytes.length) break;
       const length = view.getUint16(offset);
       if (length < 2 || offset + length > bytes.length) break;
-      if (
-        marker === 225 &&
-        length >= 8 &&
-        [69, 120, 105, 102, 0, 0].every((n, i) => bytes[offset + 2 + i] === n)
-      )
-        readExif(bytes.subarray(offset + 8, offset + length));
+      if (marker === 225) {
+        if (length >= 8 && [69, 120, 105, 102, 0, 0].every((n, i) => bytes[offset + 2 + i] === n))
+          readExif(bytes.subarray(offset + 8, offset + length));
+        else
+          invalid(
+            'assetData',
+            'XMP 或未知 APP1 元数据暂不能安全排除动态照片关联；请保留原件并从当前备份相册移除此项',
+          );
+      }
       if (marker === 192 || marker === 194) {
         if (length < 8) break;
         height = view.getUint16(offset + 3);
