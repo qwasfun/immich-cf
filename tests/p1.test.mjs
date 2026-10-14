@@ -1148,3 +1148,19 @@ test('真实非空同步按字节重分块、半行中断、前缀 ACK 后重连
     ['SyncCompleteV1'],
   );
 });
+
+test('参考 3.3.1 初始化字段：OAuth 空管理地址，会话到期与 PIN 提权到期不混淆', async () => {
+  const config = await (await worker.fetch('/api/server/config')).json();
+  assert.equal(config.oauthAccountManagementUrl, '');
+  const { token } = await reliabilityAccount();
+  const response = await worker.fetch('/api/auth/status', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(response.status, 200);
+  const status = await response.json();
+  assert.equal(status.isElevated, false);
+  assert.equal(status.pinCode, false);
+  assert.ok(Date.parse(status.expiresAt) > Date.now());
+  assert.equal(Object.hasOwn(status, 'pinExpiresAt'), false);
+  assert.equal((await worker.fetch('/api/auth/status')).status, 401);
+});

@@ -34,8 +34,14 @@
       "linux/amd64": "sha256:96c6ec77cdea5a3c90539b81baf8c276b834deb595b1603c4aefc1903ab6a05b",
       "linux/arm64": "sha256:79bebf8e2cb9a727016c3f4fe51ab6fd531b2d1075ef8e618bffc00204010de9"
     },
-    "evidence": "docker buildx imagetools inspect; registry metadata only",
-    "runtimeVerified": false
+    "evidence": "registry digests plus isolated linux/amd64 container and API verification; see runtimeEvidence",
+    "runtimeVerified": true,
+    "runtimeEvidence": {
+      "checkedAt": "2026-10-14",
+      "scope": "isolated-empty-library-http-and-sync",
+      "report": "contracts/p1-reference-comparison.json",
+      "fullCompatibilityVerified": false
+    }
   },
   "sync": {
     "serverVersionForSourceAnalysis": "3.3.1",

@@ -115,6 +115,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
       mapDarkStyleUrl: '',
       mapLightStyleUrl: '',
       minFaces: 1,
+      oauthAccountManagementUrl: '',
       oauthButtonText: '',
       publicUsers: false,
       trashDays: 0,

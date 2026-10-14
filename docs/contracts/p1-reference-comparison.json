@@ -1,0 +1,732 @@
+{
+  "upstreamCommit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "image": "sha256:96c6ec77cdea5a3c90539b81baf8c276b834deb595b1603c4aefc1903ab6a05b",
+  "scope": "isolated-empty-library-http-and-sync",
+  "gate": "comparison-only-not-full-compatibility",
+  "cases": [
+    {
+      "name": "version",
+      "endpoint": "/api/server/version",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "major": 3,
+          "minor": 3,
+          "patch": 1,
+          "prerelease": null
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "major": 3,
+          "minor": 3,
+          "patch": 1,
+          "prerelease": null
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "features",
+      "endpoint": "/api/server/features",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "smartSearch": true,
+          "facialRecognition": true,
+          "duplicateDetection": true,
+          "map": true,
+          "reverseGeocoding": true,
+          "importFaces": false,
+          "sidecar": true,
+          "search": true,
+          "trash": true,
+          "oauth": false,
+          "oauthAutoLaunch": false,
+          "ocr": true,
+          "passwordLogin": true,
+          "configFile": false,
+          "email": false,
+          "realtimeTranscoding": false
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "configFile": false,
+          "duplicateDetection": false,
+          "email": false,
+          "facialRecognition": false,
+          "importFaces": false,
+          "map": false,
+          "oauth": false,
+          "oauthAutoLaunch": false,
+          "ocr": false,
+          "passwordLogin": true,
+          "realtimeTranscoding": false,
+          "reverseGeocoding": false,
+          "search": false,
+          "sidecar": false,
+          "smartSearch": false,
+          "trash": false
+        }
+      },
+      "equal": false
+    },
+    {
+      "name": "config",
+      "endpoint": "/api/server/config",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "externalDomain": "string",
+          "isInitialized": "boolean",
+          "isOnboarded": "boolean",
+          "loginPageMessage": "string",
+          "maintenanceMode": "boolean",
+          "mapDarkStyleUrl": "string",
+          "mapLightStyleUrl": "string",
+          "minFaces": "number",
+          "oauthAccountManagementUrl": "string",
+          "oauthButtonText": "string",
+          "publicUsers": "boolean",
+          "trashDays": "number",
+          "userDeleteDelay": "number"
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "externalDomain": "string",
+          "isInitialized": "boolean",
+          "isOnboarded": "boolean",
+          "loginPageMessage": "string",
+          "maintenanceMode": "boolean",
+          "mapDarkStyleUrl": "string",
+          "mapLightStyleUrl": "string",
+          "minFaces": "number",
+          "oauthAccountManagementUrl": "string",
+          "oauthButtonText": "string",
+          "publicUsers": "boolean",
+          "trashDays": "number",
+          "userDeleteDelay": "number"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "config-values",
+      "endpoint": "/api/server/config",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "publicUsers": true,
+          "isInitialized": true,
+          "isOnboarded": false,
+          "trashDays": 30,
+          "minFaces": 3,
+          "userDeleteDelay": 7,
+          "oauthAccountManagementUrl": ""
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "publicUsers": false,
+          "isInitialized": true,
+          "isOnboarded": true,
+          "trashDays": 0,
+          "minFaces": 1,
+          "userDeleteDelay": 0,
+          "oauthAccountManagementUrl": ""
+        }
+      },
+      "equal": false
+    },
+    {
+      "name": "unauthorized-user",
+      "endpoint": "/api/users/me",
+      "method": "GET",
+      "reference": {
+        "status": 401,
+        "body": {
+          "message": "string"
+        }
+      },
+      "immichCf": {
+        "status": 401,
+        "body": {
+          "message": "string"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "wrong-password",
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "reference": {
+        "status": 401,
+        "body": {
+          "message": "string"
+        }
+      },
+      "immichCf": {
+        "status": 401,
+        "body": {
+          "message": "string"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "login",
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "reference": {
+        "status": 201,
+        "body": {
+          "accessToken": "string",
+          "isAdmin": "boolean",
+          "isOnboarded": "boolean",
+          "name": "string",
+          "profileImagePath": "string",
+          "shouldChangePassword": "boolean",
+          "userEmail": "string",
+          "userId": "string"
+        }
+      },
+      "immichCf": {
+        "status": 201,
+        "body": {
+          "accessToken": "string",
+          "isAdmin": "boolean",
+          "isOnboarded": "boolean",
+          "name": "string",
+          "profileImagePath": "string",
+          "shouldChangePassword": "boolean",
+          "userEmail": "string",
+          "userId": "string"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "auth-status",
+      "endpoint": "/api/auth/status",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "isElevated": "boolean",
+          "password": "boolean",
+          "pinCode": "boolean"
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "expiresAt": "string",
+          "isElevated": "boolean",
+          "password": "boolean",
+          "pinCode": "boolean"
+        }
+      },
+      "equal": false
+    },
+    {
+      "name": "validate-token",
+      "endpoint": "/api/auth/validateToken",
+      "method": "POST",
+      "reference": {
+        "status": 200,
+        "body": {
+          "authStatus": true
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "authStatus": true
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "current-user",
+      "endpoint": "/api/users/me",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "avatarColor": "string",
+          "clusterGroupId": "string",
+          "createdAt": "string",
+          "deletedAt": "null",
+          "email": "string",
+          "id": "string",
+          "isAdmin": "boolean",
+          "license": "null",
+          "name": "string",
+          "oauthId": "string",
+          "profileChangedAt": "string",
+          "profileImagePath": "string",
+          "quotaSizeInBytes": "null",
+          "quotaUsageInBytes": "number",
+          "shouldChangePassword": "boolean",
+          "status": "string",
+          "storageLabel": "null",
+          "updatedAt": "string"
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "avatarColor": "string",
+          "clusterGroupId": "string",
+          "createdAt": "string",
+          "deletedAt": "null",
+          "email": "string",
+          "id": "string",
+          "isAdmin": "boolean",
+          "license": "null",
+          "name": "string",
+          "oauthId": "string",
+          "profileChangedAt": "string",
+          "profileImagePath": "string",
+          "quotaSizeInBytes": "null",
+          "quotaUsageInBytes": "number",
+          "shouldChangePassword": "boolean",
+          "status": "string",
+          "storageLabel": "null",
+          "updatedAt": "string"
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "preferences",
+      "endpoint": "/api/users/me/preferences",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "albums": {
+            "defaultAssetOrder": "desc"
+          },
+          "folders": {
+            "enabled": false,
+            "sidebarWeb": false
+          },
+          "memories": {
+            "enabled": true,
+            "duration": 5,
+            "sidebarWeb": false
+          },
+          "people": {
+            "enabled": true,
+            "sidebarWeb": false,
+            "minimumFaces": 3,
+            "updateStrategy": "everyone"
+          },
+          "sharedLinks": {
+            "enabled": true,
+            "sidebarWeb": false
+          },
+          "ratings": {
+            "enabled": false
+          },
+          "tags": {
+            "enabled": false,
+            "sidebarWeb": false
+          },
+          "emailNotifications": {
+            "enabled": true,
+            "albumInvite": true,
+            "albumUpdate": true
+          },
+          "download": {
+            "archiveSize": 4294967296,
+            "includeEmbeddedVideos": false
+          },
+          "purchase": {
+            "showSupportBadge": true,
+            "hideBuyButtonUntil": "2022-02-12T00:00:00.000Z"
+          },
+          "cast": {
+            "gCastEnabled": false
+          },
+          "recentlyAdded": {
+            "sidebarWeb": false
+          }
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "albums": {
+            "defaultAssetOrder": "desc"
+          },
+          "folders": {
+            "enabled": false,
+            "sidebarWeb": false
+          },
+          "memories": {
+            "enabled": true,
+            "duration": 5,
+            "sidebarWeb": false
+          },
+          "people": {
+            "enabled": true,
+            "sidebarWeb": false,
+            "minimumFaces": 3,
+            "updateStrategy": "everyone"
+          },
+          "sharedLinks": {
+            "enabled": true,
+            "sidebarWeb": false
+          },
+          "ratings": {
+            "enabled": false
+          },
+          "tags": {
+            "enabled": false,
+            "sidebarWeb": false
+          },
+          "emailNotifications": {
+            "enabled": true,
+            "albumInvite": true,
+            "albumUpdate": true
+          },
+          "download": {
+            "archiveSize": 4294967296,
+            "includeEmbeddedVideos": false
+          },
+          "purchase": {
+            "showSupportBadge": true,
+            "hideBuyButtonUntil": "2022-02-12T00:00:00.000Z"
+          },
+          "cast": {
+            "gCastEnabled": false
+          },
+          "recentlyAdded": {
+            "sidebarWeb": false
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "onboarding",
+      "endpoint": "/api/users/me/onboarding",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": {
+          "isOnboarded": false
+        }
+      },
+      "immichCf": {
+        "status": 200,
+        "body": {
+          "isOnboarded": false
+        }
+      },
+      "equal": true
+    },
+    {
+      "name": "sessions",
+      "endpoint": "/api/sessions",
+      "method": "GET",
+      "reference": {
+        "status": 200,
+        "body": [
+          {
+            "appVersion": "null",
+            "createdAt": "string",
+            "current": "boolean",
+            "deviceOS": "string",
+            "deviceType": "string",
+            "id": "string",
+            "isPendingSyncReset": "boolean",
+            "updatedAt": "string"
+          }
+        ]
+      },
+      "immichCf": {
+        "status": 200,
+        "body": [
+          {
+            "appVersion": "null",
+            "createdAt": "string",
+            "current": "boolean",
+            "deviceOS": "string",
+            "deviceType": "string",
+            "expiresAt": "string",
+            "id": "string",
+            "isPendingSyncReset": "boolean",
+            "updatedAt": "string"
+          }
+        ]
+      },
+      "equal": false
+    },
+    {
+      "name": "initial-stream",
+      "endpoint": "/api/sync/stream",
+      "method": "POST",
+      "reference": {
+        "status": 200,
+        "body": [
+          {
+            "type": "AuthUserV2",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "isAdmin": "boolean",
+              "name": "string",
+              "oauthId": "null",
+              "pinCode": "null",
+              "profileChangedAt": "string",
+              "quotaSizeInBytes": "null",
+              "quotaUsageInBytes": "number",
+              "storageLabel": "null"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "SyncCompleteV1",
+            "data": {},
+            "ackParts": 2
+          }
+        ]
+      },
+      "immichCf": {
+        "status": 200,
+        "body": [
+          {
+            "type": "AuthUserV2",
+            "data": {
+              "avatarColor": "string",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "isAdmin": "boolean",
+              "name": "string",
+              "oauthId": "null",
+              "pinCode": "null",
+              "profileChangedAt": "string",
+              "quotaSizeInBytes": "null",
+              "quotaUsageInBytes": "number",
+              "storageLabel": "null"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "string",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "SyncCompleteV1",
+            "data": {},
+            "ackParts": 2
+          }
+        ]
+      },
+      "equal": false
+    },
+    {
+      "name": "incremental-stream",
+      "endpoint": "/api/sync/stream",
+      "method": "POST",
+      "reference": {
+        "status": 200,
+        "body": [
+          {
+            "type": "SyncCompleteV1",
+            "data": {},
+            "ackParts": 2
+          }
+        ]
+      },
+      "immichCf": {
+        "status": 200,
+        "body": [
+          {
+            "type": "SyncCompleteV1",
+            "data": {},
+            "ackParts": 2
+          }
+        ]
+      },
+      "equal": true
+    },
+    {
+      "name": "reset-stream",
+      "endpoint": "/api/sync/stream",
+      "method": "POST",
+      "reference": {
+        "status": 200,
+        "body": [
+          {
+            "type": "AuthUserV2",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "isAdmin": "boolean",
+              "name": "string",
+              "oauthId": "null",
+              "pinCode": "null",
+              "profileChangedAt": "string",
+              "quotaSizeInBytes": "null",
+              "quotaUsageInBytes": "number",
+              "storageLabel": "null"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "UserV1",
+            "data": {
+              "avatarColor": "null",
+              "deletedAt": "null",
+              "email": "string",
+              "hasProfileImage": "boolean",
+              "id": "string",
+              "name": "string",
+              "profileChangedAt": "string"
+            },
+            "ackParts": 2
+          },
+          {
+            "type": "SyncCompleteV1",
+            "data": {},
+            "ackParts": 2
+          }
+        ]
+      },
+      "immichCf": {
+        "status": 200,
+        "body": [
+          {
+            "type": "SyncResetV1",
+            "data": {},
+            "ackParts": 3
+          }
+        ]
+      },
+      "equal": false
+    }
+  ]
+}

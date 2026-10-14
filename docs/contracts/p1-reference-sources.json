@@ -1,0 +1,16 @@
+{
+  "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "checkedAt": "2026-10-14",
+  "sources": [
+    {
+      "path": "docker/docker-compose.yml",
+      "sha256": "2601c893aa3217d3c0c7284c23aaa1699aac75b533c84c0315fd16b7889fd552",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/docker/docker-compose.yml"
+    },
+    {
+      "path": "server/src/services/auth.service.ts",
+      "sha256": "6082f5d94c5a0d501f845d28362f4e9e723aec9d5e0d714b8fee5fdfa67ba3b1",
+      "url": "https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/auth.service.ts"
+    }
+  ]
+}

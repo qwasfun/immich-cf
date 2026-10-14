@@ -29,7 +29,10 @@
     "deploy:prod": "node scripts/release.mjs prod",
     "release:dev": "node scripts/release.mjs dev",
     "db:migrate:test": "wrangler d1 migrations apply IMMICH_CF_DB --env test --remote",
-    "db:migrate:prod": "wrangler d1 migrations apply IMMICH_CF_DB --env prod --remote"
+    "db:migrate:prod": "wrangler d1 migrations apply IMMICH_CF_DB --env prod --remote",
+    "reference:compare": "node scripts/reference-compare.mjs",
+    "reference:up": "node scripts/reference-env.mjs up",
+    "reference:down": "node scripts/reference-env.mjs down"
   },
   "devDependencies": {
     "eslint": "10.12.0",
