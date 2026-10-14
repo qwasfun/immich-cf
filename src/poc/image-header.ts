@@ -1,5 +1,16 @@
 import { invalid } from './http';
 
+const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let bit = 0; bit < 8; bit++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 255]! ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 // Bounded container/header inspection, not a full image decoder or EXIF processor.
 export function imageHeader(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -15,6 +26,11 @@ export function imageHeader(bytes: Uint8Array) {
       if (length > bytes.length - offset - 12)
         invalid('assetData', 'PNG 文件不完整，请重新导出图片');
       const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+      if (
+        crc32(bytes.subarray(offset + 4, offset + 8 + length)) !==
+        view.getUint32(offset + 8 + length)
+      )
+        invalid('assetData', 'PNG 校验和错误，文件可能已损坏，请重新导出原图后上传');
       if (offset === 8) {
         if (type !== 'IHDR' || length !== 13) invalid('assetData', 'PNG 头无效，请重新导出图片');
         width = view.getUint32(offset + 8);

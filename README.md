@@ -6,6 +6,8 @@
 
 ## 需求与开发顺序
 
+- [P2 上传完整性与剩余矩阵](docs/p2-upload-matrix.md)：PNG CRC、混合失败序列、100 个合成变体及真实图库验收边界。
+
 - [P2 私有媒体 Range/ETag](docs/p2-media-http.md)：分段读取、条件请求、HEAD 和撤销后的访问隔离；CPU 超预算暂缓。
 
 - [完整中文需求文档](outputs/immich-cf-完整需求文档.md)：纳入 Git 管理，作为需求基线。

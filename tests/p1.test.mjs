@@ -1523,3 +1523,91 @@ test('私有媒体支持 Range、HEAD、ETag，条件请求不能绕过归属和
   await send('/api/auth/logout', {}, token);
   assert.equal((await get({ 'If-None-Match': etag })).status, 401);
 });
+
+async function uploadBytes(token, bytes) {
+  const form = new FormData();
+  form.set('assetData', new File([bytes], '混合队列.png'));
+  form.set('fileCreatedAt', '2026-10-15T00:00:00Z');
+  form.set('fileModifiedAt', '2026-10-15T00:00:00Z');
+  const encoded = new Request('http://localhost/api/assets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  return worker.fetch('/api/assets', {
+    method: 'POST',
+    headers: Object.fromEntries(encoded.headers),
+    body: await encoded.arrayBuffer(),
+  });
+}
+
+test('PNG CRC 损坏和超限不入库、不预约；随后有效图片仍可上传同步', async () => {
+  const { id, token } = await reliabilityAccount();
+  const png = await readFile('tests/fixtures/small.png');
+  assert.equal((await uploadBytes(token, png)).status, 201);
+  const broken = Buffer.from(png);
+  broken[29] ^= 1; // IHDR CRC, not dimensions.
+  const corrupt = await uploadBytes(token, broken);
+  assert.equal(corrupt.status, 400);
+  const error = await corrupt.json();
+  assert.match(JSON.stringify(error), /assetData/);
+  assert.match(JSON.stringify(error), /校验和/);
+  assert.equal((await uploadBytes(token, Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
+  for (const value of ['....ftypheic', '....ftypisom', 'GIF89a', '<svg/>']) {
+    assert.equal((await uploadBytes(token, Buffer.from(value))).status, 400);
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first()).n,
+    0,
+  );
+  assert.equal((await uploadBytes(token, await readFile('tests/fixtures/small.jpg'))).status, 201);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+    2,
+  );
+  assert.equal((await syncEvents(token)).filter((e) => e.type === 'AssetV2').length, 2);
+});
+
+test('100 个 JPEG/PNG 合成变体原图字节一致，重复重试不增加资产', async () => {
+  const { crc32 } = await import('node:zlib');
+  const png = await readFile('tests/fixtures/small.png');
+  const jpg = await readFile('tests/fixtures/small.jpg');
+  for (let group = 0; group < 5; group++) {
+    const { id, token } = await reliabilityAccount();
+    for (let index = 0; index < 20; index++) {
+      const payload = Buffer.from(`Comment\0sample-${group * 20 + index}`);
+      let bytes;
+      if (index % 2 === 0) {
+        const chunk = Buffer.alloc(payload.length + 12);
+        chunk.writeUInt32BE(payload.length);
+        chunk.write('tEXt', 4);
+        payload.copy(chunk, 8);
+        chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+        bytes = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+      } else {
+        const comment = Buffer.alloc(payload.length + 4);
+        comment[0] = 255;
+        comment[1] = 254;
+        comment.writeUInt16BE(payload.length + 2, 2);
+        payload.copy(comment, 4);
+        bytes = Buffer.concat([jpg.subarray(0, 2), comment, jpg.subarray(2)]);
+      }
+      const uploaded = await uploadBytes(token, bytes);
+      assert.equal(uploaded.status, 201);
+      const saved = await uploaded.json();
+      const repeat = await uploadBytes(token, bytes);
+      assert.equal(repeat.status, 200);
+      assert.equal((await repeat.json()).id, saved.id);
+      const original = await worker.fetch(`/api/assets/${saved.id}/original`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(original.status, 200);
+      assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+    }
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+      20,
+    );
+    assert.equal((await syncEvents(token)).filter((e) => e.type === 'AssetV2').length, 20);
+  }
+});
