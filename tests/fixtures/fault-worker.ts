@@ -39,6 +39,8 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (fault === 'live-photo-db' && sql.includes('live_photo_blocks'))
+              throw new Error('TEST_LIVE_PHOTO_DB_UNAVAILABLE');
             if (/SELECT.*FROM sync_checkpoints/i.test(sql)) checkpointReads++;
             if (/INSERT INTO sync_deliveries/i.test(sql)) deliveryWrites++;
             return target.prepare(sql);

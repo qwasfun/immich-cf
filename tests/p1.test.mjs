@@ -497,7 +497,11 @@ test('小图片上传、重复检测、Sync 资产、详情与私有媒体读取
   assert.equal((await upload(Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
   assert.equal((await upload(Buffer.from('<svg></svg>'))).status, 400);
   assert.equal((await upload(png, { fileCreatedAt: 'invalid-secret' })).status, 400);
-  assert.equal((await upload(png, { visibility: 'hidden' })).status, 400);
+  assert.equal(
+    (await upload(png, { visibility: 'hidden', deviceAssetId: 'live-photo-only' })).status,
+    400,
+  );
+  assert.equal((await upload(png, { deviceAssetId: 'live-photo-only' })).status, 400);
   assert.equal((await upload(png, { sidecarData: 'not-supported' })).status, 400);
   assert.equal(
     (await upload(png, {}, '', { ...headers, 'x-immich-checksum': '0'.repeat(40) })).status,
@@ -1921,4 +1925,107 @@ test('两会话旧 ACK 后均收到尺寸修复；缺失或校验不符原图不
     const asset = events.find((e) => e.type === 'AssetV2' && e.data.id === id);
     assert.deepEqual([asset.data.width, asset.data.height], [240, 320]);
   }
+});
+
+test('Live Photo 拒绝后静态重试跨会话持久拦截、账户设备隔离和无孤儿', async () => {
+  const { encodedUpload } = await import('./fixtures/mixed-queue.mjs');
+  const a = await reliabilityAccount();
+  const b = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const submit = async (token, fields, fault = '') => {
+    const encoded = await encodedUpload({ name: 'live-pair', bytes, fields });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': encoded.type,
+        'x-test-storage-fault': fault,
+      },
+      body: encoded.bytes,
+    });
+  };
+  const pair = { deviceId: 'phone-A', deviceAssetId: 'asset-A/L0/001' };
+  assert.equal((await submit(a.token, { ...pair, visibility: 'hidden' })).status, 400);
+  const relogin = await send('/api/auth/login', { email: `${a.id}@example.invalid`, password });
+  assert.equal(relogin.status, 201);
+  const token = (await relogin.json()).accessToken;
+  const responses = await Promise.all(Array.from({ length: 3 }, () => submit(token, pair)));
+  for (const response of responses) {
+    assert.equal(response.status, 400);
+    assert.deepEqual((await response.json()).errors[0].path, ['assetData']);
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    0,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
+  assert.equal((await syncEvents(token)).filter((e) => e.type === 'AssetV2').length, 0);
+  assert.equal((await submit(b.token, pair)).status, 201);
+  assert.equal((await submit(token, { ...pair, deviceId: 'phone-B' })).status, 201);
+  // Even an otherwise duplicate checksum cannot bypass the device-asset block.
+  assert.equal((await submit(token, pair)).status, 400);
+  assert.equal((await submit(token, { ...pair, deviceAssetId: 'standalone' })).status, 200);
+  assert.equal(
+    (await submit(token, { ...pair, deviceAssetId: 'db-failure' }, 'live-photo-db')).status,
+    503,
+  );
+  assert.equal((await submit(token, { ...pair, deviceId: '' })).status, 400);
+});
+
+test('Live Photo 标记先于文件大小拒绝且饱和不淘汰证据', async () => {
+  const { mixedCases, encodedUpload } = await import('./fixtures/mixed-queue.mjs');
+  const a = await reliabilityAccount();
+  const items = await mixedCases();
+  const submit = async (item, fields) => {
+    const encoded = await encodedUpload({ ...item, fields });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${a.token}`,
+        'Content-Type': encoded.type,
+      },
+      body: encoded.bytes,
+    });
+  };
+  const pair = { deviceId: 'device', deviceAssetId: 'oversize-motion' };
+  assert.equal((await submit(items[1], { ...pair, visibility: 'hidden' })).status, 413);
+  assert.equal((await submit(items[0], pair)).status, 400);
+  await db.batch(
+    Array.from({ length: 255 }, (_, i) =>
+      db.prepare('INSERT INTO live_photo_blocks VALUES (?,?)').bind(a.id, `seed-${i}`),
+    ),
+  );
+  assert.equal((await submit(items[0], { ...pair, visibility: 'hidden' })).status, 400);
+  assert.equal(
+    await db
+      .prepare("SELECT 1 FROM live_photo_blocks WHERE owner_id=? AND pair_key='*'")
+      .bind(a.id)
+      .first(),
+    null,
+  );
+  assert.equal(
+    (
+      await submit(items[0], {
+        ...pair,
+        deviceAssetId: 'overflow',
+        livePhotoVideoId: 'unsupported',
+      })
+    ).status,
+    400,
+  );
+  assert.equal((await submit(items[0], {})).status, 400);
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM live_photo_blocks WHERE owner_id=?')
+        .bind(a.id)
+        .first()
+    ).n,
+    257,
+  );
 });

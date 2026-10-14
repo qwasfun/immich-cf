@@ -2,6 +2,7 @@ import type { Identity } from './auth';
 import { body, HttpError, invalid } from './http';
 import { imageHeader } from './image-header';
 import { media } from './media';
+import { guardLivePhoto } from './live-photo';
 
 export const MAX_IMAGE = 2 * 1024 * 1024;
 interface Asset {
@@ -67,6 +68,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   const form = await boundedForm(request);
   for (const key of new Set(form.keys()))
     if (form.getAll(key).length !== 1) invalid(key, '只能提交一次');
+  await guardLivePhoto(form, env.IMMICH_CF_DB, identity.id);
   const file = form.get('assetData');
   if (!(file instanceof File) || file.size === 0) invalid('assetData', '请选择非空图片文件');
   if (file.size > MAX_IMAGE)
