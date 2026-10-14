@@ -1356,3 +1356,51 @@ test('旧 ACK 先提交也不裁剪显式 reset 快照；请求类型过滤及�
     await held.release();
   }
 });
+
+test('非空图库共享契约：两种图片、元数据、重复上传、未 ACK 重放及 reset 后媒体闭环', async () => {
+  const { compareNonempty } = await import('../scripts/reference-nonempty.mjs');
+  const { token } = await reliabilityAccount();
+  const report = await compareNonempty({
+    targets: { immichCf: (url, options) => worker.fetch(url, options) },
+    tokens: { immichCf: token },
+    shape: (value) => Object.keys(value).sort(),
+    request: async (fetcher, url, method, data, accessToken) => {
+      const response = await fetcher(url, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      const text = await response.text();
+      return {
+        status: response.status,
+        value: !text
+          ? null
+          : response.headers.get('content-type')?.includes('jsonlines')
+            ? text.trim().split('\n').map(JSON.parse)
+            : JSON.parse(text),
+      };
+    },
+  });
+  assert.equal(report.targets.immichCf.media.length, 2);
+});
+
+test('非空图库部分 ACK：后续资产不丢失，用户游标不被推进', async () => {
+  const { token } = await reliabilityAccount();
+  await uploadFixture(token, 'small.png');
+  await uploadFixture(token, 'small.jpg');
+  const initial = await syncEvents(token);
+  const assets = initial.filter((e) => e.type === 'AssetV2');
+  assert.equal(assets.length, 2);
+  assert.equal((await send('/api/sync/ack', { acks: [assets[0].ack] }, token)).status, 204);
+  const replay = await syncEvents(token);
+  assert.deepEqual(
+    replay.filter((e) => e.type === 'AssetV2').map((e) => e.data.id),
+    [assets[1].data.id],
+  );
+  assert.ok(replay.some((e) => e.type === 'UserV1'));
+  const reset = await syncEvents(token, { reset: true });
+  assert.equal(reset.filter((e) => e.type === 'AssetV2').length, 2);
+});

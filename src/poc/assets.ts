@@ -339,17 +339,19 @@ export async function assetEvents(
     .bind(identity.session_id)
     .all<{ type: string; ack: string }>();
   const events: { type: string; ack: string; data: unknown }[] = [];
+  const metadataEvents: typeof events = [];
   for (const row of rows.results) {
     const cursor = String(row.seq).padStart(20, '0');
     const add = (type: string, data: unknown) => {
       const ack = `${type}|${cursor}`;
       if (reset || !checkpoints.results.some((p) => p.type === type && p.ack >= ack))
-        events.push({ type, ack, data });
+        (type === 'AssetMetadataV1' ? metadataEvents : events).push({ type, ack, data });
     };
     if (types.includes('AssetsV2')) add('AssetV2', assetDto(row));
     if (types.includes('AssetMetadataV1'))
       for (const entry of JSON.parse(row.metadata))
         add('AssetMetadataV1', { assetId: row.id, ...entry });
   }
-  return events;
+  // Frozen upstream emits all asset rows before the metadata family.
+  return [...events, ...metadataEvents];
 }

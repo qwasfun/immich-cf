@@ -1,3 +1,4 @@
+import { compareNonempty } from './reference-nonempty.mjs';
 import assert from 'node:assert/strict';
 import { isDeepStrictEqual } from 'node:util';
 import { execFileSync } from 'node:child_process';
@@ -328,6 +329,8 @@ try {
       incrementalTypes: ['SyncCompleteV1'],
     };
   }
+  report.nonempty = await compareNonempty({ targets, tokens, request, shape });
+  report.scope = 'isolated-identity-and-two-image-library-http-and-sync';
   for (const row of report.cases) row.equal = isDeepStrictEqual(row.reference, row.immichCf);
   await writeFile('work/reference-comparison.json', JSON.stringify(report, null, 2) + '\n');
   console.log(
