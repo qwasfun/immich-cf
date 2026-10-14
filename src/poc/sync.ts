@@ -3,6 +3,7 @@ import { body, HttpError, invalid, strings, uuid7 } from './http';
 import { entityTypes, supportedTypes } from './types';
 import { onboardingEvents } from './onboarding';
 import { assetEvents } from './assets';
+import { syncLines as lines } from './sync-lines';
 
 interface SyncState {
   sync_epoch: string;
@@ -216,18 +217,4 @@ export async function sync(
     ),
   ]);
   return lines(events);
-}
-
-function lines(events: { type: string; data: unknown; ack: string }[]): Response {
-  const encoder = new TextEncoder();
-  return new Response(
-    new ReadableStream({
-      start(controller) {
-        for (const event of events)
-          controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
-        controller.close();
-      },
-    }),
-    { headers: { 'Content-Type': 'application/jsonlines+json' } },
-  );
 }

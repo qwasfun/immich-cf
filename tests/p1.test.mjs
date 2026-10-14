@@ -1100,3 +1100,51 @@ test('请求鉴权后会话过期，事务校验拒绝旧 ACK 且无部分写入
     await held.release();
   }
 });
+
+test('真实非空同步按字节重分块、半行中断、前缀 ACK 后重连不漏资产', async () => {
+  const { decodeFrozenFraming } = await import('./helpers/sync-framing.mjs');
+  const { token } = await reliabilityAccount();
+  assert.equal((await uploadFixture(token)).status, 201);
+  assert.equal((await uploadFixture(token, 'small.jpg')).status, 201);
+  const response = await send('/api/sync/stream', { types: manifest.sync.requestedTypes }, token);
+  assert.equal(response.status, 200);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const full = decodeFrozenFraming([bytes]);
+  assert.equal(full.complete, true);
+  const bytewise = decodeFrozenFraming(Array.from(bytes, (byte) => Uint8Array.of(byte)));
+  assert.deepEqual(bytewise.events, full.events);
+  const firstAsset = full.events.findIndex((e) => e.type === 'AssetV2');
+  assert.ok(firstAsset > 0);
+  const asset = full.events[firstAsset];
+  assert.match(asset.data.originalFileName, /恢复测试/);
+  schema(asset.data, 'SyncAssetV2');
+  // Deliver first asset completely, but cut the next asset in the middle of its JSON line.
+  const secondAsset = full.events.findIndex((e, i) => i > firstAsset && e.type === 'AssetV2');
+  assert.ok(secondAsset > firstAsset);
+  const prefix = full.events
+    .slice(0, secondAsset)
+    .map((e) => JSON.stringify(e) + '\n')
+    .join('');
+  const cut = new TextEncoder().encode(prefix).length + 13;
+  const interrupted = decodeFrozenFraming([bytes.subarray(0, cut)]);
+  assert.equal(interrupted.complete, false);
+  assert.ok(interrupted.tail.length > 0);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: interrupted.events.map((e) => e.ack) }, token)).status,
+    204,
+  );
+  const resumed = await syncEvents(token);
+  assert.deepEqual(
+    resumed.filter((e) => e.type === 'AssetV2').map((e) => e.data.id),
+    [full.events[secondAsset].data.id],
+  );
+  assert.equal(resumed.at(-1).type, 'SyncCompleteV1');
+  assert.equal(
+    (await send('/api/sync/ack', { acks: resumed.map((e) => e.ack) }, token)).status,
+    204,
+  );
+  assert.deepEqual(
+    (await syncEvents(token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+});

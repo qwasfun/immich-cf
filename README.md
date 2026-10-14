@@ -13,6 +13,7 @@
 - [P1 本地 PoC](docs/p1-local-poc.md)：启用方式、创建测试用户、验证结果与未完成范围。
 - [P1 用户初始化与会话管理](docs/p1-initialization.md)：偏好读取、会话列表与撤销、迁移及验证边界。
 - [P1 登录初始化 HTTP 接口](docs/p1-login-bootstrap.md)：官方登录调用核对、onboarding 读写及元数据同步、媒体能力边界。
+- [P1 分块传输与中断恢复](docs/p1-stream-transport.md)：UTF-8、换行边界、背压与部分确认重连矩阵。
 - [P1 Sync reset/ACK 恢复](docs/p1-sync-recovery.md)：同步轮次隔离、原子校验与重复确认恢复。
 - [P1 上传可靠性与异常恢复](docs/p1-reliability.md)：持久化上传预约、故障注入、同步重试及剩余关口。
 - [P1 小图片闭环](docs/p1-small-images.md)：上传限制、Sync 与私有读取、真机步骤及剩余风险。
