@@ -1,4 +1,5 @@
 import { invalid } from './http';
+import { exifOrientation } from './exif';
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -11,8 +12,15 @@ function crc32(bytes: Uint8Array) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-// Bounded container/header inspection, not a full image decoder or EXIF processor.
+// Bounded container/header and IFD0 orientation inspection, not a full image decoder.
 export function imageHeader(bytes: Uint8Array) {
+  let orientation: number | undefined;
+  let sawExif = false;
+  const readExif = (data: Uint8Array) => {
+    if (sawExif) invalid('assetData', 'EXIF 块重复，请重新导出只有一份方向信息的图片');
+    sawExif = true;
+    orientation = exifOrientation(data);
+  };
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let width = 0,
     height = 0,
@@ -37,6 +45,7 @@ export function imageHeader(bytes: Uint8Array) {
         height = view.getUint32(offset + 12);
       }
       if (type === 'acTL') invalid('assetData', '暂不支持动画 PNG，请选择静态图片');
+      if (type === 'eXIf') readExif(bytes.subarray(offset + 8, offset + 8 + length));
       if (type === 'IDAT') sawData = true;
       offset += length + 12;
       if (type === 'IEND') {
@@ -62,6 +71,12 @@ export function imageHeader(bytes: Uint8Array) {
       if (offset + 2 > bytes.length) break;
       const length = view.getUint16(offset);
       if (length < 2 || offset + length > bytes.length) break;
+      if (
+        marker === 225 &&
+        length >= 8 &&
+        [69, 120, 105, 102, 0, 0].every((n, i) => bytes[offset + 2 + i] === n)
+      )
+        readExif(bytes.subarray(offset + 8, offset + length));
       if (marker === 192 || marker === 194) {
         if (length < 8) break;
         height = view.getUint16(offset + 3);
@@ -79,5 +94,7 @@ export function imageHeader(bytes: Uint8Array) {
     invalid('assetData', '请选择有效的静态 JPEG 或 PNG 图片，不支持 HEIC、视频或 Live Photo');
   if (width > 4096 || height > 4096 || width * height > 4_000_000)
     invalid('assetData', '图片最多 400 万像素，且宽高均不超过 4096，请缩小后上传');
+  // Match frozen Immich asset dimensions; original EXIF/pixels remain unchanged.
+  if (orientation !== undefined && orientation >= 5) [width, height] = [height, width];
   return { width, height, mime };
 }

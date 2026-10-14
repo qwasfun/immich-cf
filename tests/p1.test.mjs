@@ -1611,3 +1611,78 @@ test('100 个 JPEG/PNG 合成变体原图字节一致，重复重试不增加资
     assert.equal((await syncEvents(token)).filter((e) => e.type === 'AssetV2').length, 20);
   }
 });
+
+test('JPEG/PNG EXIF 1–8 双字节序：布局尺寸、Sync、重复与原图预览字节一致', async () => {
+  const { tiff, withExif } = await import('./fixtures/exif.mjs');
+  for (const format of ['jpg', 'png']) {
+    const source = await readFile(`tests/fixtures/small.${format}`);
+    for (const little of [true, false]) {
+      const { token } = await reliabilityAccount();
+      const headers = { Authorization: `Bearer ${token}` };
+      const baseline = await (await uploadBytes(token, source)).json();
+      const base = await (await worker.fetch(`/api/assets/${baseline.id}`, { headers })).json();
+      const expected = new Map();
+      for (let orientation = 1; orientation <= 8; orientation++) {
+        const bytes = withExif(source, tiff(orientation, little), format);
+        const response = await uploadBytes(token, bytes);
+        assert.equal(response.status, 201);
+        const saved = await response.json();
+        const dimensions = orientation >= 5 ? [base.height, base.width] : [base.width, base.height];
+        expected.set(saved.id, dimensions);
+        const info = await (await worker.fetch(`/api/assets/${saved.id}`, { headers })).json();
+        assert.deepEqual([info.width, info.height], dimensions);
+        assert.equal((await (await uploadBytes(token, bytes)).json()).id, saved.id);
+        for (const path of ['original', 'thumbnail?size=preview']) {
+          const media = await worker.fetch(`/api/assets/${saved.id}/${path}`, { headers });
+          assert.deepEqual(Buffer.from(await media.arrayBuffer()), bytes);
+        }
+      }
+      for (const reset of [false, true]) {
+        const events = await syncEvents(token, { reset });
+        for (const event of events.filter((e) => expected.has(e.data.id))) {
+          assert.deepEqual([event.data.width, event.data.height], expected.get(event.data.id));
+        }
+        assert.equal(events.filter((e) => expected.has(e.data.id)).length, 8);
+        assert.equal(
+          (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token)).status,
+          204,
+        );
+      }
+    }
+  }
+});
+
+test('EXIF 越界、非法方向、字段类型/数量与重复块拒绝且不预留存储', async () => {
+  const { tiff, withExif } = await import('./fixtures/exif.mjs');
+  const { id, token } = await reliabilityAccount();
+  const jpg = await readFile('tests/fixtures/small.jpg');
+  const invalid = [Buffer.alloc(0), tiff(0), tiff(9), tiff(6).subarray(0, 20)];
+  for (const [offset, value] of [
+    [0, 0],
+    [2, 43],
+    [4, 255],
+    [8, 255],
+    [12, 4],
+    [14, 2],
+  ]) {
+    const data = tiff(6);
+    data[offset] = value;
+    invalid.push(data);
+  }
+  const images = invalid.map((data) => withExif(jpg, data));
+  images.push(withExif(withExif(jpg, tiff(6)), tiff(8)));
+  for (const bytes of images) {
+    const r = await uploadBytes(token, bytes);
+    assert.equal(r.status, 400);
+    assert.match(JSON.stringify(await r.json()), /assetData.*EXIF/);
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(id).first()).n,
+    0,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(id).first()).n,
+    0,
+  );
+  assert.equal((await uploadBytes(token, jpg)).status, 201);
+});

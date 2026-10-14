@@ -6,6 +6,8 @@
 
 ## 需求与开发顺序
 
+- [P2 EXIF 方向](docs/p2-exif-orientation.md)：新上传图片方向解析、布局尺寸、原始字节保留与真机验收边界。
+
 - [P2 上传完整性与剩余矩阵](docs/p2-upload-matrix.md)：PNG CRC、混合失败序列、100 个合成变体及真实图库验收边界。
 
 - [P2 私有媒体 Range/ETag](docs/p2-media-http.md)：分段读取、条件请求、HEAD 和撤销后的访问隔离；CPU 超预算暂缓。
