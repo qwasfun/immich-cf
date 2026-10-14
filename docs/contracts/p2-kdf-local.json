@@ -1,0 +1,18 @@
+{
+  "runtime": "local workerd via project-pinned Wrangler",
+  "scope": "synthetic support and Node reference vector only; not production security approval or Free CPU validation",
+  "samples": [
+    {
+      "algorithm": "pbkdf2-sha256-600000",
+      "supported": true,
+      "vectorMatches": true,
+      "remoteCpuMs": null
+    },
+    {
+      "algorithm": "scrypt-n32768-r8-p3",
+      "supported": true,
+      "vectorMatches": true,
+      "remoteCpuMs": null
+    }
+  ]
+}

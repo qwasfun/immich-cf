@@ -1,0 +1,23 @@
+{
+  "version": "629adfa8-6efa-4597-bd5e-a55e8cf79e66",
+  "scope": "synthetic protected temporary Worker, deleted after test",
+  "samples": [
+    {
+      "algorithm": "pbkdf2-sha256-600000",
+      "supported": false,
+      "vectorMatches": null,
+      "reason": "Pbkdf2 failed: iteration counts above 100000 are not supported (requested 600000).",
+      "cpuMs": null,
+      "wallMs": null
+    },
+    {
+      "algorithm": "scrypt-n32768-r8-p3",
+      "supported": true,
+      "vectorMatches": true,
+      "reason": null,
+      "cpuMs": 227,
+      "wallMs": 228
+    }
+  ],
+  "freeGo": false
+}

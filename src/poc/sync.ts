@@ -123,12 +123,15 @@ export async function sync(
   const types = strings(input, 'types', supportedTypes);
   if (input.reset !== undefined && typeof input.reset !== 'boolean')
     invalid('reset', '必须为 true 或 false');
-  const complete = await db
-    .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'SyncCompleteV1'")
+  // One request-scoped checkpoint snapshot shared by every family; never cache across requests.
+  const checkpointRows = await db
+    .prepare('SELECT type,ack FROM sync_checkpoints WHERE session_id=?')
     .bind(session)
-    .first<{ ack: string }>();
+    .all<{ type: string; ack: string }>();
+  const checkpoints = new Map(checkpointRows.results.map((row) => [row.type, row.ack]));
+  const complete = checkpoints.get('SyncCompleteV1');
   const completeTime = complete
-    ? Number.parseInt(complete.ack.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
+    ? Number.parseInt(complete.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
     : Date.now();
   const explicitReset = input.reset === true;
   if (!explicitReset && state.reset_pending) {
@@ -152,11 +155,8 @@ export async function sync(
   const events: { type: string; data: unknown; ack: string }[] = [];
   if (types.includes('AuthUsersV2')) {
     const ack = `AuthUserV2|${identity.update_id}:${String(identity.asset_revision ?? 0).padStart(20, '0')}`;
-    const prior = await db
-      .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'AuthUserV2'")
-      .bind(session)
-      .first<{ ack: string }>();
-    if (explicitReset || !prior || prior.ack < ack)
+    const prior = checkpoints.get('AuthUserV2');
+    if (explicitReset || !prior || prior < ack)
       events.push({
         type: 'AuthUserV2',
         ack,
@@ -181,11 +181,8 @@ export async function sync(
   // so the separate UserV1 must be applied before any owned asset arrives.
   if (types.includes('UsersV1')) {
     const ack = `UserV1|${identity.update_id}`;
-    const prior = await db
-      .prepare("SELECT ack FROM sync_checkpoints WHERE session_id = ? AND type = 'UserV1'")
-      .bind(session)
-      .first<{ ack: string }>();
-    if (explicitReset || !prior || prior.ack < ack)
+    const prior = checkpoints.get('UserV1');
+    if (explicitReset || !prior || prior < ack)
       events.push({
         type: 'UserV1',
         ack,
@@ -201,8 +198,8 @@ export async function sync(
       });
   }
   if (types.includes('UserMetadataV1'))
-    events.push(...(await onboardingEvents(db, identity, explicitReset)));
-  events.push(...(await assetEvents(db, identity, types, explicitReset)));
+    events.push(...(await onboardingEvents(db, identity, checkpoints, explicitReset)));
+  events.push(...(await assetEvents(db, identity, types, checkpoints, explicitReset)));
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // Cursor comparisons above use the unchanged cursor prefix; wire ACKs bind to a generation.
   const deliveryEpoch = explicitReset ? crypto.randomUUID() : epoch;

@@ -56,3 +56,5 @@ pnpm check
 - [P1 非空图库参考对比](docs/p1-nonempty-reference.md)：两种图片、元数据、部分 ACK、重置重放和媒体读取。
 
 - [P2 CPU 预算探针](docs/p2-budget-probe.md)：平台 CPU 实测、免费预算关口及后续限制。
+
+- [P2 认证评估与同步优化](docs/p2-auth-sync-cpu.md)：标准 KDF 的线上边界、检查点读取优化与复测。

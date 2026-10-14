@@ -14,9 +14,11 @@ export default {
       }
       return Response.json({ waiting: !!gate });
     }
+    const countReads = request.headers.has('x-test-count-checkpoints');
+    let checkpointReads = 0;
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
-    if (!fault && !gateId) return app.fetch(request, env);
+    if (!fault && !gateId && !countReads) return app.fetch(request, env);
     const clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
@@ -34,6 +36,11 @@ export default {
     });
     const db = new Proxy(env.IMMICH_CF_DB, {
       get(target, key) {
+        if (key === 'prepare')
+          return (sql: string) => {
+            if (/SELECT.*FROM sync_checkpoints/i.test(sql)) checkpointReads++;
+            return target.prepare(sql);
+          };
         if (key === 'batch')
           return async (statements: D1PreparedStatement[]) => {
             if (gateId) {
@@ -52,6 +59,8 @@ export default {
         return typeof value === 'function' ? value.bind(target) : value;
       },
     });
-    return app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
+    const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
+    if (countReads) response.headers.set('x-test-checkpoint-reads', String(checkpointReads));
+    return response;
   },
 };

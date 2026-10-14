@@ -1404,3 +1404,37 @@ test('非空图库部分 ACK：后续资产不丢失，用户游标不被推进'
   const reset = await syncEvents(token, { reset: true });
   assert.equal(reset.filter((e) => e.type === 'AssetV2').length, 2);
 });
+
+test('完整家族同步只读取一次检查点，元数据删除、reset 与增量语义不变', async () => {
+  const { token } = await reliabilityAccount();
+  await uploadFixture(token);
+  await send('/api/users/me/onboarding', { isOnboarded: true }, token, 'PUT');
+  const pull = async (reset) => {
+    const r = await worker.fetch('/api/sync/stream', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'x-test-count-checkpoints': '1',
+      },
+      body: JSON.stringify({ types: manifest.sync.requestedTypes, reset }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('x-test-checkpoint-reads'), '1');
+    return (await r.text()).trim().split('\n').map(JSON.parse);
+  };
+  const events = await pull(true);
+  assert.ok(events.some((e) => e.type === 'UserMetadataV1'));
+  assert.ok(events.some((e) => e.type === 'AssetV2'));
+  await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token);
+  assert.deepEqual(
+    (await pull(false)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  await send('/api/users/me/onboarding', {}, token, 'DELETE');
+  const deleted = await pull(false);
+  assert.deepEqual(
+    deleted.map((e) => e.type),
+    ['UserMetadataDeleteV1', 'SyncCompleteV1'],
+  );
+});

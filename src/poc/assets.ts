@@ -327,6 +327,7 @@ export async function assetEvents(
   db: D1Database,
   identity: Identity,
   types: string[],
+  checkpoints: ReadonlyMap<string, string>,
   reset = false,
 ) {
   if (!types.includes('AssetsV2') && !types.includes('AssetMetadataV1')) return [];
@@ -334,17 +335,13 @@ export async function assetEvents(
     .prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY seq')
     .bind(identity.id)
     .all<Asset>();
-  const checkpoints = await db
-    .prepare('SELECT type,ack FROM sync_checkpoints WHERE session_id = ?')
-    .bind(identity.session_id)
-    .all<{ type: string; ack: string }>();
   const events: { type: string; ack: string; data: unknown }[] = [];
   const metadataEvents: typeof events = [];
   for (const row of rows.results) {
     const cursor = String(row.seq).padStart(20, '0');
     const add = (type: string, data: unknown) => {
       const ack = `${type}|${cursor}`;
-      if (reset || !checkpoints.results.some((p) => p.type === type && p.ack >= ack))
+      if (reset || !checkpoints.has(type) || checkpoints.get(type)! < ack)
         (type === 'AssetMetadataV1' ? metadataEvents : events).push({ type, ack, data });
     };
     if (types.includes('AssetsV2')) add('AssetV2', assetDto(row));
