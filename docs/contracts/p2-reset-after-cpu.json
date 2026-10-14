@@ -1,0 +1,191 @@
+{
+  "checkedAt": "2026-10-14T14:30:34.501Z",
+  "version": "8e036342-096a-42a1-acc4-6d84996bc1bc",
+  "source": "Cloudflare Workers invocation cpuTimeMs/wallTimeMs, correlated by CF-Ray, version and status",
+  "accountPlan": "unverified-subscriptions-api-authentication-error",
+  "samples": [
+    {
+      "name": "health",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    },
+    {
+      "name": "login-success",
+      "status": 201,
+      "cpuMs": 335,
+      "wallMs": 1142,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-wrong-password",
+      "status": 401,
+      "cpuMs": 337,
+      "wallMs": 901,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-unknown-user",
+      "status": 401,
+      "cpuMs": 484,
+      "wallMs": 1052,
+      "outcome": "ok"
+    },
+    {
+      "name": "user",
+      "status": 200,
+      "cpuMs": 2,
+      "wallMs": 188,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot-1",
+      "status": 200,
+      "cpuMs": 10,
+      "wallMs": 747,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack-1",
+      "status": 204,
+      "cpuMs": 2,
+      "wallMs": 553,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot-2",
+      "status": 200,
+      "cpuMs": 7,
+      "wallMs": 769,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack-2",
+      "status": 204,
+      "cpuMs": 10,
+      "wallMs": 617,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot-3",
+      "status": 200,
+      "cpuMs": 12,
+      "wallMs": 972,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack-3",
+      "status": 204,
+      "cpuMs": 5,
+      "wallMs": 567,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot-4",
+      "status": 200,
+      "cpuMs": 8,
+      "wallMs": 766,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack-4",
+      "status": 204,
+      "cpuMs": 2,
+      "wallMs": 542,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot-5",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    },
+    {
+      "name": "ack-5",
+      "status": 204,
+      "cpuMs": 2,
+      "wallMs": 543,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-1",
+      "status": 200,
+      "cpuMs": 15,
+      "wallMs": 1176,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-2",
+      "status": 200,
+      "cpuMs": 10,
+      "wallMs": 930,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-3",
+      "status": 200,
+      "cpuMs": null,
+      "wallMs": null,
+      "outcome": null
+    },
+    {
+      "name": "incremental-4",
+      "status": 200,
+      "cpuMs": 4,
+      "wallMs": 939,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental-5",
+      "status": 200,
+      "cpuMs": 4,
+      "wallMs": 955,
+      "outcome": "ok"
+    },
+    {
+      "name": "logout",
+      "status": 200,
+      "cpuMs": 3,
+      "wallMs": 399,
+      "outcome": "ok"
+    }
+  ],
+  "assessment": {
+    "decision": "no-go-current-free-cpu",
+    "count": 21,
+    "measured": 18,
+    "missing": 3,
+    "thresholdMs": 10,
+    "maxCpuMs": 484,
+    "exceeded": 5
+  },
+  "snapshot": {
+    "decision": "no-go-current-free-cpu",
+    "count": 5,
+    "measured": 4,
+    "missing": 1,
+    "thresholdMs": 10,
+    "maxCpuMs": 12,
+    "exceeded": 1,
+    "minCpuMs": 7,
+    "medianCpuMs": 9,
+    "p95CpuMs": 12,
+    "percentileMethod": "nearest-rank; measured samples only; not a population guarantee"
+  },
+  "incremental": {
+    "decision": "no-go-current-free-cpu",
+    "count": 5,
+    "measured": 4,
+    "missing": 1,
+    "thresholdMs": 10,
+    "maxCpuMs": 15,
+    "exceeded": 1,
+    "minCpuMs": 4,
+    "medianCpuMs": 7,
+    "p95CpuMs": 15,
+    "percentileMethod": "nearest-rank; measured samples only; not a population guarantee"
+  },
+  "fullGo": false
+}

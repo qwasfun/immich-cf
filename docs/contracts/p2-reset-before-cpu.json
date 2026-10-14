@@ -1,0 +1,24 @@
+{
+  "version": "57a5f646-8808-4da7-a91d-a94670eb9cc4",
+  "completeRun": false,
+  "reason": "TLS EOF before fifth snapshot; logout also failed; temporary session expiry remains in effect",
+  "samples": [
+    {
+      "name": "snapshot-1",
+      "cpuMs": 9
+    },
+    {
+      "name": "snapshot-2",
+      "cpuMs": null
+    },
+    {
+      "name": "snapshot-3",
+      "cpuMs": 4
+    },
+    {
+      "name": "snapshot-4",
+      "cpuMs": 8
+    }
+  ],
+  "source": "Platform invocation logs correlated by CF-Ray, version and status; missing is null"
+}
