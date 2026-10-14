@@ -16,6 +16,7 @@ export default {
     }
     const countReads = request.headers.has('x-test-count-checkpoints');
     let checkpointReads = 0;
+    let deliveryWrites = 0;
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     if (!fault && !gateId && !countReads) return app.fetch(request, env);
@@ -39,6 +40,7 @@ export default {
         if (key === 'prepare')
           return (sql: string) => {
             if (/SELECT.*FROM sync_checkpoints/i.test(sql)) checkpointReads++;
+            if (/INSERT INTO sync_deliveries/i.test(sql)) deliveryWrites++;
             return target.prepare(sql);
           };
         if (key === 'batch')
@@ -61,6 +63,7 @@ export default {
     });
     const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
     if (countReads) response.headers.set('x-test-checkpoint-reads', String(checkpointReads));
+    if (countReads) response.headers.set('x-test-delivery-writes', String(deliveryWrites));
     return response;
   },
 };

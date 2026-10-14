@@ -1,4 +1,4 @@
-param([ValidateRange(1,10)][int]$IncrementalSamples=1)
+param([ValidateRange(1,10)][int]$IncrementalSamples=1, [ValidateRange(1,10)][int]$SnapshotSamples=1)
 # Only dev, a bounded sequential probe, and a temporary session. Never print credentials.
 $ErrorActionPreference='Stop'
 $base='https://immich-cf-api-dev.fun.workers.dev'
@@ -23,11 +23,21 @@ try {
   $null=Invoke-Probe 'login-wrong-password' '/api/auth/login' 'POST' @{email=$account.email;password='budget-probe-incorrect-password'} 401
   $null=Invoke-Probe 'login-unknown-user' '/api/auth/login' 'POST' @{email="budget-$run@immich-cf.test";password='budget-probe-incorrect-password'} 401
   $null=Invoke-Probe 'user' '/api/users/me'
-  $sync=Invoke-Probe 'snapshot' '/api/sync/stream' 'POST' @{types=@('AuthUsersV2','UsersV1','AssetsV2','AssetMetadataV1');reset=$true}
-  $text=if($sync.Content -is [byte[]]){[Text.Encoding]::UTF8.GetString($sync.Content)}else{$sync.Content}
-  $events=@($text.Trim().Split("`n")|ForEach-Object {$_|ConvertFrom-Json})
-  if($events[-1].type -ne 'SyncCompleteV1'){throw 'Incomplete snapshot'}
-  $null=Invoke-Probe 'ack' '/api/sync/ack' 'POST' @{acks=@($events.ack)} 204
+  $baseline=$null
+  for($snapshot=1;$snapshot -le $SnapshotSamples;$snapshot++) {
+    $name=if($SnapshotSamples -eq 1){'snapshot'}else{"snapshot-$snapshot"}
+    $sync=Invoke-Probe $name '/api/sync/stream' 'POST' @{types=@('AuthUsersV2','UsersV1','AssetsV2','AssetMetadataV1');reset=$true}
+    $text=if($sync.Content -is [byte[]]){[Text.Encoding]::UTF8.GetString($sync.Content)}else{$sync.Content}
+    $events=@($text.Trim().Split("`n")|ForEach-Object {$_|ConvertFrom-Json})
+    if($events[-1].type -ne 'SyncCompleteV1'){throw 'Incomplete snapshot'}
+    $ids=@($events|Where-Object {$_.type -eq 'AssetV2'}|ForEach-Object {$_.data.id}|Sort-Object)
+    if(@($ids|Select-Object -Unique).Count -ne $ids.Count){throw 'Duplicate snapshot assets'}
+    $signature=$ids -join ','
+    if($null -ne $baseline -and $signature -ne $baseline){throw 'Snapshot asset set changed; rerun on a stable library'}
+    $baseline=$signature
+    $ackName=if($SnapshotSamples -eq 1){'ack'}else{"ack-$snapshot"}
+    $null=Invoke-Probe $ackName '/api/sync/ack' 'POST' @{acks=@($events.ack)} 204
+  }
   for($sample=1;$sample -le $IncrementalSamples;$sample++) {
     $name=if($IncrementalSamples -eq 1){'incremental'}else{"incremental-$sample"}
     $incremental=Invoke-Probe $name '/api/sync/stream' 'POST' @{types=@('AuthUsersV2','UsersV1','AssetsV2','AssetMetadataV1')}

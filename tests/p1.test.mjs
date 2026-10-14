@@ -1420,7 +1420,8 @@ test('完整家族同步只读取一次检查点，元数据删除、reset 与�
       body: JSON.stringify({ types: manifest.sync.requestedTypes, reset }),
     });
     assert.equal(r.status, 200);
-    assert.equal(r.headers.get('x-test-checkpoint-reads'), '1');
+    assert.equal(r.headers.get('x-test-checkpoint-reads'), reset ? '0' : '1');
+    assert.equal(r.headers.get('x-test-delivery-writes'), '1');
     return (await r.text()).trim().split('\n').map(JSON.parse);
   };
   const events = await pull(true);
@@ -1437,4 +1438,34 @@ test('完整家族同步只读取一次检查点，元数据删除、reset 与�
     deleted.map((e) => e.type),
     ['UserMetadataDeleteV1', 'SyncCompleteV1'],
   );
+});
+
+test('连续五次 reset 保持非空资产集合，旧代 ACK 被拒绝且本代 ACK 后为空增量', async () => {
+  const { token } = await reliabilityAccount();
+  await uploadFixture(token, 'small.png');
+  await uploadFixture(token, 'small.jpg');
+  let previous;
+  let ids;
+  for (let i = 0; i < 5; i++) {
+    const events = await syncEvents(token, { reset: true });
+    const current = events
+      .filter((e) => e.type === 'AssetV2')
+      .map((e) => e.data.id)
+      .sort();
+    assert.equal(current.length, 2);
+    assert.equal(new Set(current).size, 2);
+    if (ids) assert.deepEqual(current, ids);
+    ids = current;
+    if (previous) {
+      assert.equal((await send('/api/sync/ack', { acks: previous }, token)).status, 400);
+      assert.deepEqual(await checkpointRows(token), []);
+    }
+    const acks = events.map((e) => e.ack);
+    assert.equal((await send('/api/sync/ack', { acks }, token)).status, 204);
+    assert.deepEqual(
+      (await syncEvents(token)).map((e) => e.type),
+      ['SyncCompleteV1'],
+    );
+    previous = acks;
+  }
 });

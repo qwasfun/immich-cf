@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assessCpu } from '../scripts/budget-metrics.mjs';
+import { summarizeCpu } from '../scripts/budget-metrics.mjs';
+test('多次采样统计保留缺失和超预算样本，使用 nearest-rank P95', () => {
+  const report = summarizeCpu([1, 2, null, 6, 12].map((cpuMs) => ({ cpuMs })));
+  assert.equal(report.measured, 4);
+  assert.equal(report.missing, 1);
+  assert.equal(report.medianCpuMs, 4);
+  assert.equal(report.p95CpuMs, 12);
+  assert.equal(report.decision, 'no-go-current-free-cpu');
+  assert.equal(summarizeCpu([]).p95CpuMs, null);
+  assert.equal(summarizeCpu([{ cpuMs: null }]).medianCpuMs, null);
+});
 test('CPU gate does not interpret missing values or wall time as zero CPU', () => {
   assert.equal(assessCpu([]).decision, 'unverified');
   for (const cpuMs of [null, undefined, '0', NaN, Infinity, -1])

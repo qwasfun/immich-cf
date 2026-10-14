@@ -1,4 +1,20 @@
 // Wall time is deliberately excluded: it cannot substitute for platform CPU time.
+export function summarizeCpu(samples) {
+  const values = samples
+    .map((s) => s.cpuMs)
+    .filter((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0)
+    .sort((a, b) => a - b);
+  return {
+    ...assessCpu(samples),
+    minCpuMs: values[0] ?? null,
+    medianCpuMs: values.length
+      ? (values[Math.floor((values.length - 1) / 2)] + values[Math.floor(values.length / 2)]) / 2
+      : null,
+    p95CpuMs: values.length ? values[Math.ceil(values.length * 0.95) - 1] : null,
+    percentileMethod: 'nearest-rank; measured samples only; not a population guarantee',
+  };
+}
+
 export function assessCpu(samples, thresholdMs = 10) {
   if (!Array.isArray(samples) || !samples.length) return { decision: 'unverified', count: 0 };
   const valid = samples.filter(

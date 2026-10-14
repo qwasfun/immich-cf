@@ -124,16 +124,18 @@ export async function sync(
   if (input.reset !== undefined && typeof input.reset !== 'boolean')
     invalid('reset', '必须为 true 或 false');
   // One request-scoped checkpoint snapshot shared by every family; never cache across requests.
-  const checkpointRows = await db
-    .prepare('SELECT type,ack FROM sync_checkpoints WHERE session_id=?')
-    .bind(session)
-    .all<{ type: string; ack: string }>();
+  const explicitReset = input.reset === true;
+  const checkpointRows = explicitReset
+    ? { results: [] }
+    : await db
+        .prepare('SELECT type,ack FROM sync_checkpoints WHERE session_id=?')
+        .bind(session)
+        .all<{ type: string; ack: string }>();
   const checkpoints = new Map(checkpointRows.results.map((row) => [row.type, row.ack]));
   const complete = checkpoints.get('SyncCompleteV1');
   const completeTime = complete
     ? Number.parseInt(complete.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
     : Date.now();
-  const explicitReset = input.reset === true;
   if (!explicitReset && state.reset_pending) {
     await guarded(db, session, epoch, 'pending', []);
     return lines([{ type: 'SyncResetV1', data: {}, ack: state.reset_ack! }]);
@@ -221,13 +223,15 @@ export async function sync(
     db
       .prepare('DELETE FROM sync_deliveries WHERE session_id = ? AND issued_at < ?')
       .bind(session, Date.now() - 86400000),
-    ...events.map((event) =>
-      db
-        .prepare(
-          'INSERT INTO sync_deliveries (session_id,type,ack,issued_at) VALUES (?,?,?,?) ON CONFLICT(session_id,ack) DO UPDATE SET issued_at=excluded.issued_at',
-        )
-        .bind(session, event.type, event.ack, Date.now()),
-    ),
+    // Keep bulk delivery registration inside the same epoch/session guard transaction.
+    db
+      .prepare(
+        `INSERT INTO sync_deliveries (session_id,type,ack,issued_at)
+      SELECT ?,json_extract(value,'$[0]'),json_extract(value,'$[1]'),?
+      FROM json_each(?) WHERE true
+      ON CONFLICT(session_id,ack) DO UPDATE SET issued_at=excluded.issued_at`,
+      )
+      .bind(session, Date.now(), JSON.stringify(events.map((event) => [event.type, event.ack]))),
   ]);
   return lines(events);
 }

@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { assessCpu, correlateCpu } from './budget-metrics.mjs';
+import { assessCpu, correlateCpu, summarizeCpu } from './budget-metrics.mjs';
 const version = process.argv[2];
 if (!/^[a-f0-9-]{36}$/.test(version ?? ''))
   throw new Error('version: pass the deployed Worker version UUID');
@@ -17,6 +17,8 @@ const report = {
   accountPlan: 'unverified-subscriptions-api-authentication-error',
   samples,
   assessment: assessCpu(samples),
+  snapshot: summarizeCpu(samples.filter((s) => /^snapshot(?:-\d+)?$/.test(s.name))),
+  incremental: summarizeCpu(samples.filter((s) => /^incremental(?:-\d+)?$/.test(s.name))),
   fullGo: false,
 };
 await writeFile('work/budget-report.json', JSON.stringify(report, null, 2) + '\n');
