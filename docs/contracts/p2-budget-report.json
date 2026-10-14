@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-10-14T13:44:05.327Z",
+  "version": "66756bfb-184b-462f-886b-8556abbc2d94",
+  "source": "Cloudflare Workers invocation cpuTimeMs/wallTimeMs, correlated by CF-Ray, version and status",
+  "accountPlan": "unverified-subscriptions-api-authentication-error",
+  "samples": [
+    {
+      "name": "health",
+      "status": 200,
+      "cpuMs": 1,
+      "wallMs": 2,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-success",
+      "status": 201,
+      "cpuMs": 366,
+      "wallMs": 1105,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-wrong-password",
+      "status": 401,
+      "cpuMs": 386,
+      "wallMs": 937,
+      "outcome": "ok"
+    },
+    {
+      "name": "login-unknown-user",
+      "status": 401,
+      "cpuMs": 333,
+      "wallMs": 878,
+      "outcome": "ok"
+    },
+    {
+      "name": "user",
+      "status": 200,
+      "cpuMs": 3,
+      "wallMs": 186,
+      "outcome": "ok"
+    },
+    {
+      "name": "snapshot",
+      "status": 200,
+      "cpuMs": 9,
+      "wallMs": 1460,
+      "outcome": "ok"
+    },
+    {
+      "name": "ack",
+      "status": 204,
+      "cpuMs": 3,
+      "wallMs": 542,
+      "outcome": "ok"
+    },
+    {
+      "name": "incremental",
+      "status": 200,
+      "cpuMs": 15,
+      "wallMs": 1493,
+      "outcome": "ok"
+    },
+    {
+      "name": "logout",
+      "status": 200,
+      "cpuMs": 8,
+      "wallMs": 383,
+      "outcome": "ok"
+    }
+  ],
+  "assessment": {
+    "decision": "no-go-current-free-cpu",
+    "count": 9,
+    "measured": 9,
+    "missing": 0,
+    "thresholdMs": 10,
+    "maxCpuMs": 386,
+    "exceeded": 4
+  },
+  "fullGo": false
+}

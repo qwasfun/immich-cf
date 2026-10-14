@@ -29,7 +29,8 @@ try {
   $null=Invoke-Probe 'ack' '/api/sync/ack' 'POST' @{acks=@($events.ack)} 204
   $null=Invoke-Probe 'incremental' '/api/sync/stream' 'POST' @{types=@('AuthUsersV2','UsersV1','AssetsV2','AssetMetadataV1')}
 } finally {
-  if($token){$null=Invoke-Probe 'logout' '/api/auth/logout' 'POST' @{}}
+  try { if($token){$null=Invoke-Probe 'logout' '/api/auth/logout' 'POST' @{}} } finally {
   @{run=$run;from=$started;to=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();steps=$steps.ToArray()}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $PSScriptRoot '../work/budget-probe.json')
+}
 }
 Write-Output 'dev probe complete; sanitized run metadata saved to work/budget-probe.json'

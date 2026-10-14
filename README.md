@@ -54,3 +54,5 @@ pnpm check
 - [P1 显式 reset 对齐](docs/p1-explicit-reset.md)：直接快照、并发隔离、失败恢复与验收。
 
 - [P1 非空图库参考对比](docs/p1-nonempty-reference.md)：两种图片、元数据、部分 ACK、重置重放和媒体读取。
+
+- [P2 CPU 预算探针](docs/p2-budget-probe.md)：平台 CPU 实测、免费预算关口及后续限制。

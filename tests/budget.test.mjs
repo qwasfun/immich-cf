@@ -20,3 +20,24 @@ test('CPU gate reports over-budget samples without weakening authentication or c
     exceeded: 1,
   });
 });
+
+test('CPU correlation rejects other versions, mismatched status and ambiguous duplicate events; exports allowlist only', async () => {
+  const { correlateCpu } = await import('../scripts/budget-metrics.mjs');
+  const probe = { steps: [{ name: 'login', status: 201, requestId: 'ray' }] };
+  const event = {
+    requestId: 'ray',
+    script: 'immich-cf-api-dev',
+    version: 'v1',
+    status: 201,
+    cpuMs: 300,
+    wallMs: 400,
+    outcome: 'ok',
+    secret: 'must-not-export',
+  };
+  assert.equal(correlateCpu(probe, [event], 'v2')[0].cpuMs, null);
+  assert.equal(correlateCpu(probe, [{ ...event, status: 401 }], 'v1')[0].cpuMs, null);
+  assert.equal(correlateCpu(probe, [event, event], 'v1')[0].cpuMs, null);
+  assert.deepEqual(correlateCpu(probe, [event], 'v1'), [
+    { name: 'login', status: 201, cpuMs: 300, wallMs: 400, outcome: 'ok' },
+  ]);
+});

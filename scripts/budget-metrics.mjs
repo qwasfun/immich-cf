@@ -19,3 +19,22 @@ export function assessCpu(samples, thresholdMs = 10) {
     exceeded,
   };
 }
+export function correlateCpu(probe, samples, version) {
+  return probe.steps.map((step) => {
+    const matches = samples.filter(
+      (s) =>
+        s.requestId === step.requestId &&
+        s.script === 'immich-cf-api-dev' &&
+        s.version === version &&
+        s.status === step.status,
+    );
+    const sample = matches.length === 1 ? matches[0] : {};
+    return {
+      name: step.name,
+      status: step.status,
+      cpuMs: sample.cpuMs ?? null,
+      wallMs: sample.wallMs ?? null,
+      outcome: sample.outcome ?? null,
+    };
+  });
+}
