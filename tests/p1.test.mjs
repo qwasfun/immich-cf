@@ -1686,3 +1686,167 @@ test('EXIF 越界、非法方向、字段类型/数量与重复块拒绝且不�
   );
   assert.equal((await uploadBytes(token, jpg)).status, 201);
 });
+
+async function historicalExif() {
+  const { token, id: owner } = await reliabilityAccount();
+  const { tiff, withExif } = await import('./fixtures/exif.mjs');
+  const bytes = withExif(await readFile('tests/fixtures/small.png'), tiff(6), 'png');
+  const saved = await (await uploadBytes(token, bytes)).json();
+  await db.prepare('UPDATE assets SET width=320,height=240 WHERE id=?').bind(saved.id).run();
+  return { token, owner, id: saved.id, bytes };
+}
+const repairPath = '/api/immich-cf/repair-dimensions';
+
+test('历史尺寸预检无写入，修复推进游标，旧流 ACK 不吞更新，重试不再推进', async () => {
+  const { token, id, bytes } = await historicalExif();
+  const prior = await syncEvents(token);
+  await send('/api/sync/ack', { acks: prior.map((e) => e.ack) }, token);
+  const read = () => db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  const before = await read();
+  assert.equal((await (await send(repairPath, { id }, token)).json()).changed, true);
+  assert.deepEqual(await read(), before);
+  const held = await pausedSyncRequest(token, '/api/sync/stream', 'POST', {
+    types: manifest.sync.requestedTypes,
+    reset: true,
+  });
+  try {
+    assert.equal((await (await send(repairPath, { id, apply: true }, token)).json()).applied, true);
+    await held.release();
+    const old = (await (await held.response).text()).trim().split('\n').map(JSON.parse);
+    assert.equal((await send('/api/sync/ack', { acks: old.map((e) => e.ack) }, token)).status, 204);
+    const fresh = await syncEvents(token);
+    const asset = fresh.find((e) => e.type === 'AssetV2' && e.data.id === id);
+    assert.deepEqual([asset.data.width, asset.data.height], [240, 320]);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: fresh.map((e) => e.ack) }, token)).status,
+      204,
+    );
+    assert.deepEqual(
+      (await syncEvents(token)).map((e) => e.type),
+      ['SyncCompleteV1'],
+    );
+    const after = await read();
+    assert.ok(after.sync_seq > before.sync_seq);
+    assert.equal(after.seq, before.seq);
+    assert.equal(
+      (await (await send(repairPath, { id, apply: true }, token)).json()).changed,
+      false,
+    );
+    assert.equal((await read()).sync_seq, after.sync_seq);
+    const original = await worker.fetch(`/api/assets/${id}/original`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+  } finally {
+    await held.release();
+  }
+});
+
+test('历史修复 CAS 并发、跨用户和事务时撤销隔离', async () => {
+  const { token, id } = await historicalExif();
+  const other = await reliabilityAccount();
+  assert.equal((await send(repairPath, { id, apply: true }, other.token)).status, 404);
+  const held = await pausedSyncRequest(token, repairPath, 'POST', { id, apply: true });
+  try {
+    assert.equal((await send(repairPath, { id, apply: true }, token)).status, 200);
+    const seq = (await db.prepare('SELECT sync_seq FROM assets WHERE id=?').bind(id).first())
+      .sync_seq;
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    assert.equal(
+      (await db.prepare('SELECT sync_seq FROM assets WHERE id=?').bind(id).first()).sync_seq,
+      seq,
+    );
+  } finally {
+    await held.release();
+  }
+  await db.prepare('UPDATE assets SET width=320,height=240 WHERE id=?').bind(id).run();
+  const revoked = await pausedSyncRequest(token, repairPath, 'POST', { id, apply: true });
+  try {
+    await send('/api/auth/logout', {}, token);
+    await revoked.release();
+    assert.equal((await revoked.response).status, 409);
+    assert.equal(
+      (await db.prepare('SELECT width FROM assets WHERE id=?').bind(id).first()).width,
+      320,
+    );
+  } finally {
+    await revoked.release();
+  }
+});
+
+test('尺寸修复事务失败回滚，成功响应丢失后重试不产生额外同步版本', async () => {
+  const { token, id } = await historicalExif();
+  const before = await db.prepare('SELECT width,sync_seq FROM assets WHERE id=?').bind(id).first();
+  await db
+    .prepare(
+      "CREATE TRIGGER test_repair_failure AFTER UPDATE OF width ON assets WHEN NEW.width=240 BEGIN SELECT RAISE(ABORT,'TEST_REPAIR'); END",
+    )
+    .run();
+  try {
+    assert.equal((await send(repairPath, { id, apply: true }, token)).status, 503);
+    assert.deepEqual(
+      await db.prepare('SELECT width,sync_seq FROM assets WHERE id=?').bind(id).first(),
+      before,
+    );
+  } finally {
+    await db.prepare('DROP TRIGGER test_repair_failure').run();
+  }
+  const lost = await worker.fetch(repairPath, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-test-storage-fault': 'after-d1',
+    },
+    body: JSON.stringify({ id, apply: true }),
+  });
+  assert.equal(lost.status, 503);
+  const committed = await db
+    .prepare('SELECT width,sync_seq FROM assets WHERE id=?')
+    .bind(id)
+    .first();
+  assert.equal(committed.width, 240);
+  assert.equal((await send(repairPath, { id, apply: true }, token)).status, 200);
+  assert.deepEqual(
+    await db.prepare('SELECT width,sync_seq FROM assets WHERE id=?').bind(id).first(),
+    committed,
+  );
+});
+
+test('两会话旧 ACK 后均收到尺寸修复；缺失或校验不符原图不修改尺寸', async () => {
+  const { token, owner, id } = await historicalExif();
+  const { createHash } = await import('node:crypto');
+  const second = crypto.randomUUID().replaceAll('-', '').repeat(2);
+  await db
+    .prepare('INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)')
+    .bind(
+      crypto.randomUUID(),
+      owner,
+      createHash('sha256').update(second).digest('hex'),
+      Date.now() + 86400000,
+    )
+    .run();
+  for (const session of [token, second]) {
+    const events = await syncEvents(session);
+    await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, session);
+  }
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  await db.prepare('UPDATE assets SET checksum=? WHERE id=?').bind('invalid', id).run();
+  assert.equal((await send(repairPath, { id, apply: true }, token)).status, 409);
+  await db.prepare('UPDATE assets SET checksum=? WHERE id=?').bind(row.checksum, id).run();
+  const original = await (await platform.env.IMMICH_CF_MEDIA.get(row.object_key)).arrayBuffer();
+  await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+  assert.equal((await send(repairPath, { id, apply: true }, token)).status, 503);
+  assert.equal(
+    (await db.prepare('SELECT sync_seq FROM assets WHERE id=?').bind(id).first()).sync_seq,
+    row.sync_seq,
+  );
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, original);
+  assert.equal((await send(repairPath, { id, apply: true }, token)).status, 200);
+  for (const session of [token, second]) {
+    const events = await syncEvents(session);
+    const asset = events.find((e) => e.type === 'AssetV2' && e.data.id === id);
+    assert.deepEqual([asset.data.width, asset.data.height], [240, 320]);
+  }
+});

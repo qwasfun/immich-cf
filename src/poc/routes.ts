@@ -5,8 +5,10 @@ import { defaultPreferences } from './preferences';
 import { sessions } from './sessions';
 import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
+import { repairDimensions } from './repair-dimensions';
 
 const methods: Record<string, string[]> = {
+  '/api/immich-cf/repair-dimensions': ['POST'],
   '/api/assets': ['POST'],
   '/api/assets/bulk-upload-check': ['POST'],
   '/.well-known/immich': ['GET'],
@@ -144,6 +146,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);
   if (path === '/api/assets') return upload(request, env, identity);
   if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, db, identity);
   const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);

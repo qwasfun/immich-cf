@@ -6,6 +6,7 @@ import { media } from './media';
 export const MAX_IMAGE = 2 * 1024 * 1024;
 interface Asset {
   seq: number;
+  sync_seq: number;
   id: string;
   owner_id: string;
   checksum: string;
@@ -325,13 +326,13 @@ export async function assetEvents(
 ) {
   if (!types.includes('AssetsV2') && !types.includes('AssetMetadataV1')) return [];
   const rows = await db
-    .prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY seq')
+    .prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY sync_seq')
     .bind(identity.id)
     .all<Asset>();
   const events: { type: string; ack: string; data: unknown }[] = [];
   const metadataEvents: typeof events = [];
   for (const row of rows.results) {
-    const cursor = String(row.seq).padStart(20, '0');
+    const cursor = String(row.sync_seq).padStart(20, '0');
     const add = (type: string, data: unknown) => {
       const ack = `${type}|${cursor}`;
       if (reset || !checkpoints.has(type) || checkpoints.get(type)! < ack)

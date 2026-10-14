@@ -6,6 +6,8 @@
 
 ## 需求与开发顺序
 
+- [历史 EXIF 安全修复](docs/p2-exif-repair.md)：预检、原图校验、原子同步版本、并发与重试。
+
 - [P2 EXIF 方向](docs/p2-exif-orientation.md)：新上传图片方向解析、布局尺寸、原始字节保留与真机验收边界。
 
 - [P2 上传完整性与剩余矩阵](docs/p2-upload-matrix.md)：PNG CRC、混合失败序列、100 个合成变体及真实图库验收边界。
