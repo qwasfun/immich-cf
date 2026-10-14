@@ -6,7 +6,13 @@ function Call-Media($path,$method='GET',$data=$null,$extra=@{}) {
   $h=@{}; foreach($k in $headers.Keys){$h[$k]=$headers[$k]}; foreach($k in $extra.Keys){$h[$k]=$extra[$k]}
   $p=@{Uri="$base$path";Method=$method;Headers=$h;TimeoutSec=30;SkipHttpErrorCheck=$true}
   if($null -ne $data){$p.ContentType='application/json';$p.Body=$data|ConvertTo-Json -Depth 5 -Compress}
-  Invoke-WebRequest @p
+  for($attempt=0;$attempt -lt 3;$attempt++) {
+    try { return Invoke-WebRequest @p } catch {
+      # Retry only safe reads and idempotent logout, never replay a login with unknown outcome.
+      if(($method -ne 'GET' -and $method -ne 'HEAD' -and $path -ne '/api/auth/logout') -or $attempt -eq 2){throw}
+      Start-Sleep -Seconds 1
+    }
+  }
 }
 try {
   $login=Call-Media '/api/auth/login' 'POST' @{email=$account.email;password=$account.password}
