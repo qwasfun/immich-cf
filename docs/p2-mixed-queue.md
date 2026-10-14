@@ -14,6 +14,8 @@ HEIC/MP4 使用合成容器签名，不是可播放/解码的真实媒体。Live
 
 ## 官方 3.3.1 队列源码观察
 
+后续进展：已增加[已识别 Live Photo 的持久拦截](p2-live-photo.md)，但下述完整备份风险尚未整体闭合。
+
 依据已冻结本地源码 `mobile/lib/repositories/upload.repository.dart` 与 `mobile/lib/services/foreground_upload.service.dart`：非 200/201 返回失败；413 被客户端替换为固定英文“文件过大”错误，服务端详细中文不一定展示。传输异常有一次重发；前台循环会处理后续项目，但取消、配额错误及后台调度仍有其他分支。源码观察不作为真机通过记录。
 
 **Live Photo 部分备份风险仍未解决。** 前台路径先上传动态部分，只有成功才填入 livePhotoVideoId；动态部分失败后仍可能继续上传无关联字段的静态图片。服务端现有格式/字段拒绝不能保证该静态请求被识别为 Live Photo，也不能保证 App 不把它计为成功。本轮不伪造“完整 Live Photo 备份”支持；真机备份测试应排除 Live Photo，完整风险需要另行处理。后台路径的行为不可由前台代码推断。
