@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-10-15T10:46:42.155Z",
+  "results": [
+    {
+      "name": "small-png",
+      "status": 200,
+      "field": null
+    },
+    {
+      "name": "over-limit",
+      "status": 413,
+      "field": "assetData"
+    },
+    {
+      "name": "heic-signature",
+      "status": 400,
+      "field": "assetData"
+    },
+    {
+      "name": "video-signature",
+      "status": 400,
+      "field": "assetData"
+    },
+    {
+      "name": "live-photo-link",
+      "status": 400,
+      "field": "livePhotoVideoId"
+    },
+    {
+      "name": "sidecar",
+      "status": 400,
+      "field": "sidecarData"
+    },
+    {
+      "name": "live-video-hidden",
+      "status": 400,
+      "field": "visibility"
+    },
+    {
+      "name": "below-limit",
+      "status": 200,
+      "field": null
+    },
+    {
+      "name": "at-limit",
+      "status": 200,
+      "field": null
+    },
+    {
+      "name": "small-jpeg",
+      "status": 200,
+      "field": null
+    }
+  ],
+  "originalBytesMatch": true,
+  "syncAndAck": true,
+  "incrementalEmpty": true,
+  "logout": 200,
+  "officialAppQueueVerified": false
+}
