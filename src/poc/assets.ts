@@ -4,7 +4,7 @@ import { imageHeader } from './image-header';
 import { media } from './media';
 import { guardLivePhoto } from './live-photo';
 
-export const MAX_IMAGE = 2 * 1024 * 1024;
+export const MAX_IMAGE = 4 * 1024 * 1024;
 interface Asset {
   seq: number;
   sync_seq: number;
@@ -35,7 +35,7 @@ async function boundedForm(request: Request) {
     throw new HttpError(415, 'Content-Type：请使用 multipart/form-data 上传图片');
   const max = MAX_IMAGE + 64 * 1024;
   if (Number(request.headers.get('content-length')) > max)
-    throw new HttpError(413, 'assetData：图片最多 2 MiB，请压缩后上传', 'assetData');
+    throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
   const reader = request.body?.getReader();
   if (!reader) invalid('assetData', '请选择图片文件');
   const chunks: Uint8Array[] = [];
@@ -46,7 +46,7 @@ async function boundedForm(request: Request) {
     size += value.length;
     if (size > max) {
       await reader.cancel();
-      throw new HttpError(413, 'assetData：图片最多 2 MiB，请压缩后上传', 'assetData');
+      throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
     }
     chunks.push(value);
   }
@@ -72,7 +72,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   const file = form.get('assetData');
   if (!(file instanceof File) || file.size === 0) invalid('assetData', '请选择非空图片文件');
   if (file.size > MAX_IMAGE)
-    throw new HttpError(413, 'assetData：图片最多 2 MiB，请压缩后上传', 'assetData');
+    throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
   for (const field of ['sidecarData', 'livePhotoVideoId'])
     if (form.has(field)) invalid(field, '当前只支持独立静态图片，请移除此字段');
   if (form.has('duration') && form.get('duration') !== '0')

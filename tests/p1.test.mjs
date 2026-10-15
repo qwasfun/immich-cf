@@ -494,7 +494,7 @@ test('小图片上传、重复检测、Sync 资产、详情与私有媒体读取
     });
   };
   assert.equal((await upload(png, {}, '', {})).status, 401);
-  assert.equal((await upload(Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
+  assert.equal((await upload(Buffer.alloc(4 * 1024 * 1024 + 1))).status, 413);
   assert.equal((await upload(Buffer.from('<svg></svg>'))).status, 400);
   assert.equal((await upload(png, { fileCreatedAt: 'invalid-secret' })).status, 400);
   assert.equal(
@@ -1556,7 +1556,7 @@ test('PNG CRC 损坏和超限不入库、不预约；随后有效图片仍可上
   const error = await corrupt.json();
   assert.match(JSON.stringify(error), /assetData/);
   assert.match(JSON.stringify(error), /校验和/);
-  assert.equal((await uploadBytes(token, Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
+  assert.equal((await uploadBytes(token, Buffer.alloc(4 * 1024 * 1024 + 1))).status, 413);
   for (const value of ['....ftypheic', '....ftypisom', 'GIF89a', '<svg/>']) {
     assert.equal((await uploadBytes(token, Buffer.from(value))).status, 400);
   }

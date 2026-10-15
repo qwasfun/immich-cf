@@ -13,7 +13,7 @@ export async function mixedCases() {
   };
   return [
     { name: 'small-png', bytes: png, status: 201 },
-    { name: 'over-limit', bytes: padded(2 * 1024 * 1024 + 1), status: 413, field: 'assetData' },
+    { name: 'over-limit', bytes: padded(4 * 1024 * 1024 + 1), status: 413, field: 'assetData' },
     {
       name: 'heic-signature',
       bytes: Buffer.from('00000018667479706865696300000000686569636d696631', 'hex'),
@@ -47,8 +47,8 @@ export async function mixedCases() {
       status: 400,
       field: 'visibility',
     },
-    { name: 'below-limit', bytes: padded(2 * 1024 * 1024 - 1), status: 201 },
-    { name: 'at-limit', bytes: padded(2 * 1024 * 1024), status: 201 },
+    { name: 'below-limit', bytes: padded(4 * 1024 * 1024 - 1), status: 201 },
+    { name: 'at-limit', bytes: padded(4 * 1024 * 1024), status: 201 },
     { name: 'small-jpeg', bytes: jpg, status: 201 },
   ];
 }

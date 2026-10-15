@@ -2,7 +2,7 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
-当前为 **P1 小图片实验**：dev 支持身份、会话、onboarding、少量 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 2 MiB / 400 万像素，每账户最多 20 张；官方 iOS 单张上传、显示与预览已获用户确认；完整备份仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
+当前为 **P1 小图片实验**：dev 支持身份、会话、onboarding、少量 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 4 MiB / 400 万像素，每账户最多 20 张；官方 iOS 单张上传、显示与预览已获用户确认；完整备份仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
 
 ## 需求与开发顺序
 

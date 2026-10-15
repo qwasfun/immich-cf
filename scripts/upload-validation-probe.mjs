@@ -17,7 +17,7 @@ try {
   const results = [];
   for (const [name, bytes, expected] of [
     ['corrupt-png-crc', broken, 400],
-    ['over-limit', Buffer.alloc(2 * 1024 * 1024 + 1), 413],
+    ['over-limit', Buffer.alloc(4 * 1024 * 1024 + 1), 413],
   ]) {
     const form = new FormData();
     form.set('assetData', new File([bytes], 'validation.png'));
