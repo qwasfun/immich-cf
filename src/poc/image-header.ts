@@ -74,14 +74,31 @@ export function imageHeader(bytes: Uint8Array) {
     bytes.at(-1) === 217
   ) {
     let offset = 2,
-      scan = false;
-    while (offset + 4 <= bytes.length) {
-      if (bytes[offset++] !== 255) break;
+      scan = false,
+      inScan = false,
+      ended = false;
+    const fail = (): never =>
+      invalid('assetData', 'JPEG 扫描段或文件结构不完整，请重新导出完整原图后上传');
+    while (offset < bytes.length) {
+      if (inScan) {
+        while (offset < bytes.length && bytes[offset] !== 255) offset++;
+      }
+      if (offset >= bytes.length || bytes[offset++] !== 255) fail();
       while (bytes[offset] === 255) offset++;
+      if (offset >= bytes.length) fail();
       const marker = bytes[offset++]!;
-      if (offset + 2 > bytes.length) break;
+      if (inScan && (marker === 0 || (marker >= 208 && marker <= 215))) continue;
+      inScan = false;
+      if (marker === 217) {
+        if (!scan || offset !== bytes.length) fail();
+        ended = true;
+        break;
+      }
+      if (marker === 0 || marker === 216 || marker === 1 || (marker >= 208 && marker <= 215))
+        fail();
+      if (offset + 2 > bytes.length) fail();
       const length = view.getUint16(offset);
-      if (length < 2 || offset + length > bytes.length) break;
+      if (length < 2 || offset + length > bytes.length) fail();
       if (marker === 225) {
         if (length >= 8 && [69, 120, 105, 102, 0, 0].every((n, i) => bytes[offset + 2 + i] === n))
           readExif(bytes.subarray(offset + 8, offset + length));
@@ -95,17 +112,24 @@ export function imageHeader(bytes: Uint8Array) {
         }
       }
       if (marker === 192 || marker === 194) {
-        if (length < 8) break;
+        if (
+          width ||
+          length < 11 ||
+          length !== 8 + 3 * bytes[offset + 7]! ||
+          bytes[offset + 2] !== 8
+        )
+          fail();
         height = view.getUint16(offset + 3);
         width = view.getUint16(offset + 5);
       }
       if (marker === 218) {
+        if (!width || !height || length < 8 || length !== 6 + 2 * bytes[offset + 2]!) fail();
         scan = true;
-        break;
+        inScan = true;
       }
       offset += length;
     }
-    if (scan) mime = 'image/jpeg';
+    if (ended) mime = 'image/jpeg';
   }
   if (!mime || !width || !height)
     invalid('assetData', '请选择有效的静态 JPEG 或 PNG 图片，不支持 HEIC、视频或 Live Photo');

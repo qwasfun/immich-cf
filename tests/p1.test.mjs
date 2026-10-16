@@ -2212,3 +2212,41 @@ test('本机私有 PNG 样本上传、去重、原图及 Sync 验证', async (t)
     204,
   );
 });
+
+test('JPEG 全扫描结构、渐进式、多扫描后元数据与截断拒绝', async () => {
+  const { jpegCases } = await import('./fixtures/jpeg-structure.mjs');
+  const a = await reliabilityAccount();
+  const saved = [];
+  for (const item of await jpegCases()) {
+    const r = await uploadBytes(a.token, item.bytes);
+    assert.equal(r.status, item.status, item.name);
+    const data = await r.json();
+    if (item.status === 201) {
+      saved.push(data.id);
+      const original = await worker.fetch(`/api/assets/${data.id}/original`, {
+        headers: { Authorization: `Bearer ${a.token}` },
+      });
+      assert.deepEqual(Buffer.from(await original.arrayBuffer()), item.bytes);
+      assert.equal((await uploadBytes(a.token, item.bytes)).status, 200);
+    } else assert.deepEqual(data.errors[0].path, ['assetData']);
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    saved.length,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal(
+    (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+    saved.length,
+  );
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, saved.length);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
