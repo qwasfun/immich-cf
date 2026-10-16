@@ -1,6 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { mixedCases, encodedUpload } from '../tests/fixtures/mixed-queue.mjs';
+import { curlRequest } from './lib/curl-request.mjs';
+const useCurl = process.argv.includes('--curl');
+const uploadMetrics = [];
 const base = 'https://immich-cf-api-dev.fun.workers.dev';
 const account = JSON.parse(await readFile('work/dev-account.json', 'utf8'));
 let token;
@@ -22,12 +25,35 @@ try {
   // Deterministic files: reruns deduplicate; at most four logical test images.
   for (const item of cases) {
     const encoded = await encodedUpload(item);
-    const response = await fetch(base + '/api/assets', {
-      method: 'POST',
-      headers: { ...headers(), 'Content-Type': encoded.type },
-      body: encoded.bytes,
-      signal: AbortSignal.timeout(30000),
-    });
+    console.log(`Checking ${item.name}`);
+    let response;
+    if (useCurl) {
+      const measured = await curlRequest(base + '/api/assets', {
+        headers: { ...headers(), 'Content-Type': encoded.type },
+        body: encoded.bytes,
+      });
+      uploadMetrics.push({
+        name: item.name,
+        requestBytes: encoded.bytes.length,
+        ...measured.metrics,
+      });
+      await writeFile(
+        'work/mixed-queue-curl-progress.json',
+        JSON.stringify(
+          { checkedAt: new Date().toISOString(), uploadMetrics, complete: false },
+          null,
+          2,
+        ),
+      );
+      assert.equal(measured.metrics.errorCode, null, item.name);
+      response = new Response(measured.bytes, { status: measured.metrics.status });
+    } else
+      response = await fetch(base + '/api/assets', {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': encoded.type },
+        body: encoded.bytes,
+        signal: AbortSignal.timeout(30000),
+      });
     const result = await response.json();
     if (item.field) {
       assert.equal(response.status, item.status, item.name);
@@ -68,6 +94,9 @@ try {
     JSON.stringify(
       {
         checkedAt: new Date().toISOString(),
+        transport: useCurl ? 'curl HTTP1.1' : 'fetch',
+        uploadTimeoutMs: useCurl ? 120000 : 30000,
+        uploadMetrics,
         results,
         originalBytesMatch: true,
         syncAndAck: true,

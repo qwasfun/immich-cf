@@ -1,0 +1,84 @@
+{
+  "reports": [
+    {
+      "source": "curl-upload-45s.json",
+      "result": {
+        "checkedAt": "2026-10-16T07:40:23.305Z",
+        "engine": "curl Schannel HTTP1.1",
+        "exitCode": 28,
+        "status": 100,
+        "connect": 0.00648,
+        "tls": 1.668226,
+        "firstByte": 2.857921,
+        "total": 45.010887,
+        "uploaded": 3096576,
+        "speedUpload": 68796
+      }
+    },
+    {
+      "source": "curl-upload-120s-success.json",
+      "result": {
+        "checkedAt": "2026-10-16T07:49:23.701Z",
+        "engine": "curl Schannel HTTP1.1",
+        "exitCode": 0,
+        "status": 200,
+        "connect": 0.010077,
+        "tls": 1.818128,
+        "firstByte": 2.396715,
+        "total": 36.08604,
+        "uploaded": 4194720,
+        "speedUpload": 116242,
+        "uploadFinished": 28.517209
+      }
+    },
+    {
+      "source": "curl-upload-report.json",
+      "result": {
+        "checkedAt": "2026-10-16T08:17:45.112Z",
+        "engine": "curl Schannel HTTP1.1 temporary public DNS pin",
+        "exitCode": 0,
+        "status": 200,
+        "connect": 0.000735,
+        "tls": 1.30196,
+        "firstByte": 1.670511,
+        "total": 34.002099,
+        "uploaded": 4194720,
+        "speedUpload": 123366,
+        "uploadFinished": 27.57898
+      }
+    },
+    {
+      "source": "mixed-queue-curl-progress.json",
+      "result": {
+        "checkedAt": "2026-10-16T08:06:46.761Z",
+        "uploadMetrics": [
+          {
+            "name": "small-png",
+            "requestBytes": 2762,
+            "exitCode": 0,
+            "errorCode": null,
+            "status": 200,
+            "uploadedBytes": 2762,
+            "uploadFinishedSeconds": 4.665837,
+            "totalSeconds": 5.324886,
+            "speedUpload": 518
+          },
+          {
+            "name": "over-limit",
+            "requestBytes": 4194721,
+            "exitCode": 55,
+            "errorCode": "CURL_55",
+            "status": 100,
+            "uploadedBytes": 1818624,
+            "uploadFinishedSeconds": 0,
+            "totalSeconds": 14.582897,
+            "speedUpload": 124711
+          }
+        ],
+        "complete": false
+      }
+    }
+  ],
+  "serverChanged": false,
+  "completeMixedQueueVerified": false
+}
