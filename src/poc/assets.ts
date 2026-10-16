@@ -5,7 +5,9 @@ import { media } from './media';
 import { guardLivePhoto } from './live-photo';
 import { originalMatches } from './integrity';
 
-export const MAX_IMAGE = 4 * 1024 * 1024;
+import { MAX_IMAGE, parseUploadForm } from './multipart';
+
+export { MAX_IMAGE } from './multipart';
 interface Asset {
   seq: number;
   sync_seq: number;
@@ -32,53 +34,8 @@ function checksum(value: unknown, field: string) {
   if (!/^[A-Za-z0-9+/]{27}=$/.test(value)) invalid(field, '必须填写有效的 SHA-1 校验和');
   return value;
 }
-async function boundedForm(request: Request) {
-  if (!request.headers.get('content-type')?.startsWith('multipart/form-data;'))
-    throw new HttpError(415, 'Content-Type：请使用 multipart/form-data 上传图片');
-  const max = MAX_IMAGE + 64 * 1024;
-  if (Number(request.headers.get('content-length')) > max)
-    throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
-  const reader = request.body?.getReader();
-  if (!reader) invalid('assetData', '请选择图片文件');
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > max)
-        throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
-      chunks.push(value);
-    }
-  } catch (error) {
-    // Cleanup failures must not replace the size-limit or interrupted-upload response.
-    try {
-      await reader.cancel();
-    } catch {
-      /* Already disconnected or cancellation failed. */
-    }
-    if (error instanceof HttpError) throw error;
-    invalid('assetData', '上传传输中断，文件未完整接收，请恢复网络后重新上传同一图片');
-  } finally {
-    reader.releaseLock();
-  }
-  const data = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    data.set(chunk, offset);
-    offset += chunk.length;
-  }
-  try {
-    return await new Response(data, {
-      headers: { 'Content-Type': request.headers.get('content-type')! },
-    }).formData();
-  } catch {
-    return invalid('assetData', '上传表单无效，请重新选择图片上传');
-  }
-}
 export async function upload(request: Request, env: Env, identity: Identity) {
-  const form = await boundedForm(request);
+  const form = await parseUploadForm(request);
   const encoder = new TextEncoder();
   const seen = new Set<string>();
   for (const key of form.keys()) {

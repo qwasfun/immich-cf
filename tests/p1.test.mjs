@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { getPlatformProxy, unstable_dev } from 'wrangler';
 import { metadataBytes, uploadFieldCases } from './fixtures/upload-fields.mjs';
 import { encodedUpload } from './fixtures/mixed-queue.mjs';
+import { multipartCases } from './fixtures/multipart.mjs';
 
 let worker, platform, db;
 const state = path.resolve('work', `p1-test-${crypto.randomUUID()}`);
@@ -2680,4 +2681,124 @@ test('旧原图继续可读，同图重传升级原生校验；D1 升级失败�
   assert.equal((await get()).status, 503);
   assert.equal((await uploadFixture(a.token)).status, 200);
   assert.equal((await get()).status, 200);
+});
+
+test('流式 multipart 单字节/跨界分块保留 Unicode 文件名、元数据、原图和去重', async () => {
+  const a = await reliabilityAccount();
+  const fixture = await multipartCases();
+  let saved;
+  for (const fault of ['multipart-byte-split', 'multipart-block-split']) {
+    const response = await worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${a.token}`,
+        'Content-Type': fixture.type,
+        'x-test-storage-fault': fault,
+      },
+      body: fixture.valid,
+    });
+    assert.equal(response.status, saved ? 200 : 201);
+    assert.equal(response.headers.get('x-test-body-locked'), 'false');
+    if (fault === 'multipart-byte-split')
+      assert.ok(Number(response.headers.get('x-test-body-chunks')) >= fixture.valid.length);
+    const result = await response.json();
+    if (saved) assert.equal(result.id, saved);
+    saved = result.id;
+  }
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved).first();
+  assert.equal(row.filename, '静态图.png');
+  assert.equal(row.r2_sha1_verified, 1);
+  assert.equal(JSON.parse(row.metadata)[0].value.cloudId, '分块中文元数据');
+  const headerLimit = await worker.fetch('/api/assets', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${a.token}`,
+      'Content-Type': fixture.type,
+      'x-test-storage-fault': 'multipart-block-split',
+    },
+    body: fixture.headerAtLimit,
+  });
+  assert.equal(headerLimit.status, 200);
+  assert.equal((await headerLimit.json()).id, saved);
+  const original = await worker.fetch(`/api/assets/${saved}/original`, {
+    headers: { Authorization: `Bearer ${a.token}` },
+  });
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), fixture.bytes);
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
+
+test('最终分段已产出仍须验证 EOF，坏尾部/重复/头超限拒绝且恢复无残留', async () => {
+  const a = await reliabilityAccount();
+  const fixture = await multipartCases();
+  for (const item of fixture.invalid) {
+    const response = await worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${a.token}`,
+        'Content-Type': fixture.type,
+        'x-test-storage-fault': 'multipart-block-split',
+      },
+      body: item.body,
+    });
+    assert.equal(response.status, 400, item.name);
+    assert.deepEqual((await response.json()).errors[0].path, [item.field], item.name);
+    assert.equal(response.headers.get('x-test-body-locked'), 'false');
+    if (item.name === 'part-header-limit') {
+      assert.equal(response.headers.get('x-test-body-cancelled'), 'true');
+      assert.ok(Number(response.headers.get('x-test-body-chunks')) * 17 < item.body.length);
+    }
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+      0,
+    );
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      0,
+    );
+    assert.equal(
+      (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+      0,
+    );
+  }
+  assert.equal((await uploadFixture(a.token)).status, 201);
+  assert.equal((await uploadFixture(a.token)).status, 200);
+});
+
+test('流式解析保留 4 MiB 文件限制前的 Live Photo 标记登记顺序', async () => {
+  const a = await reliabilityAccount();
+  const fields = {
+    visibility: 'hidden',
+    deviceId: 'multipart-device',
+    deviceAssetId: 'large-live-pair',
+  };
+  const encoded = await encodedUpload({
+    name: 'large-live',
+    bytes: Buffer.alloc(4 * 1024 * 1024 + 1),
+    fields,
+  });
+  const post = (type, bytes) =>
+    worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': type },
+      body: bytes,
+    });
+  assert.equal((await post(encoded.type, encoded.bytes)).status, 413);
+  const retry = await encodedUpload({
+    name: 'live-retry',
+    bytes: await readFile('tests/fixtures/small.png'),
+    fields: { deviceId: fields.deviceId, deviceAssetId: fields.deviceAssetId },
+  });
+  const response = await post(retry.type, retry.bytes);
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).message, /曾提交 Live Photo/);
 });

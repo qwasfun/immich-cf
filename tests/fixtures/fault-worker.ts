@@ -18,11 +18,35 @@ export default {
     let checkpointReads = 0;
     let deliveryWrites = 0;
     let mediaHeads = 0;
+    let bodyChunks = 0;
+    let bodyCancelled = false;
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     if (!fault && !gateId && !countReads) return app.fetch(request, env);
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
+    if (fault === 'multipart-byte-split' || fault === 'multipart-block-split') {
+      // Inject the requested chunk boundaries after the real HTTP body was received.
+      const bytes = new Uint8Array(await clean.arrayBuffer());
+      const step = fault === 'multipart-byte-split' ? 1 : 17;
+      let offset = 0;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          bodyChunks++;
+          if (offset >= bytes.length) controller.close();
+          else {
+            controller.enqueue(bytes.subarray(offset, offset + step));
+            offset += step;
+          }
+        },
+        cancel() {
+          bodyCancelled = true;
+        },
+      });
+      const headers = new Headers(clean.headers);
+      headers.delete('content-length');
+      clean = new Request(clean.url, { method: clean.method, headers, body: stream });
+    }
     if (fault === 'upload-read' || fault === 'upload-cancel') {
       // Finish receiving the real HTTP request before replacing it with a synthetic stream.
       // Otherwise cancellation can abort workerd's proxy rather than test app recovery.
@@ -153,6 +177,11 @@ export default {
     const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
     if (fault === 'upload-read' || fault === 'upload-cancel')
       response.headers.set('x-test-body-locked', String(clean.body?.locked));
+    if (fault?.startsWith('multipart-')) {
+      response.headers.set('x-test-body-locked', String(clean.body?.locked));
+      response.headers.set('x-test-body-chunks', String(bodyChunks));
+      response.headers.set('x-test-body-cancelled', String(bodyCancelled));
+    }
     if (countReads) response.headers.set('x-test-checkpoint-reads', String(checkpointReads));
     if (countReads) response.headers.set('x-test-delivery-writes', String(deliveryWrites));
     if (countReads) response.headers.set('x-test-media-heads', String(mediaHeads));
