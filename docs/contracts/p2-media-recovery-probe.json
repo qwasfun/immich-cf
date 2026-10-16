@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-16T05:54:29.8653767+00:00",
+  "bytesMatch": true,
+  "unsatisfiable": 416,
+  "revoked": 401,
+  "original": 200,
+  "range": 206,
+  "head": 200,
+  "etag": 304
+}
