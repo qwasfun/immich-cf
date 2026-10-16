@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import http from 'node:http';
+import https from 'node:https';
+import { readFile } from 'node:fs/promises';
 import { curlRequest } from '../scripts/lib/curl-request.mjs';
 test('curl 上传保持字节与凭据隔离，区分413、超时、截断和响应上限', async () => {
   const payload = Buffer.alloc(128 * 1024, 173);
@@ -42,6 +44,18 @@ test('curl 上传保持字节与凭据隔离，区分413、超时、截断和响
     assert.ok(result.metrics.firstByteSeconds > 0);
     assert.ok(result.metrics.totalSeconds >= result.metrics.firstByteSeconds);
     assert.ok([0, 1, null].includes(result.metrics.proxyUsed));
+    assert.equal(result.metrics.tlsPolicy, 'system-default');
+    await assert.rejects(
+      () => curlRequest(base, { body: payload, tls12: 'true\ninsecure' }),
+      /Invalid TLS policy/,
+    );
+    const explicit = await curlRequest(base + '/ok', {
+      body: payload,
+      headers: { Authorization: 'Bearer private-test' },
+      tls12: true,
+    });
+    assert.equal(explicit.metrics.errorCode, null);
+    assert.equal(explicit.metrics.tlsPolicy, 'TLS1.2-only');
     assert.equal(result.bytes.toString(), 'response-private');
     assert.ok(!JSON.stringify(result.metrics).includes('private'));
     assert.equal((await curlRequest(base + '/reject', { body: payload })).metrics.status, 413);
@@ -73,6 +87,35 @@ test('curl 上传保持字节与凭据隔离，区分413、超时、截断和响
   } finally {
     server.closeAllConnections();
     await new Promise((r) => server.close(r));
+  }
+});
+
+test('TLS诊断仍拒绝不可信证书，TLS1.2策略不能连接仅TLS1.3服务', async () => {
+  const key = await readFile(new URL('./fixtures/tls/localhost-key.pem', import.meta.url));
+  const cert = await readFile(new URL('./fixtures/tls/localhost-cert.pem', import.meta.url));
+  for (const version of ['TLSv1.2', 'TLSv1.3']) {
+    let handled = 0;
+    const server = https.createServer(
+      { key, cert, minVersion: version, maxVersion: version },
+      (_req, res) => {
+        handled++;
+        res.end('must not be accepted');
+      },
+    );
+    server.on('tlsClientError', () => {});
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const result = await curlRequest(`https://127.0.0.1:${server.address().port}`, {
+        method: 'GET',
+        tls12: true,
+        timeoutMs: 5000,
+      });
+      assert.equal(result.metrics.errorCode, version === 'TLSv1.2' ? 'CURL_60' : 'CURL_35');
+      assert.equal(handled, 0);
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
   }
 });
 
@@ -144,5 +187,41 @@ test('curl 4 MiB 上传、100 Continue、早期413和响应等待超时保留阶
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('显式本机代理真正承载请求，拒绝私密代理凭据与配置注入', async () => {
+  let routed = 0;
+  const proxy = http.createServer((req, res) => {
+    routed++;
+    assert.equal(req.url, 'http://example.invalid/test');
+    res.end('proxied');
+  });
+  await new Promise((r) => proxy.listen(0, '127.0.0.1', r));
+  try {
+    const result = await curlRequest('http://example.invalid/test', {
+      method: 'GET',
+      proxy: `http://127.0.0.1:${proxy.address().port}`,
+    });
+    assert.equal(result.metrics.errorCode, null);
+    assert.equal(result.metrics.proxyUsed, 1);
+    assert.equal(result.bytes.toString(), 'proxied');
+    assert.equal(routed, 1);
+    for (const route of [
+      'http://name:private@127.0.0.1:1',
+      'http://remote.invalid:1',
+      'http://127.0.0.1:1/path',
+      'http://127.0.0.1:1\ninsecure',
+      'http://[private',
+    ]) {
+      await assert.rejects(
+        () => curlRequest('http://example.invalid/test', { method: 'GET', proxy: route }),
+        (error) =>
+          error.message === 'Invalid loopback proxy' && !JSON.stringify(error).includes('private'),
+      );
+    }
+  } finally {
+    proxy.closeAllConnections();
+    await new Promise((r) => proxy.close(r));
   }
 });

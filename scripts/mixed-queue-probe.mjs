@@ -1,8 +1,19 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { mixedCases, encodedUpload } from '../tests/fixtures/mixed-queue.mjs';
-import { curlRequest } from './lib/curl-request.mjs';
+import { curlRequest, validateLoopbackProxy } from './lib/curl-request.mjs';
+import { retryCurlUpload, readCurlRanges } from './lib/curl-recovery.mjs';
+import { createHash } from 'node:crypto';
 const useCurl = process.argv.includes('--curl');
+const tls12 = process.argv.includes('--tls12');
+const recover = process.argv.includes('--recover');
+const proxyIndex = process.argv.indexOf('--proxy');
+const proxy = proxyIndex < 0 ? undefined : process.argv[proxyIndex + 1];
+if (proxyIndex >= 0 && (!useCurl || !proxy || proxy.startsWith('--')))
+  throw new Error('--proxy requires --curl and a loopback HTTP proxy URL');
+if (proxy !== undefined) validateLoopbackProxy(proxy);
+if (recover && !useCurl) throw new Error('--recover requires --curl');
+if (tls12 && !useCurl) throw new Error('--tls12 requires --curl');
 const uploadMetrics = [];
 const readMetrics = [];
 const results = [];
@@ -17,6 +28,9 @@ const saveProgress = () =>
       {
         checkedAt: new Date().toISOString(),
         transport: useCurl ? 'curl HTTP1.1' : 'fetch',
+        tlsPolicy: useCurl ? (tls12 ? 'TLS1.2-only' : 'system-default') : 'fetch-default',
+        recoveryEnabled: recover,
+        proxyRequested: Boolean(proxy),
         phase,
         uploadMetrics,
         readMetrics,
@@ -55,15 +69,36 @@ try {
     console.log(`Checking ${item.name}`);
     let response;
     if (useCurl) {
-      const measured = await curlRequest(base + '/api/assets', {
-        headers: { ...headers(), 'Content-Type': encoded.type },
+      const measured = await (recover ? retryCurlUpload : curlRequest)(base + '/api/assets', {
+        tls12,
+        proxy,
+        headers: {
+          ...headers(),
+          'Content-Type': encoded.type,
+          ...(recover
+            ? { 'x-immich-checksum': createHash('sha1').update(item.bytes).digest('hex') }
+            : {}),
+        },
         body: encoded.bytes,
+        ...(recover
+          ? {
+              onAttempt: async (entry) => {
+                uploadMetrics.push({
+                  name: item.name,
+                  requestBytes: encoded.bytes.length,
+                  ...entry,
+                });
+                await saveProgress();
+              },
+            }
+          : {}),
       });
-      uploadMetrics.push({
-        name: item.name,
-        requestBytes: encoded.bytes.length,
-        ...measured.metrics,
-      });
+      if (!recover)
+        uploadMetrics.push({
+          name: item.name,
+          requestBytes: encoded.bytes.length,
+          ...measured.metrics,
+        });
       await saveProgress();
       assert.equal(measured.metrics.errorCode, null, item.name);
       response = new Response(measured.bytes, { status: measured.metrics.status });
@@ -90,12 +125,26 @@ try {
     await saveProgress();
     let response;
     if (useCurl) {
-      const measured = await curlRequest(`${base}/api/assets/${asset.id}/original`, {
-        method: 'GET',
-        headers: headers(),
-        maxResponseBytes: 8 * 1024 * 1024,
-      });
-      readMetrics.push({ expectedBytes: asset.bytes.length, ...measured.metrics });
+      const measured = await (recover ? readCurlRanges : curlRequest)(
+        `${base}/api/assets/${asset.id}/original`,
+        {
+          tls12,
+          proxy,
+          method: 'GET',
+          headers: headers(),
+          maxResponseBytes: 8 * 1024 * 1024,
+          ...(recover
+            ? {
+                expected: asset.bytes,
+                onAttempt: async (entry) => {
+                  readMetrics.push({ expectedBytes: asset.bytes.length, ...entry });
+                  await saveProgress();
+                },
+              }
+            : {}),
+        },
+      );
+      if (!recover) readMetrics.push({ expectedBytes: asset.bytes.length, ...measured.metrics });
       await saveProgress();
       assert.equal(measured.metrics.errorCode, null, 'original-bytes');
       response = new Response(measured.bytes, { status: measured.metrics.status });
@@ -104,7 +153,7 @@ try {
         headers: headers(),
         signal: AbortSignal.timeout(30000),
       });
-    assert.equal(response.status, 200);
+    assert.equal(response.status, recover ? 206 : 200);
     assert.deepEqual(Buffer.from(await response.arrayBuffer()), asset.bytes);
   }
   phase = 'sync-and-ack';
@@ -136,6 +185,9 @@ try {
       {
         checkedAt: new Date().toISOString(),
         transport: useCurl ? 'curl HTTP1.1' : 'fetch',
+        tlsPolicy: useCurl ? (tls12 ? 'TLS1.2-only' : 'system-default') : 'fetch-default',
+        recoveryEnabled: recover,
+        proxyRequested: Boolean(proxy),
         uploadTimeoutMs: useCurl ? 120000 : 30000,
         uploadMetrics,
         readMetrics,

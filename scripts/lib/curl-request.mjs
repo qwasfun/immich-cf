@@ -6,10 +6,41 @@ const quote = (value) => {
   if (/[\r\n\0]/.test(value)) throw new Error('Invalid curl configuration value');
   return '"' + value.replaceAll('\\', '\\\\').replaceAll('"', '\\"') + '"';
 };
+export function validateLoopbackProxy(proxy) {
+  if (typeof proxy !== 'string' || /[\r\n\0]/.test(proxy))
+    throw new Error('Invalid loopback proxy');
+  let route;
+  try {
+    route = new URL(proxy);
+  } catch {
+    throw new Error('Invalid loopback proxy');
+  }
+  if (
+    route.protocol !== 'http:' ||
+    !['127.0.0.1', 'localhost', '[::1]'].includes(route.hostname) ||
+    route.username ||
+    route.password ||
+    route.pathname !== '/' ||
+    route.search ||
+    route.hash
+  )
+    throw new Error('Invalid loopback proxy');
+  return proxy;
+}
 export async function curlRequest(
   url,
-  { method = 'POST', headers = {}, body, timeoutMs = 120000, maxResponseBytes = 65536 } = {},
+  {
+    method = 'POST',
+    headers = {},
+    body,
+    timeoutMs = 120000,
+    maxResponseBytes = 65536,
+    tls12 = false,
+    proxy,
+  } = {},
 ) {
+  if (typeof tls12 !== 'boolean') throw new Error('Invalid TLS policy');
+  if (proxy !== undefined) validateLoopbackProxy(proxy);
   if (!['POST', 'GET'].includes(method) || (method === 'GET' && body !== undefined))
     throw new Error('Invalid request method or body');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 180000)
@@ -29,7 +60,8 @@ export async function curlRequest(
   });
   const dir = await mkdtemp(join(tmpdir(), 'immich-cf-upload-'));
   const input = join(dir, 'body.bin'),
-    output = join(dir, 'response.bin');
+    output = join(dir, 'response.bin'),
+    responseHead = join(dir, 'headers.txt');
   try {
     if (method === 'POST') await writeFile(input, body);
     const config =
@@ -39,12 +71,15 @@ export async function curlRequest(
         ...headerLines,
         ...(method === 'POST' ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
         `output = ${quote(output.replaceAll('\\', '/'))}`,
+        `dump-header = ${quote(responseHead.replaceAll('\\', '/'))}`,
         'write-out = "%{json}"',
         `max-time = ${timeoutMs / 1000}`,
         `max-filesize = ${maxResponseBytes}`,
         'silent',
         'show-error',
         'http1.1',
+        ...(tls12 ? ['tlsv1.2', 'tls-max = "1.2"'] : []),
+        ...(proxy ? [`proxy = ${quote(proxy)}`, 'noproxy = ""'] : []),
         'retry = 0',
       ].join('\n') + '\n';
     const result = await new Promise((resolve) => {
@@ -98,6 +133,8 @@ export async function curlRequest(
             ? 'RESPONSE_LIMIT'
             : `CURL_${result.exitCode}`),
       status: raw.http_code ?? null,
+      tlsPolicy: tls12 ? 'TLS1.2-only' : 'system-default',
+      certificateVerifyResult: raw.ssl_verify_result ?? null,
       dnsSeconds: raw.time_namelookup ?? null,
       connectSeconds: raw.time_connect ?? null,
       tlsSeconds: raw.time_appconnect ?? null,
@@ -107,6 +144,7 @@ export async function curlRequest(
       firstByteSeconds: raw.time_starttransfer ?? null,
       downloadedBytes: raw.size_download ?? null,
       proxyUsed: raw.proxy_used ?? null,
+      proxyConnectStatus: raw.http_connect ?? null,
       totalSeconds: raw.time_total ?? null,
       speedUpload: raw.speed_upload ?? null,
     };
@@ -117,11 +155,31 @@ export async function curlRequest(
     } catch {
       if (!metrics.errorCode) metrics.errorCode = 'RESPONSE_MISSING';
     }
-    return { metrics, bytes };
+    let responseHeaders = { etag: null, contentRange: null };
+    try {
+      if ((await stat(responseHead)).size > 65536) metrics.errorCode = 'HEADER_LIMIT';
+      else {
+        const block = (await readFile(responseHead, 'latin1'))
+          .split(/\r?\n\r?\n/)
+          .filter((x) => /^HTTP\/\S+\s+\d{3}\b/.test(x))
+          .at(-1);
+        const field = (name) => {
+          const values = block
+            ?.split(/\r?\n/)
+            .filter((x) => x.toLowerCase().startsWith(name + ':'));
+          return values?.length === 1 ? values[0].slice(name.length + 1).trim() : null;
+        };
+        responseHeaders = { etag: field('etag'), contentRange: field('content-range') };
+      }
+    } catch {
+      /* Missing metadata is rejected by range verification when required. */
+    }
+    return { metrics, bytes, responseHeaders };
   } finally {
     // Only remove the two files and directory created by this invocation; no recursive deletion.
     await rm(input, { force: true });
     await rm(output, { force: true });
+    await rm(responseHead, { force: true });
     await rmdir(dir);
   }
 }

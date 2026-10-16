@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-16T11:38:45.621Z",
+  "mode": "existing-media-only-no-upload",
+  "results": [
+    {
+      "name": "below-limit",
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "dnsSeconds": 0.011085,
+      "connectSeconds": 0.011855,
+      "tlsSeconds": 6.33972,
+      "pretransferSeconds": 6.339813,
+      "uploadedBytes": 0,
+      "uploadFinishedSeconds": 6.339813,
+      "firstByteSeconds": 7.301307,
+      "downloadedBytes": 4194303,
+      "proxyUsed": 0,
+      "totalSeconds": 20.643098,
+      "speedUpload": 0,
+      "originalBytesMatch": true
+    }
+  ],
+  "syncAndAck": true,
+  "logout": 200,
+  "complete": true
+}
