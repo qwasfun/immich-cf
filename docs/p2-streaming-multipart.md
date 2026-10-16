@@ -34,3 +34,11 @@
 无数据库迁移，保持 0011。P2/G1 尚未整体通过：100 张真实 JPEG/PNG、官方 iOS 混合队列/异常重试、资源预算和完整图像解码等仍待验收，CPU 超预算按用户要求暂缓。本轮不发布 test/生产。
 
 本轮 `pnpm check` 的格式、lint、类型、85 项回归和 dry-run 构建全部通过，无失败或跳过；冻结契约 279 个操作/53 个来源一致。构建 194.15 KiB，gzip 48.27 KiB。部署与公网证据随后追加，构建通过不代替发布结果。
+
+## dev 发布记录
+
+2026-10-17：代码 `313789b`，通过指定本机代理执行 Wrangler 发布成功，dev 版本 `e3d9ef26-5327-432b-bfa6-5a776da0a1d4`。无待执行迁移，D1 保持 0011，test/生产未变更。公网结果另行追加。
+
+公网 multipart [脱敏报告](contracts/p2-streaming-multipart-probe.json)：10 项检查通过（7 种非法请求、精确 8 KiB 头边界、带引号 boundary/中文文件名、重复重传）。原图字节一致、预检查、Sync/ACK、退出 200；16 次网络尝试无传输错误，均记录 proxyUsed=1。有效 PNG 复用既有资产去重，不宣称修改了其历史文件名或元数据；中文保真由本地新资产验证。公网未注入合成分块，也不替代 iOS App 验收。
+
+完整混合探针同轮通过：[最终结果](contracts/p2-streaming-multipart-mixed-probe.json)、[进度与尝试](contracts/p2-streaming-multipart-mixed-progress.json)。10 项上传检查、11 次尝试；at-limit 出现一次 CURL_35，重试后成功，按已知环境波动保留。四张正常图含 4 MiB 减 1、恰好 4 MiB 的原图，18 次分段读取无传输错误，全部逐字节一致。Sync/ACK、随后仅 Complete 的空增量、退出 200；最终 complete=true、failure=null。不将本轮通过解读为网络问题已消失或 CPU/真机关口已通过。
