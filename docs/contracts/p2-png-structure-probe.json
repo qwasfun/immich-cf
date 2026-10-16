@@ -1,0 +1,105 @@
+{
+  "checkedAt": "2026-10-16T04:39:59.572Z",
+  "results": [
+    {
+      "name": "duplicate-header",
+      "status": 400
+    },
+    {
+      "name": "invalid-color",
+      "status": 400
+    },
+    {
+      "name": "invalid-depth",
+      "status": 400
+    },
+    {
+      "name": "invalid-compression",
+      "status": 400
+    },
+    {
+      "name": "invalid-filter",
+      "status": 400
+    },
+    {
+      "name": "invalid-interlace",
+      "status": 400
+    },
+    {
+      "name": "separated-idat",
+      "status": 400
+    },
+    {
+      "name": "empty-idat",
+      "status": 400
+    },
+    {
+      "name": "unknown-critical",
+      "status": 400
+    },
+    {
+      "name": "invalid-chunk-name",
+      "status": 400
+    },
+    {
+      "name": "reserved-chunk-bit",
+      "status": 400
+    },
+    {
+      "name": "animation-acTL",
+      "status": 400
+    },
+    {
+      "name": "animation-fcTL",
+      "status": 400
+    },
+    {
+      "name": "animation-fdAT",
+      "status": 400
+    },
+    {
+      "name": "missing-palette",
+      "status": 400
+    },
+    {
+      "name": "late-palette",
+      "status": 400
+    },
+    {
+      "name": "duplicate-palette",
+      "status": 400
+    },
+    {
+      "name": "oversized-palette",
+      "status": 400
+    },
+    {
+      "name": "empty-palette",
+      "status": 400
+    },
+    {
+      "name": "invalid-palette-length",
+      "status": 400
+    },
+    {
+      "name": "grayscale-palette",
+      "status": 400
+    },
+    {
+      "name": "ordinary-png-after-failures",
+      "status": 200
+    },
+    {
+      "name": "consecutive-idat-with-empty-chunk",
+      "status": 201
+    },
+    {
+      "name": "indexed-png",
+      "status": 201
+    }
+  ],
+  "originalBytesMatch": true,
+  "duplicates": true,
+  "syncAndAck": true,
+  "officialAppVerified": false
+}
