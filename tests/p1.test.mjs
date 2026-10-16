@@ -2433,3 +2433,37 @@ test('异常原图不返回媒体或304，head/get竞态失败后重传恢复且
     204,
   );
 });
+
+test('上传流读取失败与取消失败保留字段错误、释放锁且后续重试可恢复', async () => {
+  const a = await reliabilityAccount();
+  for (const [fault, status] of [
+    ['upload-read', 400],
+    ['upload-cancel', 413],
+  ]) {
+    const response = await uploadFixture(a.token, 'small.png', fault);
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get('x-test-body-locked'), 'false');
+    const data = await response.json();
+    assert.deepEqual(data.errors[0].path, ['assetData']);
+    assert.match(data.message, fault === 'upload-read' ? /传输中断.*重新上传/ : /4 MiB/);
+    assert.ok(!JSON.stringify(data).includes('PRIVATE_ERROR'));
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    0,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
+  assert.equal((await uploadFixture(a.token)).status, 201);
+  assert.equal((await uploadFixture(a.token)).status, 200);
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});

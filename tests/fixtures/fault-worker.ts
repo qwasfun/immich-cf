@@ -21,8 +21,30 @@ export default {
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     if (!fault && !gateId && !countReads) return app.fetch(request, env);
-    const clean = new Request(request);
+    let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
+    if (fault === 'upload-read' || fault === 'upload-cancel') {
+      let sent = false;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (sent) {
+            if (fault === 'upload-cancel') return;
+            controller.error(new Error('TEST_UPLOAD_PRIVATE_ERROR'));
+            return;
+          }
+          sent = true;
+          controller.enqueue(
+            new Uint8Array(fault === 'upload-cancel' ? 4 * 1024 * 1024 + 65537 : 8),
+          );
+        },
+        cancel() {
+          throw new Error('TEST_CANCEL_PRIVATE_ERROR');
+        },
+      });
+      const headers = new Headers(clean.headers);
+      headers.delete('content-length');
+      clean = new Request(clean.url, { method: clean.method, headers, body: stream });
+    }
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {
         if (key === 'get')
@@ -79,6 +101,8 @@ export default {
       },
     });
     const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
+    if (fault === 'upload-read' || fault === 'upload-cancel')
+      response.headers.set('x-test-body-locked', String(clean.body?.locked));
     if (countReads) response.headers.set('x-test-checkpoint-reads', String(checkpointReads));
     if (countReads) response.headers.set('x-test-delivery-writes', String(deliveryWrites));
     if (countReads) response.headers.set('x-test-media-heads', String(mediaHeads));

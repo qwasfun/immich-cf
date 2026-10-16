@@ -40,15 +40,26 @@ async function boundedForm(request: Request) {
   if (!reader) invalid('assetData', '请选择图片文件');
   const chunks: Uint8Array[] = [];
   let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    if (size > max) {
-      await reader.cancel();
-      throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > max)
+        throw new HttpError(413, 'assetData：图片最多 4 MiB，请压缩后上传', 'assetData');
+      chunks.push(value);
     }
-    chunks.push(value);
+  } catch (error) {
+    // Cleanup failures must not replace the size-limit or interrupted-upload response.
+    try {
+      await reader.cancel();
+    } catch {
+      /* Already disconnected or cancellation failed. */
+    }
+    if (error instanceof HttpError) throw error;
+    invalid('assetData', '上传传输中断，文件未完整接收，请恢复网络后重新上传同一图片');
+  } finally {
+    reader.releaseLock();
   }
   const data = new Uint8Array(size);
   let offset = 0;
