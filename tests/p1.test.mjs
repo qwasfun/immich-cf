@@ -2366,3 +2366,70 @@ test('备份预检查确认原图存在，缺失/大小异常可恢复且不改�
     204,
   );
 });
+
+test('异常原图不返回媒体或304，head/get竞态失败后重传恢复且资产不变', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const saved = await (await uploadBytes(a.token, bytes)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  const get = (suffix, headers = {}, method = 'GET', token = a.token) =>
+    worker.fetch(`/api/assets/${saved.id}/${suffix}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...headers },
+    });
+  for (const state of ['missing', 'wrong-size']) {
+    if (state === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+    else await platform.env.IMMICH_CF_MEDIA.put(row.object_key, Buffer.from('broken'));
+    for (const suffix of ['original', 'thumbnail?size=thumbnail', 'thumbnail?size=preview']) {
+      for (const [headers, method] of [
+        [{}, 'GET'],
+        [{ Range: 'bytes=0-1' }, 'GET'],
+        [{ 'If-None-Match': '*' }, 'GET'],
+        [{}, 'HEAD'],
+      ]) {
+        const r = await get(suffix, headers, method);
+        assert.equal(r.status, 503, `${state} ${suffix} ${method}`);
+        assert.equal(r.headers.get('etag'), null);
+        assert.equal(r.headers.get('content-range'), null);
+        assert.equal(r.headers.get('cache-control'), 'no-store');
+        if (method === 'GET') assert.match(r.headers.get('content-type'), /json/);
+      }
+    }
+    assert.equal((await get('original', { 'If-None-Match': '*' }, 'GET', other.token)).status, 404);
+    assert.equal((await uploadBytes(a.token, bytes)).status, 200);
+  }
+  for (const fault of ['head-r2', 'get-r2', 'replace-before-get', 'delete-before-get']) {
+    const r = await get('original', { 'x-test-storage-fault': fault, Range: 'bytes=0-7' });
+    assert.equal(r.status, 503, fault);
+    assert.equal(r.headers.get('etag'), null);
+    assert.equal(r.headers.get('content-range'), null);
+    assert.equal((await uploadBytes(a.token, bytes)).status, 200);
+    const restored = await get('original');
+    assert.equal(restored.status, 200);
+    assert.deepEqual(Buffer.from(await restored.arrayBuffer()), bytes);
+    assert.equal(
+      (await get('original', { 'If-None-Match': restored.headers.get('etag') })).status,
+      304,
+    );
+    const range = await get('thumbnail?size=preview', { Range: 'bytes=0-7' });
+    assert.equal(range.status, 206);
+    assert.deepEqual(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 8));
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first(),
+      row,
+    );
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 1);
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});

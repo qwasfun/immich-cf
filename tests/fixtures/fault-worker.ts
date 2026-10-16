@@ -25,6 +25,14 @@ export default {
     clean.headers.delete('x-test-storage-fault');
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {
+        if (key === 'get')
+          return async (...args: Parameters<R2Bucket['get']>) => {
+            if (fault === 'get-r2') throw new Error('TEST_R2_GET_UNAVAILABLE');
+            if (fault === 'replace-before-get')
+              await target.put(args[0], new Uint8Array([1, 2, 3]));
+            if (fault === 'delete-before-get') await target.delete(args[0]);
+            return target.get(...args);
+          };
         if (key === 'head')
           return async (...args: Parameters<R2Bucket['head']>) => {
             mediaHeads++;

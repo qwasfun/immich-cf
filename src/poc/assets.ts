@@ -337,7 +337,7 @@ export async function readAsset(
   const size = new URL(request.url).searchParams.get('size');
   if (size && !['thumbnail', 'preview', 'fullsize', 'original'].includes(size))
     invalid('size', '必须为 thumbnail、preview、fullsize 或 original');
-  return media(request, env.IMMICH_CF_MEDIA, row.object_key, row.mime);
+  return media(request, env.IMMICH_CF_MEDIA, row.object_key, row.mime, row.bytes);
 }
 export async function assetEvents(
   db: D1Database,

@@ -1,9 +1,17 @@
 import { HttpError } from './http';
 
 // Caller must authenticate the session and verify asset ownership first.
-export async function media(request: Request, bucket: R2Bucket, key: string, mime: string) {
+export async function media(
+  request: Request,
+  bucket: R2Bucket,
+  key: string,
+  mime: string,
+  expectedBytes: number,
+) {
   const object = await bucket.head(key);
   if (!object) throw new HttpError(503, '图片暂不可读取，请稍后重试');
+  if (object.size !== expectedBytes)
+    throw new HttpError(503, '原图大小与记录不符，请保留本机原件并重新上传同一图片');
   const headers = new Headers({
     'Content-Type': mime,
     'Content-Length': String(object.size),
