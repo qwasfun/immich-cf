@@ -77,9 +77,31 @@ async function boundedForm(request: Request) {
 }
 export async function upload(request: Request, env: Env, identity: Identity) {
   const form = await boundedForm(request);
-  for (const key of new Set(form.keys()))
-    if (form.getAll(key).length !== 1) invalid(key, '只能提交一次');
+  const encoder = new TextEncoder();
+  const seen = new Set<string>();
+  for (const key of form.keys()) {
+    if (!key || encoder.encode(key).byteLength > 128 || /[\x00-\x1f\x7f]/.test(key))
+      invalid('上传字段名', '请使用不含控制字符且最多 128 UTF-8 字节的非空名称');
+    if (seen.has(key)) invalid(key, '只能提交一次');
+    seen.add(key);
+  }
   await guardLivePhoto(form, env.IMMICH_CF_DB, identity.id);
+  // Bound parsed fields too, including ignored forward-compatible text fields.
+  // Keep the Live Photo guard first so malformed follow-up fields cannot erase a block.
+  let fields = 0,
+    textBytes = 0;
+  for (const [key, value] of form) {
+    if (++fields > 32) invalid('上传表单', '最多提交 32 个字段，请减少附加字段');
+    if (value instanceof File) {
+      if (key !== 'assetData') invalid(key, '当前仅 assetData 支持文件，请移除附加文件');
+    } else {
+      const length = encoder.encode(value).byteLength;
+      if (length > 8192) invalid(key, '最多 8 KiB UTF-8 文本，请缩短此字段');
+      textBytes += length;
+      if (textBytes > 16384)
+        invalid('上传文本字段', '合计最多 16 KiB UTF-8 文本，请减少附加字段内容');
+    }
+  }
   const file = form.get('assetData');
   if (!(file instanceof File) || file.size === 0) invalid('assetData', '请选择非空图片文件');
   if (file.size > MAX_IMAGE)
@@ -118,8 +140,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   let metadata: { key: string; value: Record<string, unknown> }[] = [];
   if (form.has('metadata')) {
     const raw = form.get('metadata');
-    if (typeof raw !== 'string' || raw.length > 8192)
-      invalid('metadata', '请提供最多 8 KiB 的 JSON 数组');
+    if (typeof raw !== 'string') invalid('metadata', '请提供最多 8 KiB 的 JSON 数组');
     try {
       metadata = JSON.parse(raw);
     } catch {

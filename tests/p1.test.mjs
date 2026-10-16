@@ -6,6 +6,8 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import bcrypt from 'bcryptjs';
 import { getPlatformProxy, unstable_dev } from 'wrangler';
+import { metadataBytes, uploadFieldCases } from './fixtures/upload-fields.mjs';
+import { encodedUpload } from './fixtures/mixed-queue.mjs';
 
 let worker, platform, db;
 const state = path.resolve('work', `p1-test-${crypto.randomUUID()}`);
@@ -2466,4 +2468,84 @@ test('上传流读取失败与取消失败保留字段错误、释放锁且后�
     (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
     204,
   );
+});
+
+test('multipart UTF-8/总量/字段/文件边界拒绝无资产残留，边界内重试和 Sync 保真', async () => {
+  const a = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const upload = async (fields) => {
+    const encoded = await encodedUpload({ name: 'field-limits', bytes, fields });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': encoded.type },
+      body: encoded.bytes,
+    });
+  };
+  for (const item of uploadFieldCases()) {
+    const response = await upload(item.fields);
+    assert.equal(response.status, 400, item.name);
+    const error = await response.json();
+    assert.deepEqual(error.errors[0].path, [item.field], item.name);
+    assert.ok(!JSON.stringify(error).includes('PRIVATE_VALUE'));
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+      0,
+    );
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      0,
+    );
+    assert.equal(
+      (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+      0,
+    );
+  }
+  // Exactly 32 parts, 16 KiB text, 8 KiB metadata and a 128-byte field name.
+  const fields = {
+    metadata: metadataBytes(8192),
+    ['k'.repeat(128)]: 'a'.repeat(8192 - 40),
+    ...Object.fromEntries(Array.from({ length: 27 }, (_, i) => [`extra${i}`, ''])),
+  };
+  assert.equal(Buffer.byteLength(fields.metadata), 8192);
+  const first = await upload(fields);
+  assert.equal(first.status, 201);
+  const saved = await first.json();
+  const retry = await upload(fields);
+  assert.equal(retry.status, 200);
+  assert.deepEqual(await retry.json(), { id: saved.id, status: 'duplicate' });
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+  const meta = events.find((e) => e.type === 'AssetMetadataV1');
+  assert.deepEqual(meta.data.value, JSON.parse(fields.metadata)[0].value);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
+
+test('Live Photo 标记与超量文本同时提交仍登记拦截，普通静态图可继续上传', async () => {
+  const a = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const upload = async (fields) => {
+    const encoded = await encodedUpload({ name: 'guard-order', bytes, fields });
+    return worker.fetch('/api/assets', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': encoded.type },
+      body: encoded.bytes,
+    });
+  };
+  const device = { deviceId: 'field-boundary-device', deviceAssetId: 'live-pair' };
+  assert.equal(
+    (await upload({ ...device, visibility: 'hidden', extra: 'x'.repeat(8193) })).status,
+    400,
+  );
+  const retry = await upload(device);
+  assert.equal(retry.status, 400);
+  assert.match((await retry.json()).message, /曾提交 Live Photo/);
+  assert.equal((await upload({ ...device, deviceAssetId: 'ordinary-static' })).status, 201);
 });
