@@ -27,3 +27,11 @@
 回退 Worker 时保留 0012；本轮运行逻辑依赖数据库触发器，回退 JS 不能恢复旧计数。若需回退触发器，应先停止该环境上传并确认多计名额的影响，保留所有资产、预约和对象供核对。
 
 本轮 `pnpm check` 格式、lint、类型、88 项回归及 dry-run 构建通过，无失败或跳过；冻结契约 279 操作/53 来源一致。实际本地 Wrangler 迁移与 Worker/D1/R2 回归通过，非空迁移快照在 SQLite 中验证。构建仍为 194.15 KiB，gzip 48.27 KiB。本轮行为修复在数据库触发器中，Worker 仅补充解释性注释。
+
+## dev 发布记录
+
+2026-10-17：代码 `9253930`，Wrangler 通过指定本机代理成功应用 dev 迁移 0012 并发布，版本 `16f0ed3b-e1eb-48e3-9f73-5e3254592325`。test/生产未变更；公网结果随后追加。
+
+公网正常链路通过：[脱敏报告](contracts/p2-quota-identity-probe.json)。同图去重、已存/未知图片预检查、原图逐字节、Sync/ACK、退出 200 全部成功；7 次请求无传输错误、均使用指定代理。报告明确 quotaBoundaryVerified=false，配额边界由前述本地真实存储回归验证，不将公网正常链路写成线上满额竞态已通过。
+
+完整混合队列通过：[最终结果](contracts/p2-quota-identity-mixed-probe.json)、[进度与尝试](contracts/p2-quota-identity-mixed-progress.json)。10 项上传检查、10 次上传尝试无传输错误；4 张正常图含 4 MiB 减 1、恰好 4 MiB，原图全部逐字节一致。分段读取 19 次尝试，保留一次 CURL_28 并在同段重试后恢复。Sync/ACK、随后仅 Complete 的空增量、退出 200；complete=true、failure=null。此为迁移后的正常链路回归，不替代本地配额竞态、官方 iOS 或 Free 资源验收。
