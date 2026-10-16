@@ -32,12 +32,21 @@ export function imageHeader(bytes: Uint8Array) {
   if (bytes.length >= 45 && [137, 80, 78, 71, 13, 10, 26, 10].every((n, i) => bytes[i] === n)) {
     let offset = 8,
       sawData = false,
-      ended = false;
+      ended = false,
+      dataEnded = false,
+      dataBytes = 0,
+      palette = false,
+      color = 0,
+      depth = 0;
+    const fail = (): never =>
+      invalid('assetData', 'PNG 图片头、调色板或数据块结构无效，请重新导出完整静态原图后上传');
     while (offset + 12 <= bytes.length) {
       const length = view.getUint32(offset);
       if (length > bytes.length - offset - 12)
         invalid('assetData', 'PNG 文件不完整，请重新导出图片');
       const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+      if (!/^[A-Za-z]{2}[A-Z][A-Za-z]$/.test(type)) fail();
+      if (/^[A-Z]/.test(type) && !['IHDR', 'PLTE', 'IDAT', 'IEND'].includes(type)) fail();
       if (
         crc32(bytes.subarray(offset + 4, offset + 8 + length)) !==
         view.getUint32(offset + 8 + length)
@@ -47,8 +56,39 @@ export function imageHeader(bytes: Uint8Array) {
         if (type !== 'IHDR' || length !== 13) invalid('assetData', 'PNG 头无效，请重新导出图片');
         width = view.getUint32(offset + 8);
         height = view.getUint32(offset + 12);
+        depth = bytes[offset + 16]!;
+        color = bytes[offset + 17]!;
+        const depths: Record<number, number[]> = {
+          0: [1, 2, 4, 8, 16],
+          2: [8, 16],
+          3: [1, 2, 4, 8],
+          4: [8, 16],
+          6: [8, 16],
+        };
+        if (
+          !depths[color]?.includes(depth) ||
+          bytes[offset + 18] !== 0 ||
+          bytes[offset + 19] !== 0 ||
+          bytes[offset + 20]! > 1
+        )
+          fail();
+      } else if (type === 'IHDR') fail();
+      if (type === 'PLTE') {
+        if (
+          palette ||
+          sawData ||
+          color === 0 ||
+          color === 4 ||
+          length === 0 ||
+          length % 3 !== 0 ||
+          length > 768 ||
+          (color === 3 && length / 3 > 2 ** depth)
+        )
+          fail();
+        palette = true;
       }
-      if (type === 'acTL') invalid('assetData', '暂不支持动画 PNG，请选择静态图片');
+      if (['acTL', 'fcTL', 'fdAT'].includes(type))
+        invalid('assetData', '暂不支持动画 PNG，请选择静态图片');
       if (
         ['iTXt', 'tEXt', 'zTXt'].includes(type) &&
         checkPngXmp(bytes.subarray(offset + 8, offset + 8 + length), type)
@@ -57,14 +97,18 @@ export function imageHeader(bytes: Uint8Array) {
         sawXmp = true;
       }
       if (type === 'eXIf') readExif(bytes.subarray(offset + 8, offset + 8 + length));
-      if (type === 'IDAT') sawData = true;
+      if (type === 'IDAT') {
+        if (dataEnded || (color === 3 && !palette)) fail();
+        sawData = true;
+        dataBytes += length;
+      } else if (sawData) dataEnded = true;
       offset += length + 12;
       if (type === 'IEND') {
         ended = length === 0 && offset === bytes.length;
         break;
       }
     }
-    if (!sawData || !ended) invalid('assetData', 'PNG 文件不完整，请重新导出图片');
+    if (!sawData || !dataBytes || !ended) invalid('assetData', 'PNG 文件不完整，请重新导出图片');
     mime = 'image/png';
   } else if (
     bytes.length >= 12 &&

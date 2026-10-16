@@ -10,6 +10,7 @@
 - [P2 Live Photo 防护](docs/p2-live-photo.md)：已识别动态请求的持久拦截与无法覆盖的部分备份边界。
 - [普通静态 XMP 修复](docs/p2-static-xmp.md)：放行经验证的截图说明和创建时间，保留动态照片防护。
 - [JPEG 扫描结构检查](docs/p2-jpeg-structure.md)：检查扫描段后的元数据和截断结构，覆盖渐进式与重启标记。
+- [PNG 结构检查](docs/p2-png-structure.md)：校验图片头、调色板和数据块顺序，拒绝残缺动画结构。
 
 - [历史 EXIF 安全修复](docs/p2-exif-repair.md)：预检、原图校验、原子同步版本、并发与重试。
 
