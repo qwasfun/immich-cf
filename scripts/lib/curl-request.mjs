@@ -8,8 +8,10 @@ const quote = (value) => {
 };
 export async function curlRequest(
   url,
-  { headers = {}, body, timeoutMs = 120000, maxResponseBytes = 65536 } = {},
+  { method = 'POST', headers = {}, body, timeoutMs = 120000, maxResponseBytes = 65536 } = {},
 ) {
+  if (!['POST', 'GET'].includes(method) || (method === 'GET' && body !== undefined))
+    throw new Error('Invalid request method or body');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 180000)
     throw new Error('Invalid timeout');
   if (
@@ -29,13 +31,13 @@ export async function curlRequest(
   const input = join(dir, 'body.bin'),
     output = join(dir, 'response.bin');
   try {
-    await writeFile(input, body);
+    if (method === 'POST') await writeFile(input, body);
     const config =
       [
         `url = ${quote(url)}`,
-        'request = "POST"',
+        `request = ${quote(method)}`,
         ...headerLines,
-        `data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`,
+        ...(method === 'POST' ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
         `output = ${quote(output.replaceAll('\\', '/'))}`,
         'write-out = "%{json}"',
         `max-time = ${timeoutMs / 1000}`,
@@ -96,8 +98,15 @@ export async function curlRequest(
             ? 'RESPONSE_LIMIT'
             : `CURL_${result.exitCode}`),
       status: raw.http_code ?? null,
+      dnsSeconds: raw.time_namelookup ?? null,
+      connectSeconds: raw.time_connect ?? null,
+      tlsSeconds: raw.time_appconnect ?? null,
+      pretransferSeconds: raw.time_pretransfer ?? null,
       uploadedBytes: raw.size_upload ?? null,
       uploadFinishedSeconds: raw.time_posttransfer ?? null,
+      firstByteSeconds: raw.time_starttransfer ?? null,
+      downloadedBytes: raw.size_download ?? null,
+      proxyUsed: raw.proxy_used ?? null,
       totalSeconds: raw.time_total ?? null,
       speedUpload: raw.speed_upload ?? null,
     };

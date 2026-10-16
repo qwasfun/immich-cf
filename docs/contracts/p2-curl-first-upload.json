@@ -1,0 +1,116 @@
+{
+  "checkedAt": "2026-10-16T11:14:35.121Z",
+  "uploadMetrics": [
+    {
+      "name": "small-png",
+      "requestBytes": 2762,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "uploadedBytes": 2762,
+      "uploadFinishedSeconds": 3.179502,
+      "totalSeconds": 3.844887,
+      "speedUpload": 718
+    },
+    {
+      "name": "over-limit",
+      "requestBytes": 4194721,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 413,
+      "uploadedBytes": 4194721,
+      "uploadFinishedSeconds": 27.477235,
+      "totalSeconds": 34.491533,
+      "speedUpload": 121615
+    },
+    {
+      "name": "heic-signature",
+      "requestBytes": 444,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "uploadedBytes": 444,
+      "uploadFinishedSeconds": 0.595467,
+      "totalSeconds": 0.821654,
+      "speedUpload": 540
+    },
+    {
+      "name": "video-signature",
+      "requestBytes": 445,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "uploadedBytes": 445,
+      "uploadFinishedSeconds": 0.420618,
+      "totalSeconds": 0.741239,
+      "speedUpload": 600
+    },
+    {
+      "name": "live-photo-link",
+      "requestBytes": 5443,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "uploadedBytes": 5443,
+      "uploadFinishedSeconds": 0.934569,
+      "totalSeconds": 1.356554,
+      "speedUpload": 4012
+    },
+    {
+      "name": "sidecar",
+      "requestBytes": 5405,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "uploadedBytes": 5405,
+      "uploadFinishedSeconds": 0.469948,
+      "totalSeconds": 0.670652,
+      "speedUpload": 8059
+    },
+    {
+      "name": "live-video-hidden",
+      "requestBytes": 5409,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "uploadedBytes": 5409,
+      "uploadFinishedSeconds": 1.327414,
+      "totalSeconds": 1.767578,
+      "speedUpload": 3060
+    },
+    {
+      "name": "below-limit",
+      "requestBytes": 4194720,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "uploadedBytes": 4194720,
+      "uploadFinishedSeconds": 32.88689,
+      "totalSeconds": 39.484857,
+      "speedUpload": 106236
+    },
+    {
+      "name": "at-limit",
+      "requestBytes": 4194718,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "uploadedBytes": 4194718,
+      "uploadFinishedSeconds": 34.996111,
+      "totalSeconds": 42.10886,
+      "speedUpload": 99616
+    },
+    {
+      "name": "small-jpeg",
+      "requestBytes": 5305,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "uploadedBytes": 5305,
+      "uploadFinishedSeconds": 0.680741,
+      "totalSeconds": 1.149736,
+      "speedUpload": 4614
+    }
+  ],
+  "complete": false
+}

@@ -1,0 +1,218 @@
+{
+  "checkedAt": "2026-10-16T11:19:16.926Z",
+  "transport": "curl HTTP1.1",
+  "phase": "upload:at-limit",
+  "uploadMetrics": [
+    {
+      "name": "small-png",
+      "requestBytes": 2762,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "dnsSeconds": 0.007658,
+      "connectSeconds": 0.008432,
+      "tlsSeconds": 1.775363,
+      "pretransferSeconds": 1.775474,
+      "uploadedBytes": 2762,
+      "uploadFinishedSeconds": 1.775474,
+      "firstByteSeconds": 2.649606,
+      "downloadedBytes": 66,
+      "proxyUsed": 0,
+      "totalSeconds": 2.64996,
+      "speedUpload": 1042
+    },
+    {
+      "name": "over-limit",
+      "requestBytes": 4194721,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 413,
+      "dnsSeconds": 0.016323,
+      "connectSeconds": 0.017101,
+      "tlsSeconds": 0.598242,
+      "pretransferSeconds": 0.598368,
+      "uploadedBytes": 4194721,
+      "uploadFinishedSeconds": 25.20561,
+      "firstByteSeconds": 0.773215,
+      "downloadedBytes": 163,
+      "proxyUsed": 0,
+      "totalSeconds": 31.225682,
+      "speedUpload": 134335
+    },
+    {
+      "name": "heic-signature",
+      "requestBytes": 444,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "dnsSeconds": 0.010519,
+      "connectSeconds": 0.011098,
+      "tlsSeconds": 1.050179,
+      "pretransferSeconds": 1.050295,
+      "uploadedBytes": 444,
+      "uploadFinishedSeconds": 1.050295,
+      "firstByteSeconds": 1.303741,
+      "downloadedBytes": 253,
+      "proxyUsed": 0,
+      "totalSeconds": 1.304212,
+      "speedUpload": 340
+    },
+    {
+      "name": "video-signature",
+      "requestBytes": 445,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "dnsSeconds": 0.005623,
+      "connectSeconds": 0.006196,
+      "tlsSeconds": 0.424044,
+      "pretransferSeconds": 0.424155,
+      "uploadedBytes": 445,
+      "uploadFinishedSeconds": 0.424155,
+      "firstByteSeconds": 0.616944,
+      "downloadedBytes": 253,
+      "proxyUsed": 0,
+      "totalSeconds": 0.617246,
+      "speedUpload": 720
+    },
+    {
+      "name": "live-photo-link",
+      "requestBytes": 5443,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "dnsSeconds": 0.014309,
+      "connectSeconds": 0.01511,
+      "tlsSeconds": 0.996929,
+      "pretransferSeconds": 0.997047,
+      "uploadedBytes": 5443,
+      "uploadFinishedSeconds": 0.997047,
+      "firstByteSeconds": 1.233077,
+      "downloadedBytes": 214,
+      "proxyUsed": 0,
+      "totalSeconds": 1.233417,
+      "speedUpload": 4412
+    },
+    {
+      "name": "sidecar",
+      "requestBytes": 5405,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "dnsSeconds": 0.013734,
+      "connectSeconds": 0.015263,
+      "tlsSeconds": 0.679517,
+      "pretransferSeconds": 0.679627,
+      "uploadedBytes": 5405,
+      "uploadFinishedSeconds": 0.679627,
+      "firstByteSeconds": 1.38537,
+      "downloadedBytes": 199,
+      "proxyUsed": 0,
+      "totalSeconds": 1.385722,
+      "speedUpload": 3900
+    },
+    {
+      "name": "live-video-hidden",
+      "requestBytes": 5409,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 400,
+      "dnsSeconds": 0.018323,
+      "connectSeconds": 0.018924,
+      "tlsSeconds": 4.482727,
+      "pretransferSeconds": 4.482835,
+      "uploadedBytes": 5409,
+      "uploadFinishedSeconds": 4.482835,
+      "firstByteSeconds": 5.106622,
+      "downloadedBytes": 208,
+      "proxyUsed": 0,
+      "totalSeconds": 5.106956,
+      "speedUpload": 1059
+    },
+    {
+      "name": "below-limit",
+      "requestBytes": 4194720,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "dnsSeconds": 0.00932,
+      "connectSeconds": 0.009876,
+      "tlsSeconds": 0.402813,
+      "pretransferSeconds": 0.402917,
+      "uploadedBytes": 4194720,
+      "uploadFinishedSeconds": 28.664903,
+      "firstByteSeconds": 0.562037,
+      "downloadedBytes": 66,
+      "proxyUsed": 0,
+      "totalSeconds": 33.818047,
+      "speedUpload": 124037
+    },
+    {
+      "name": "at-limit",
+      "requestBytes": 4194718,
+      "exitCode": 55,
+      "errorCode": "CURL_55",
+      "status": 100,
+      "dnsSeconds": 0.016572,
+      "connectSeconds": 0.017433,
+      "tlsSeconds": 0.876094,
+      "pretransferSeconds": 0.876187,
+      "uploadedBytes": 1900544,
+      "uploadFinishedSeconds": 0,
+      "firstByteSeconds": 1.02242,
+      "downloadedBytes": 0,
+      "proxyUsed": 0,
+      "totalSeconds": 23.999341,
+      "speedUpload": 79192
+    }
+  ],
+  "readMetrics": [],
+  "results": [
+    {
+      "name": "small-png",
+      "status": 200,
+      "field": null
+    },
+    {
+      "name": "over-limit",
+      "status": 413,
+      "field": "assetData"
+    },
+    {
+      "name": "heic-signature",
+      "status": 400,
+      "field": "assetData"
+    },
+    {
+      "name": "video-signature",
+      "status": 400,
+      "field": "assetData"
+    },
+    {
+      "name": "live-photo-link",
+      "status": 400,
+      "field": "livePhotoVideoId"
+    },
+    {
+      "name": "sidecar",
+      "status": 400,
+      "field": "sidecarData"
+    },
+    {
+      "name": "live-video-hidden",
+      "status": 400,
+      "field": "visibility"
+    },
+    {
+      "name": "below-limit",
+      "status": 200,
+      "field": null
+    }
+  ],
+  "complete": false,
+  "failure": {
+    "phase": "upload:at-limit",
+    "kind": "AssertionError"
+  },
+  "logout": 200
+}

@@ -2436,10 +2436,10 @@ test('异常原图不返回媒体或304，head/get竞态失败后重传恢复且
 
 test('上传流读取失败与取消失败保留字段错误、释放锁且后续重试可恢复', async () => {
   const a = await reliabilityAccount();
-  for (const [fault, status] of [
+  for (const [fault, status] of Array.from({ length: 5 }, () => [
     ['upload-read', 400],
     ['upload-cancel', 413],
-  ]) {
+  ]).flat()) {
     const response = await uploadFixture(a.token, 'small.png', fault);
     assert.equal(response.status, status);
     assert.equal(response.headers.get('x-test-body-locked'), 'false');

@@ -24,6 +24,9 @@ export default {
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
     if (fault === 'upload-read' || fault === 'upload-cancel') {
+      // Finish receiving the real HTTP request before replacing it with a synthetic stream.
+      // Otherwise cancellation can abort workerd's proxy rather than test app recovery.
+      await clean.arrayBuffer();
       let sent = false;
       const stream = new ReadableStream<Uint8Array>({
         pull(controller) {

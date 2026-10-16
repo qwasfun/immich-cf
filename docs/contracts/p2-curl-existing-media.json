@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-16T11:19:46.086Z",
+  "mode": "existing-media-only-no-upload",
+  "results": [
+    {
+      "name": "below-limit",
+      "exitCode": 28,
+      "errorCode": "CURL_28",
+      "status": 200,
+      "dnsSeconds": 0.016022,
+      "connectSeconds": 0.01669,
+      "tlsSeconds": 0.782576,
+      "pretransferSeconds": 0.782656,
+      "uploadedBytes": 0,
+      "uploadFinishedSeconds": 0.782656,
+      "firstByteSeconds": 1.420228,
+      "downloadedBytes": 3813056,
+      "proxyUsed": 0,
+      "totalSeconds": 120.015032,
+      "speedUpload": 0
+    }
+  ],
+  "syncAndAck": false,
+  "logout": 200,
+  "complete": false
+}
