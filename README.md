@@ -39,6 +39,8 @@
 
 ## 本地调试
 
+Codex 云端的无部署权限开发、测试和构建入口见 [Codex 云端开发准备](docs/codex-cloud.md)。云端使用 `pnpm cloud:dev` 和 `pnpm cloud:check`。
+
 需要 Node.js 24（至少 24.9.0）、pnpm 11.25.0 和 Git。
 
 ```sh
