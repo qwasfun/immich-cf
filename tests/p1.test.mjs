@@ -2549,3 +2549,135 @@ test('Live Photo 标记与超量文本同时提交仍登记拦截，普通静态
   assert.match((await retry.json()).message, /曾提交 Live Photo/);
   assert.equal((await upload({ ...device, deviceAssetId: 'ordinary-static' })).status, 201);
 });
+
+test('原生 SHA-1 防止等长错误原图误报已备份或304，同图并发重传恢复且游标不变', async () => {
+  const { createHash } = await import('node:crypto');
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const saved = await (await uploadBytes(a.token, bytes)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  assert.equal(row.r2_sha1_verified, 1);
+  const head = await platform.env.IMMICH_CF_MEDIA.head(row.object_key);
+  assert.equal(
+    Buffer.from(head.checksums.sha1).toString('hex'),
+    createHash('sha1').update(bytes).digest('hex'),
+  );
+  const check = () =>
+    send(
+      '/api/assets/bulk-upload-check',
+      { assets: [{ id: 'local', checksum: row.checksum }] },
+      a.token,
+    );
+  const original = (headers = {}, method = 'GET', token = a.token, kind = 'original') =>
+    worker.fetch(`/api/assets/${saved.id}/${kind}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...headers },
+    });
+  for (const corruption of ['same-size-sha1-mismatch', 'same-size-sha1-absent']) {
+    const wrong = Buffer.from(bytes);
+    wrong[29] ^= 1;
+    await platform.env.IMMICH_CF_MEDIA.put(
+      row.object_key,
+      corruption === 'same-size-sha1-mismatch' ? wrong : bytes,
+      corruption === 'same-size-sha1-mismatch'
+        ? { sha1: createHash('sha1').update(wrong).digest() }
+        : {},
+    );
+    assert.deepEqual((await (await check()).json()).results, [{ id: 'local', action: 'accept' }]);
+    for (const [headers, method, kind] of [
+      [{}, 'GET', 'original'],
+      [{ Range: 'bytes=0-7' }, 'GET', 'thumbnail?size=preview'],
+      [{ 'If-None-Match': '*' }, 'GET', 'original'],
+      [{}, 'HEAD', 'original'],
+    ]) {
+      const response = await original(headers, method, a.token, kind);
+      assert.equal(response.status, 503, corruption);
+      assert.equal(response.headers.get('etag'), null);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+    }
+    assert.equal((await original({}, 'GET', other.token)).status, 404);
+    const retries = await Promise.all([uploadBytes(a.token, bytes), uploadBytes(a.token, bytes)]);
+    for (const r of retries) {
+      assert.equal(r.status, 200);
+      assert.deepEqual(await r.json(), { id: saved.id, status: 'duplicate' });
+    }
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first(),
+      row,
+    );
+    assert.deepEqual(Buffer.from(await (await original()).arrayBuffer()), bytes);
+    assert.equal((await original({ 'If-None-Match': '*' })).status, 304);
+    assert.equal((await (await check()).json()).results[0].assetId, saved.id);
+  }
+  const raced = await original({
+    'x-test-storage-fault': 'same-size-before-get',
+    Range: 'bytes=0-7',
+  });
+  assert.equal(raced.status, 503);
+  assert.equal((await uploadBytes(a.token, bytes)).status, 200);
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 1);
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
+
+test('R2 拒绝错误校验和或未返回原生凭据时不发布资产，预约保留并可重试', async () => {
+  for (const fault of ['put-wrong-sha1', 'put-no-sha1']) {
+    const a = await reliabilityAccount();
+    const failure = await uploadFixture(a.token, 'small.png', fault);
+    assert.equal(failure.status, 503);
+    assert.deepEqual((await failure.json()).errors[0].path, ['assetData']);
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+      0,
+    );
+    const pending = await db
+      .prepare('SELECT * FROM upload_intents WHERE owner_id=?')
+      .bind(a.id)
+      .first();
+    assert.ok(pending);
+    const recovered = await uploadFixture(a.token);
+    assert.equal(recovered.status, 201);
+    assert.equal((await recovered.json()).id, pending.id);
+    assert.equal((await uploadFixture(a.token)).status, 200);
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      0,
+    );
+  }
+});
+
+test('旧原图继续可读，同图重传升级原生校验；D1 升级失败后可重试且不修改 Sync', async () => {
+  const a = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const saved = await (await uploadBytes(a.token, bytes)).json();
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(saved.id).run();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+  const get = () =>
+    worker.fetch(`/api/assets/${saved.id}/original`, {
+      headers: { Authorization: `Bearer ${a.token}` },
+    });
+  assert.equal((await get()).status, 200);
+  const failed = await uploadFixture(a.token, 'small.png', 'integrity-upgrade-db');
+  assert.equal(failed.status, 503);
+  assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first(), row);
+  assert.equal((await uploadFixture(a.token)).status, 200);
+  const upgraded = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  assert.deepEqual(upgraded, { ...row, r2_sha1_verified: 1 });
+  assert.deepEqual(Buffer.from(await (await get()).arrayBuffer()), bytes);
+  // Once upgraded, dropping native proof cannot silently downgrade to legacy acceptance.
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+  assert.equal((await get()).status, 503);
+  assert.equal((await uploadFixture(a.token)).status, 200);
+  assert.equal((await get()).status, 200);
+});

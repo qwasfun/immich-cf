@@ -15,6 +15,7 @@
 - [异常原图读取保护](docs/p2-media-recovery.md)：大小异常不返回图片或 304，覆盖读取竞态和重传恢复。
 - [上传流中断恢复](docs/p2-upload-stream.md)：中断明确报错，清理失败不覆盖超限状态，重试无脏记录。
 - [上传表单字段边界](docs/p2-upload-fields.md)：UTF-8 字节、总文本量、字段数量和额外文件限制，拒绝后的重试与 Live Photo 防护回归。
+- [R2 原图校验与等长异常恢复](docs/p2-r2-integrity.md)：原生 SHA-1 写入确认、历史对象渐进升级、预检查和媒体读取保护。
 - [上传超时诊断](docs/p2-upload-transport.md)：分阶段计时与脱敏失败报告，区分客户端连接与服务端保存证据。
 - [curl 边界复测](docs/p2-curl-retest.md)：接近 4 MiB 的上传结果、传输阶段与完整闭环进度。
 - [curl 连接恢复](docs/p2-curl-tls.md)：显式代理/TLS 对照、有界同图重传与强 ETag 分段读取。

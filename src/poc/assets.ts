@@ -3,6 +3,7 @@ import { body, HttpError, invalid } from './http';
 import { imageHeader } from './image-header';
 import { media } from './media';
 import { guardLivePhoto } from './live-photo';
+import { originalMatches } from './integrity';
 
 export const MAX_IMAGE = 4 * 1024 * 1024;
 interface Asset {
@@ -22,6 +23,7 @@ interface Asset {
   file_modified_at: string;
   favorite: number;
   metadata: string;
+  r2_sha1_verified: number;
 }
 function checksum(value: unknown, field: string) {
   if (typeof value !== 'string') invalid(field, '必须填写 SHA-1 的十六进制或 Base64 字符串');
@@ -162,30 +164,49 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   const info = imageHeader(bytes);
-  const hash = btoa(
-    String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-1', bytes))),
-  );
+  const sha1 = await crypto.subtle.digest('SHA-1', bytes);
+  const hash = btoa(String.fromCharCode(...new Uint8Array(sha1)));
   const expected = request.headers.get('x-immich-checksum');
   if (expected && checksum(expected, 'x-immich-checksum') !== hash)
     invalid('x-immich-checksum', '与文件内容不符，请重新计算后上传');
   const db = env.IMMICH_CF_DB;
   const find = () =>
     db
-      .prepare('SELECT id,object_key,mime,bytes FROM assets WHERE owner_id = ? AND checksum = ?')
+      .prepare(
+        'SELECT id,object_key,mime,bytes,r2_sha1_verified FROM assets WHERE owner_id = ? AND checksum = ?',
+      )
       .bind(identity.id, hash)
-      .first<{ id: string; object_key: string; mime: string; bytes: number }>();
+      .first<{
+        id: string;
+        object_key: string;
+        mime: string;
+        bytes: number;
+        r2_sha1_verified: number;
+      }>();
   const duplicate = async (existing: {
     id: string;
     object_key: string;
     mime: string;
     bytes: number;
+    r2_sha1_verified: number;
   }) => {
     // A retry also repairs a missing object, without changing the published asset or cursor.
     const object = await env.IMMICH_CF_MEDIA.head(existing.object_key);
-    if (!object || object.size !== existing.bytes)
-      await env.IMMICH_CF_MEDIA.put(existing.object_key, bytes, {
+    if (!originalMatches(object, existing.bytes, hash, true)) {
+      const repaired = await env.IMMICH_CF_MEDIA.put(existing.object_key, bytes, {
         httpMetadata: { contentType: existing.mime },
+        sha1,
       });
+      if (!originalMatches(repaired, existing.bytes, hash, true))
+        throw new HttpError(503, 'assetData：原图校验暂未确认，请重试同一图片', 'assetData');
+    }
+    if (!existing.r2_sha1_verified)
+      await db
+        .prepare(
+          'UPDATE assets SET r2_sha1_verified=1 WHERE id=? AND owner_id=? AND r2_sha1_verified=0',
+        )
+        .bind(existing.id, identity.id)
+        .run();
     return Response.json({ id: existing.id, status: 'duplicate' });
   };
   try {
@@ -221,17 +242,20 @@ export async function upload(request: Request, env: Env, identity: Identity) {
       if (committed) return await duplicate(committed);
       throw new HttpError(503, 'assetData：上传状态暂不可确认，请重试同一图片', 'assetData');
     }
-    await env.IMMICH_CF_MEDIA.put(intent.object_key, bytes, {
+    const stored = await env.IMMICH_CF_MEDIA.put(intent.object_key, bytes, {
       httpMetadata: { contentType: info.mime },
+      sha1,
     });
+    if (!originalMatches(stored, file.size, hash, true))
+      throw new HttpError(503, 'assetData：原图校验暂未确认，请重试同一图片', 'assetData');
     // D1 batch is transactional: publishing and removing the intent succeed together.
     // Never delete this shared R2 key on an ambiguous failure or a competing retry.
     const result = await db.batch([
       db
         .prepare(
           `INSERT INTO assets
-        (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,checksum) DO NOTHING`,
+        (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata,r2_sha1_verified)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(owner_id,checksum) DO NOTHING`,
         )
         .bind(
           intent.id,
@@ -287,10 +311,16 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     return { id: item.id as string, checksum: checksum(item.checksum, `assets.${i}.checksum`) };
   });
   const rows = await env.IMMICH_CF_DB.prepare(
-    'SELECT id,checksum,object_key,bytes FROM assets WHERE owner_id = ?',
+    'SELECT id,checksum,object_key,bytes,r2_sha1_verified FROM assets WHERE owner_id = ?',
   )
     .bind(identity.id)
-    .all<{ id: string; checksum: string; object_key: string; bytes: number }>();
+    .all<{
+      id: string;
+      checksum: string;
+      object_key: string;
+      bytes: number;
+      r2_sha1_verified: number;
+    }>();
   // Only inspect this owner's requested matches, once per checksum (at most 20 assets).
   // An unavailable store is not evidence of either a duplicate or a missing original.
   const requested = new Set(entries.map((entry) => entry.checksum));
@@ -299,7 +329,8 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     for (const row of rows.results) {
       if (!requested.has(row.checksum)) continue;
       const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
-      if (object && object.size === row.bytes) available.set(row.checksum, row.id);
+      if (originalMatches(object, row.bytes, row.checksum, !!row.r2_sha1_verified))
+        available.set(row.checksum, row.id);
     }
   } catch {
     throw new HttpError(503, 'assets：暂时无法确认原图是否已保存，请稍后重试备份预检查', 'assets');
@@ -369,7 +400,15 @@ export async function readAsset(
   const size = new URL(request.url).searchParams.get('size');
   if (size && !['thumbnail', 'preview', 'fullsize', 'original'].includes(size))
     invalid('size', '必须为 thumbnail、preview、fullsize 或 original');
-  return media(request, env.IMMICH_CF_MEDIA, row.object_key, row.mime, row.bytes);
+  return media(
+    request,
+    env.IMMICH_CF_MEDIA,
+    row.object_key,
+    row.mime,
+    row.bytes,
+    row.checksum,
+    !!row.r2_sha1_verified,
+  );
 }
 export async function assetEvents(
   db: D1Database,

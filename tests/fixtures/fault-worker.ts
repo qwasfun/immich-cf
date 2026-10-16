@@ -83,6 +83,14 @@ export default {
             if (fault === 'get-r2') throw new Error('TEST_R2_GET_UNAVAILABLE');
             if (fault === 'replace-before-get')
               await target.put(args[0], new Uint8Array([1, 2, 3]));
+            if (fault === 'same-size-before-get') {
+              const previous = await target.get(args[0]);
+              const bytes = new Uint8Array(await previous!.arrayBuffer());
+              bytes[0] = bytes[0]! ^ 1;
+              await target.put(args[0], bytes, {
+                sha1: await crypto.subtle.digest('SHA-1', bytes),
+              });
+            }
             if (fault === 'delete-before-get') await target.delete(args[0]);
             return target.get(...args);
           };
@@ -95,6 +103,12 @@ export default {
         if (key === 'put')
           return async (...args: Parameters<R2Bucket['put']>) => {
             if (fault === 'before-r2') throw new Error('TEST_R2_UNAVAILABLE');
+            if (fault === 'put-wrong-sha1') args[2] = { ...args[2], sha1: new Uint8Array(20) };
+            if (fault === 'put-no-sha1') {
+              const { sha1: ignored, ...rest } = args[2] ?? {};
+              void ignored;
+              args[2] = rest;
+            }
             const result = await target.put(...args);
             if (fault === 'after-r2') throw new Error('TEST_R2_RESPONSE_LOST');
             return result;
@@ -107,6 +121,11 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (
+              fault === 'integrity-upgrade-db' &&
+              sql.startsWith('UPDATE assets SET r2_sha1_verified')
+            )
+              throw new Error('TEST_INTEGRITY_UPGRADE_UNAVAILABLE');
             if (fault === 'live-photo-db' && sql.includes('live_photo_blocks'))
               throw new Error('TEST_LIVE_PHOTO_DB_UNAVAILABLE');
             if (/SELECT.*FROM sync_checkpoints/i.test(sql)) checkpointReads++;

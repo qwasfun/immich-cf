@@ -1,4 +1,5 @@
 import { HttpError } from './http';
+import { originalMatches } from './integrity';
 
 // Caller must authenticate the session and verify asset ownership first.
 export async function media(
@@ -7,11 +8,15 @@ export async function media(
   key: string,
   mime: string,
   expectedBytes: number,
+  checksum: string,
+  checksumRequired: boolean,
 ) {
   const object = await bucket.head(key);
   if (!object) throw new HttpError(503, '图片暂不可读取，请稍后重试');
   if (object.size !== expectedBytes)
     throw new HttpError(503, '原图大小与记录不符，请保留本机原件并重新上传同一图片');
+  if (!originalMatches(object, expectedBytes, checksum, checksumRequired))
+    throw new HttpError(503, '原图校验与记录不符或缺失，请保留本机原件并重新上传同一图片');
   const headers = new Headers({
     'Content-Type': mime,
     'Content-Length': String(object.size),
@@ -61,6 +66,11 @@ export async function media(
     ...(range ? { range } : {}),
     onlyIf: { etagMatches: object.etag },
   });
-  if (!result || !('body' in result)) throw new HttpError(503, '图片已改变或暂不可读取，请重试');
+  if (
+    !result ||
+    !('body' in result) ||
+    !originalMatches(result, expectedBytes, checksum, checksumRequired)
+  )
+    throw new HttpError(503, '图片已改变或暂不可读取，请重试');
   return new Response(result.body, { status: range ? 206 : 200, headers });
 }

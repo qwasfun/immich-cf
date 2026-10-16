@@ -23,6 +23,18 @@ test('非空迁移保持旧资产游标，新插入和尺寸更新共用单调�
     assert.ok(db.prepare("SELECT sync_seq FROM assets WHERE id='new'").get().sync_seq > revision);
     db.exec("UPDATE assets SET width=240,height=320 WHERE id='old'");
     assert.equal(row().sync_seq, revision);
+    const before = db.prepare("SELECT * FROM assets WHERE id='old'").get();
+    db.exec(await readFile('migrations/0011_r2_integrity.sql', 'utf8'));
+    assert.deepEqual(
+      { ...db.prepare("SELECT * FROM assets WHERE id='old'").get() },
+      {
+        ...before,
+        r2_sha1_verified: 0,
+      },
+    );
+    db.exec("UPDATE assets SET r2_sha1_verified=1 WHERE id='old'");
+    assert.equal(row().sync_seq, revision);
+    assert.throws(() => db.exec("UPDATE assets SET r2_sha1_verified=2 WHERE id='old'"), /CHECK/);
   } finally {
     db.close();
   }
