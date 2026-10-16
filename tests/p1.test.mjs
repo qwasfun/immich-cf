@@ -2802,3 +2802,99 @@ test('流式解析保留 4 MiB 文件限制前的 Live Photo 标记登记顺序'
   assert.equal(response.status, 400);
   assert.match((await response.json()).message, /曾提交 Live Photo/);
 });
+
+async function quotaVariant(index) {
+  const { crc32 } = await import('node:zlib');
+  const png = await readFile('tests/fixtures/small.png');
+  const data = Buffer.from(`Comment\0quota-identity-${index}`);
+  const chunk = Buffer.alloc(data.length + 12);
+  chunk.writeUInt32BE(data.length);
+  chunk.write('tEXt', 4);
+  data.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  return Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+}
+
+test('跨发布者同图保留预约不重复占名额，失败预留与恢复不删除孤立对象引用', async () => {
+  const a = await reliabilityAccount();
+  const raced = await uploadFixture(a.token, 'small.png', 'rollout-other-publisher');
+  assert.equal(raced.status, 200);
+  const saved = await raced.json();
+  assert.equal(saved.status, 'duplicate');
+  const retained = await db
+    .prepare('SELECT * FROM upload_intents WHERE owner_id=?')
+    .bind(a.id)
+    .first();
+  assert.ok(retained);
+  assert.notEqual(retained.id, saved.id);
+  for (let i = 0; i < 18; i++)
+    assert.equal((await uploadBytes(a.token, await quotaVariant(i))).status, 201);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    19,
+  );
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  const before = (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length;
+  assert.equal((await uploadFixture(a.token, 'small.jpg', 'before-r2')).status, 503);
+  const extra = await quotaVariant(100);
+  const denied = await uploadBytes(a.token, extra);
+  assert.equal(denied.status, 409);
+  assert.deepEqual((await denied.json()).errors[0].path, ['assetData']);
+  assert.equal(
+    (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+    before,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    2,
+  );
+  assert.equal((await uploadFixture(a.token, 'small.jpg')).status, 201);
+  assert.equal((await uploadFixture(a.token, 'small.jpg')).status, 200);
+  assert.equal((await uploadBytes(a.token, extra)).status, 409);
+  assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first(), row);
+  assert.deepEqual(
+    (await db.prepare('SELECT * FROM upload_intents WHERE owner_id=?').bind(a.id).all()).results,
+    [retained],
+  );
+  for (const key of [row.object_key, retained.object_key]) {
+    const object = await platform.env.IMMICH_CF_MEDIA.get(key);
+    assert.deepEqual(
+      Buffer.from(await object.arrayBuffer()),
+      await readFile('tests/fixtures/small.png'),
+    );
+  }
+  const events = await syncEvents(a.token);
+  const assets = events.filter((e) => e.type === 'AssetV2');
+  assert.equal(assets.length, 20);
+  assert.equal(new Set(assets.map((e) => e.data.id)).size, 20);
+  assert.ok(!assets.some((e) => e.data.id === retained.id));
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
+
+test('最后一个上传名额并发只允许一张新图，不增加超限预约或 R2 对象', async () => {
+  const a = await reliabilityAccount();
+  for (let i = 0; i < 19; i++)
+    assert.equal((await uploadBytes(a.token, await quotaVariant(i))).status, 201);
+  const attempts = await Promise.all([
+    uploadFixture(a.token, 'small.jpg'),
+    uploadFixture(a.token, 'small.png'),
+  ]);
+  assert.deepEqual(attempts.map((r) => r.status).sort(), [201, 409]);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    20,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal(
+    (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+    20,
+  );
+});

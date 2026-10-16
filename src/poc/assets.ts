@@ -242,6 +242,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
       throw new HttpError(503, 'assetData：保存结果暂不可确认，请重试同一图片', 'assetData');
     // An older in-flight Worker may have published a different ID during rollout.
     // Return the actual row and retain the unused intent for later reconciliation.
+    // Quota counts this owner/checksum once even while the redundant intent remains.
     if (saved.id !== intent.id) return await duplicate(saved);
     return Response.json(
       { id: intent.id, status: result[0]!.meta.changes ? 'created' : 'duplicate' },

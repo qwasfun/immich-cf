@@ -134,6 +134,33 @@ export default {
               args[2] = rest;
             }
             const result = await target.put(...args);
+            if (fault === 'rollout-other-publisher') {
+              const [owner] = args[0].split('/');
+              const bytes = args[1] as Uint8Array;
+              const checksum = btoa(
+                String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-1', bytes))),
+              );
+              const id = crypto.randomUUID();
+              const key = `${owner}/${id}/original`;
+              await target.put(key, bytes, args[2]);
+              await env.IMMICH_CF_DB.prepare(
+                `INSERT INTO assets
+                (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,r2_sha1_verified)
+                VALUES (?,?,?,?,?,'image/png',?,320,240,?,?,?,0,1)`,
+              )
+                .bind(
+                  id,
+                  owner,
+                  checksum,
+                  key,
+                  'other-publisher.png',
+                  bytes.length,
+                  '2026-10-17T00:00:00Z',
+                  '2026-10-17T00:00:00Z',
+                  '2026-10-17T00:00:00Z',
+                )
+                .run();
+            }
             if (fault === 'after-r2') throw new Error('TEST_R2_RESPONSE_LOST');
             return result;
           };
