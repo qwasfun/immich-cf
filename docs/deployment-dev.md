@@ -1,5 +1,7 @@
 # 开发环境部署记录
 
+最新发布（2026-10-16）：JPEG 全扫描结构与后置元数据检查，代码 `69b118f`，dev 版本 `a527e77f-a2bc-4e64-a72c-bd9c56b321ba`。63 项回归、冻结契约校验及公网 11 种 JPEG 用例通过，正常图原图/去重/Sync/ACK 通过；后置 Live Photo 与未知 XMP 仍拒绝。通过 Wrangler 发布，无新增迁移，test/生产未变更。详见 [JPEG 结构检查](p2-jpeg-structure.md)。本轮真机未验证，CPU 超预算继续暂缓。
+
 最新发布（2026-10-16）：修复普通截图 XMP 被一律拒绝的问题，代码 `7862ec4`，dev 版本 `71f78ba4-af10-4b98-9663-213a6c5ce92c`。62 项回归含真实私有 PNG 全部通过；公网样本上传/去重/原图/Sync/ACK 通过，未知 XMP 和 Live Photo EXIF 配对标签仍拒绝。通过 cloudflare-api 替换内容，无数据库迁移或配置变更，test/生产未变更。详见 [静态 XMP 记录](p2-static-xmp.md)。
 
 最新发布（2026-10-15）：单图片上传上限调整为 4 MiB，请求体为 4 MiB + 64 KiB，代码 a185c4b，dev 版本 471fc260-f305-498d-84cb-22c794c042a5。59 项回归、契约校验和公网混合上传/原图/Sync/ACK 通过。Wrangler 网络失败后通过 cloudflare-api 仅替换构建；数据库和配置保持原状。像素、格式、安全及同步隔离规则不变，test/生产未变更。详见 [4 MiB 记录](p2-mixed-queue.md)。

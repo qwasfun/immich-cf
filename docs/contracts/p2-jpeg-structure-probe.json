@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-10-16T04:36:05.773Z",
+  "results": [
+    {
+      "name": "baseline",
+      "status": 200
+    },
+    {
+      "name": "progressive",
+      "status": 201
+    },
+    {
+      "name": "restart-and-stuffing",
+      "status": 201
+    },
+    {
+      "name": "late-static-xmp",
+      "status": 201
+    },
+    {
+      "name": "late-live-photo",
+      "status": 400
+    },
+    {
+      "name": "late-unknown-xmp",
+      "status": 400
+    },
+    {
+      "name": "truncated-segment",
+      "status": 400
+    },
+    {
+      "name": "trailing-image",
+      "status": 400
+    },
+    {
+      "name": "second-soi",
+      "status": 400
+    },
+    {
+      "name": "bad-sos-length",
+      "status": 400
+    },
+    {
+      "name": "missing-eoi",
+      "status": 400
+    }
+  ],
+  "originalBytesMatch": true,
+  "duplicates": true,
+  "syncAndAck": true,
+  "officialAppVerified": false
+}

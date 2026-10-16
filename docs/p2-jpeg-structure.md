@@ -15,3 +15,9 @@
 真实 Worker/D1/R2 回归覆盖基线、渐进式、重启/转义、后置普通 XMP、后置 Live Photo/未知 XMP 拒绝、段长度越界、第二个 SOI、图片拼接、错误 SOS 长度和缺失 EOI。成功项验证去重、原图字节及 Sync/ACK；失败项验证具体 assetData 错误，无新增资产/上传意图/R2 孤儿。原有 XMP 真样本和 reset/ACK 并发用例继续运行。
 
 公网脚本 node scripts/jpeg-structure-probe.mjs 使用固定合成图片，可去重，保留正常样本。先用错误校验和探测后置 Live Photo 拒绝，避免发布传播期间旧代码保存就绪探针。无新增迁移，test/生产不发布。
+
+## 验证与 dev 发布
+
+2026-10-16：`pnpm check` 63 项测试全部通过、无跳过，包含私有 PNG 样本；冻结契约校验 279 个操作/53 个来源通过。代码提交 `69b118f`，通过 Wrangler 发布到 dev，Worker 版本 `a527e77f-a2bc-4e64-a72c-bd9c56b321ba`，无待应用迁移。
+
+公网 11 个结构用例通过，正常图片原图字节一致、重复上传去重、Sync 返回资产与 ACK 均通过，详见 [公网验证结果](contracts/p2-jpeg-structure-probe.json)。公网拒绝结果并不单独证明无孤儿对象；失败无写入由本地 Worker/D1/R2 回归验证。未执行本轮官方 iOS App 真机验证，混合队列及失败项重试行为仍待用户记录，不据此关闭 P2/G1。CPU 超预算继续暂缓，密码安全性及 reset/ACK 隔离保持不变。
