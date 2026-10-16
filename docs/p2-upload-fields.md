@@ -18,6 +18,12 @@ Live Photo 已识别标记的持久登记在新增数量/文本/文件类型限�
 
 ## 剩余限制
 
-本轮本地验收：`pnpm check` 的格式、lint、类型、78 项回归和 dry-run 构建全部通过，无失败或跳过；冻结契约 279 个操作/53 个来源通过。构建 165.06 KiB，gzip 41.32 KiB。公网发布结果另行补充，不以本地构建替代发布证据。
+本轮本地验收：`pnpm check` 的格式、lint、类型、78 项回归和 dry-run 构建全部通过，无失败或跳过；冻结契约 279 个操作/53 个来源通过。构建 165.06 KiB，gzip 41.32 KiB。
+
+Wrangler 已通过本机代理将代码 `a301f3c` 发布到 dev，版本 `a34007b3-45ee-4d69-8e53-366eec770a0c`，无待应用迁移。公网功能复验结果见下方后续记录。本机到 Cloudflare 的间歇性连接失败按用户确认作为环境不稳定记录，采用有界重试；不单凭连接失败判断服务端缺陷。仍须验证重试后的业务状态和字节一致性，不能把失败尝试算作成功。
+
+字段公网复验 10 项全部通过：[脱敏报告](contracts/p2-upload-fields-probe.json)。8 项非法表单均 400 并定位预期字段，恰好边界与重复请求均 200、ID 一致；原图逐字节一致、Sync/ACK、退出 200。保留一次 CURL_35 环境连接失败，额外文件用例重试后获得预期 400；16 次网络尝试均记录 proxyUsed=1。线上使用既有图片去重，不宣称更新了其 metadata；8 KiB metadata 的持久化和同步保真由隔离的本地新资产验证。
+
+完整混合大小复验也通过：[最终结果](contracts/p2-upload-fields-mixed-probe.json)、[进度与尝试](contracts/p2-upload-fields-mixed-progress.json)。10 项上传检查、10 次上传尝试，PNG/JPEG、4 MiB 减 1、恰好 4 MiB 均成功去重；超限 413，其他目标外格式及 Live Photo 继续拒绝。4 张正常图原图逐字节一致，Sync/ACK、随后仅 Complete 的增量、退出 200。读取共 24 次尝试，其中 5 次 CURL_28、1 次 CURL_35，失败段重试后通过；最终 complete=true、failure=null。此为有界恢复路径的成功证据，不代表环境不稳定已消失，也不替代官方 iOS 真机验收。
 
 仍先读取最多 4 MiB + 64 KiB 请求体，再由 workerd 解析表单，以上字段限制发生在解析后；没有实现流式 multipart，也不能据此声称降低了解析阶段的 CPU 或峰值内存。无数据库迁移。官方 App 不修改，bcrypt cost 12 与 reset/ACK epoch/事务隔离保持原状。CPU 超预算继续暂缓，G1、真实图库及官方 iOS 混合队列/失败重试仍未验收。
