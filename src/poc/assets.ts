@@ -139,12 +139,18 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   const db = env.IMMICH_CF_DB;
   const find = () =>
     db
-      .prepare('SELECT id,object_key,mime FROM assets WHERE owner_id = ? AND checksum = ?')
+      .prepare('SELECT id,object_key,mime,bytes FROM assets WHERE owner_id = ? AND checksum = ?')
       .bind(identity.id, hash)
-      .first<{ id: string; object_key: string; mime: string }>();
-  const duplicate = async (existing: { id: string; object_key: string; mime: string }) => {
+      .first<{ id: string; object_key: string; mime: string; bytes: number }>();
+  const duplicate = async (existing: {
+    id: string;
+    object_key: string;
+    mime: string;
+    bytes: number;
+  }) => {
     // A retry also repairs a missing object, without changing the published asset or cursor.
-    if (!(await env.IMMICH_CF_MEDIA.head(existing.object_key)))
+    const object = await env.IMMICH_CF_MEDIA.head(existing.object_key);
+    if (!object || object.size !== existing.bytes)
       await env.IMMICH_CF_MEDIA.put(existing.object_key, bytes, {
         httpMetadata: { contentType: existing.mime },
       });
@@ -239,7 +245,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
     throw new HttpError(503, 'assetData：图片暂未确认保存，请稍后重试同一图片', 'assetData');
   }
 }
-export async function bulkCheck(request: Request, db: D1Database, identity: Identity) {
+export async function bulkCheck(request: Request, env: Env, identity: Identity) {
   const input = await body(request);
   if (!Array.isArray(input.assets) || input.assets.length > 1000)
     invalid('assets', '必须为数组且最多 1000 项');
@@ -248,19 +254,33 @@ export async function bulkCheck(request: Request, db: D1Database, identity: Iden
       invalid(`assets.${i}.id`, '必须为最多 255 字符的字符串');
     return { id: item.id as string, checksum: checksum(item.checksum, `assets.${i}.checksum`) };
   });
-  const rows = await db
-    .prepare('SELECT id,checksum FROM assets WHERE owner_id = ?')
+  const rows = await env.IMMICH_CF_DB.prepare(
+    'SELECT id,checksum,object_key,bytes FROM assets WHERE owner_id = ?',
+  )
     .bind(identity.id)
-    .all<{ id: string; checksum: string }>();
+    .all<{ id: string; checksum: string; object_key: string; bytes: number }>();
+  // Only inspect this owner's requested matches, once per checksum (at most 20 assets).
+  // An unavailable store is not evidence of either a duplicate or a missing original.
+  const requested = new Set(entries.map((entry) => entry.checksum));
+  const available = new Map<string, string>();
+  try {
+    for (const row of rows.results) {
+      if (!requested.has(row.checksum)) continue;
+      const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
+      if (object && object.size === row.bytes) available.set(row.checksum, row.id);
+    }
+  } catch {
+    throw new HttpError(503, 'assets：暂时无法确认原图是否已保存，请稍后重试备份预检查', 'assets');
+  }
   return Response.json({
     results: entries.map((item) => {
-      const existing = rows.results.find((row) => row.checksum === item.checksum);
+      const existing = available.get(item.checksum);
       return existing
         ? {
             id: item.id,
             action: 'reject',
             reason: 'duplicate',
-            assetId: existing.id,
+            assetId: existing,
             isTrashed: false,
           }
         : { id: item.id, action: 'accept' };

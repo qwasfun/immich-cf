@@ -148,7 +148,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
   const identity = await authenticate(request, db);
   if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);
   if (path === '/api/assets') return upload(request, env, identity);
-  if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, db, identity);
+  if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, env, identity);
   const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
   if (assetPath) return readAsset(request, env, identity, assetPath[1]!, assetPath[2]);
   if (path === '/api/users/me/onboarding') return onboarding(request, db, identity);

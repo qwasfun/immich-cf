@@ -17,6 +17,7 @@ export default {
     const countReads = request.headers.has('x-test-count-checkpoints');
     let checkpointReads = 0;
     let deliveryWrites = 0;
+    let mediaHeads = 0;
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     if (!fault && !gateId && !countReads) return app.fetch(request, env);
@@ -24,6 +25,12 @@ export default {
     clean.headers.delete('x-test-storage-fault');
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {
+        if (key === 'head')
+          return async (...args: Parameters<R2Bucket['head']>) => {
+            mediaHeads++;
+            if (fault === 'head-r2') throw new Error('TEST_R2_HEAD_UNAVAILABLE');
+            return target.head(...args);
+          };
         if (key === 'put')
           return async (...args: Parameters<R2Bucket['put']>) => {
             if (fault === 'before-r2') throw new Error('TEST_R2_UNAVAILABLE');
@@ -66,6 +73,7 @@ export default {
     const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
     if (countReads) response.headers.set('x-test-checkpoint-reads', String(checkpointReads));
     if (countReads) response.headers.set('x-test-delivery-writes', String(deliveryWrites));
+    if (countReads) response.headers.set('x-test-media-heads', String(mediaHeads));
     return response;
   },
 };

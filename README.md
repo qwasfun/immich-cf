@@ -11,6 +11,7 @@
 - [普通静态 XMP 修复](docs/p2-static-xmp.md)：放行经验证的截图说明和创建时间，保留动态照片防护。
 - [JPEG 扫描结构检查](docs/p2-jpeg-structure.md)：检查扫描段后的元数据和截断结构，覆盖渐进式与重启标记。
 - [PNG 结构检查](docs/p2-png-structure.md)：校验图片头、调色板和数据块顺序，拒绝残缺动画结构。
+- [备份预检查恢复](docs/p2-bulk-recovery.md)：原图缺失或大小异常时允许重传，恢复已有资产。
 
 - [历史 EXIF 安全修复](docs/p2-exif-repair.md)：预检、原图校验、原子同步版本、并发与重试。
 

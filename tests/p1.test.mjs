@@ -2287,3 +2287,82 @@ test('PNG 结构拒绝无写入，连续 IDAT 和索引色恢复上传同步', a
     204,
   );
 });
+
+test('备份预检查确认原图存在，缺失/大小异常可恢复且不改资产与同步版本', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const saved = await (await uploadBytes(a.token, bytes)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first();
+  const entries = [
+    { id: 'one', checksum: row.checksum },
+    { id: 'two', checksum: row.checksum },
+  ];
+  const check = (token = a.token, fault = '', assets = entries) =>
+    worker.fetch('/api/assets/bulk-upload-check', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'x-test-count-checkpoints': '1',
+        'x-test-storage-fault': fault,
+      },
+      body: JSON.stringify({ assets }),
+    });
+  const initial = await check();
+  assert.equal(initial.status, 200);
+  assert.equal(initial.headers.get('x-test-media-heads'), '1');
+  schema(await initial.clone().json(), 'AssetBulkUploadCheckResponseDto');
+  assert.ok(
+    (await initial.json()).results.every((x) => x.action === 'reject' && x.assetId === saved.id),
+  );
+  const isolated = await check(other.token, 'head-r2');
+  assert.equal(isolated.status, 200);
+  assert.equal(isolated.headers.get('x-test-media-heads'), '0');
+  assert.deepEqual(
+    (await isolated.json()).results,
+    entries.map((x) => ({ id: x.id, action: 'accept' })),
+  );
+  const empty = await check(a.token, 'head-r2', []);
+  assert.equal(empty.status, 200);
+  assert.equal(empty.headers.get('x-test-media-heads'), '0');
+  const outage = await check(a.token, 'head-r2');
+  assert.equal(outage.status, 503);
+  assert.deepEqual((await outage.json()).errors[0].path, ['assets']);
+  assert.equal((await uploadFixture(a.token, 'small.png', 'head-r2')).status, 503);
+  for (const state of ['missing', 'wrong-size']) {
+    if (state === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+    else await platform.env.IMMICH_CF_MEDIA.put(row.object_key, Buffer.from('truncated'));
+    const missing = await check();
+    assert.equal(missing.status, 200);
+    assert.deepEqual(
+      (await missing.json()).results,
+      entries.map((x) => ({ id: x.id, action: 'accept' })),
+    );
+    const retries = await Promise.all([uploadBytes(a.token, bytes), uploadBytes(a.token, bytes)]);
+    for (const retry of retries) {
+      assert.equal(retry.status, 200);
+      assert.deepEqual(await retry.json(), { id: saved.id, status: 'duplicate' });
+    }
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM assets WHERE id=?').bind(saved.id).first(),
+      row,
+    );
+    const object = await platform.env.IMMICH_CF_MEDIA.get(row.object_key);
+    assert.deepEqual(Buffer.from(await object.arrayBuffer()), bytes);
+    const restored = await check();
+    assert.ok((await restored.json()).results.every((x) => x.assetId === saved.id));
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 1);
+  const events = await syncEvents(a.token);
+  assert.equal(events.filter((x) => x.type === 'AssetV2').length, 1);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((x) => x.ack) }, a.token)).status,
+    204,
+  );
+});
