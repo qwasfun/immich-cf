@@ -2108,3 +2108,107 @@ test('私有元数据越界、循环、未知格式和 XMP 保守拒绝，不能
     1,
   );
 });
+
+test('普通 XMP 命名空间别名、文本及属性形式允许，原图和同步保留', async () => {
+  const { withXmp } = await import('./fixtures/live-photo-exif.mjs');
+  const { staticXmp } = await import('./fixtures/static-xmp.mjs');
+  const a = await reliabilityAccount();
+  const xmls = [
+    staticXmp,
+    staticXmp.replaceAll('exif:', 'alias:').replace('xmlns:exif', 'xmlns:alias'),
+    staticXmp
+      .replace('<exif:UserComment>Screenshot</exif:UserComment>', '')
+      .replace('rdf:about=""', 'rdf:about="" exif:UserComment="Screenshot"'),
+    staticXmp.replace('Screenshot', 'Text &amp; &#83;creenshot'),
+  ];
+  for (const format of ['png', 'jpg'])
+    for (const xml of xmls) {
+      const bytes = withXmp(await readFile(`tests/fixtures/small.${format}`), format, 'iTXt', xml);
+      const r = await uploadBytes(a.token, bytes);
+      assert.ok([200, 201].includes(r.status));
+      const id = (await r.json()).id;
+      const original = await worker.fetch(`/api/assets/${id}/original`, {
+        headers: { Authorization: `Bearer ${a.token}` },
+      });
+      assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+    }
+  const events = await syncEvents(a.token);
+  assert.ok(events.some((e) => e.type === 'AssetV2'));
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});
+
+test('XMP 未知动态字段、命名空间欺骗、实体、结构和资源边界仍拒绝', async () => {
+  const { withXmp, appleExif } = await import('./fixtures/live-photo-exif.mjs');
+  const { withExif } = await import('./fixtures/exif.mjs');
+  const { staticXmp } = await import('./fixtures/static-xmp.mjs');
+  const a = await reliabilityAccount();
+  const png = await readFile('tests/fixtures/small.png');
+  const bad = [
+    staticXmp.replace('UserComment', 'ContentIdentifier'),
+    staticXmp.replaceAll('UserComment', 'MotionPhoto'),
+    staticXmp.replace('http://ns.adobe.com/exif/1.0/', 'http://ns.google.com/photos/1.0/camera/'),
+    staticXmp.replace('rdf:about=""', 'rdf:about="" exif:ContentIdentifier="private-secret"'),
+    '<!DOCTYPE x [<!ENTITY test SYSTEM "file:///private">]>' + staticXmp,
+    staticXmp.replace('Screenshot', '&unknown;'),
+    staticXmp.replace('</rdf:RDF>', ''),
+    staticXmp.replace('Screenshot', '<exif:UserComment>nested</exif:UserComment>'),
+    staticXmp.replace('Screenshot', 'x'.repeat(32768)),
+    staticXmp.replace('Screenshot', '<?unexpected value?>'),
+  ];
+  for (const xml of bad) {
+    const r = await uploadBytes(a.token, withXmp(png, 'png', 'iTXt', xml));
+    assert.equal(r.status, 400);
+    const error = await r.json();
+    assert.deepEqual(error.errors[0].path, ['assetData']);
+    assert.ok(!JSON.stringify(error).includes('private-secret'));
+  }
+  for (const bytes of [
+    withXmp(png, 'png', 'zTXt', staticXmp),
+    withXmp(withXmp(png, 'png', 'iTXt', staticXmp), 'png', 'iTXt', staticXmp),
+    withExif(withXmp(png, 'png', 'iTXt', staticXmp), appleExif(), 'png'),
+  ])
+    assert.equal((await uploadBytes(a.token, bytes)).status, 400);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    0,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
+});
+
+test('本机私有 PNG 样本上传、去重、原图及 Sync 验证', async (t) => {
+  let bytes;
+  try {
+    bytes = await readFile('tests/private-fixtures/xmp/IMG_0096.PNG');
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      t.skip('private fixture unavailable');
+      return;
+    }
+    throw e;
+  }
+  const a = await reliabilityAccount();
+  const r = await uploadBytes(a.token, bytes);
+  assert.equal(r.status, 201);
+  const id = (await r.json()).id;
+  assert.equal((await uploadBytes(a.token, bytes)).status, 200);
+  const original = await worker.fetch(`/api/assets/${id}/original`, {
+    headers: { Authorization: `Bearer ${a.token}` },
+  });
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+  const events = await syncEvents(a.token);
+  const asset = events.find((e) => e.type === 'AssetV2' && e.data.id === id);
+  assert.ok(asset);
+  assert.deepEqual([asset.data.width, asset.data.height], [828, 1792]);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+});

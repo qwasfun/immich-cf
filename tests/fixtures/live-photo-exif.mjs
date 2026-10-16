@@ -29,14 +29,14 @@ export function appleExif(tag = 0x11, little = true, makerLittle = false) {
   m32(1, 68);
   return out;
 }
-export function withXmp(image, format = 'jpg', type = 'iTXt') {
+export function withXmp(image, format = 'jpg', type = 'iTXt', xml = '<test/>') {
   if (format === 'jpg') {
-    const payload = Buffer.from('http://ns.adobe.com/xap/1.0/\0<test/>');
+    const payload = Buffer.from('http://ns.adobe.com/xap/1.0/\0' + xml);
     const header = Buffer.from([255, 225, 0, 0]);
     header.writeUInt16BE(payload.length + 2, 2);
     return Buffer.concat([image.subarray(0, 2), header, payload, image.subarray(2)]);
   }
-  const payload = Buffer.from('XML:com.adobe.xmp\0\0\0\0\0<test/>');
+  const payload = Buffer.from('XML:com.adobe.xmp\0' + (type === 'iTXt' ? '\0\0\0\0' : '') + xml);
   const chunk = Buffer.alloc(payload.length + 12);
   chunk.writeUInt32BE(payload.length);
   chunk.write(type, 4);
