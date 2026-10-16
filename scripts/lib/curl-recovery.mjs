@@ -9,7 +9,12 @@ const budget = (value) => {
   return performance.now() + value;
 };
 const remaining = (deadline) => Math.max(0, Math.floor(deadline - performance.now()));
-export async function retryCurlUpload(url, { onAttempt = async () => {}, ...options }) {
+export async function retryCurlUpload(
+  url,
+  { onAttempt = async () => {}, attemptTimeoutMs = 60000, ...options },
+) {
+  if (!Number.isInteger(attemptTimeoutMs) || attemptTimeoutMs < 100 || attemptTimeoutMs > 180000)
+    throw new Error('Invalid attempt timeout');
   if (new URL(url).pathname !== '/api/assets' || (options.method && options.method !== 'POST'))
     throw new Error('Recovery only supports asset upload');
   if (
@@ -27,7 +32,12 @@ export async function retryCurlUpload(url, { onAttempt = async () => {}, ...opti
   for (let attempt = 1; attempt <= 3; attempt++) {
     const left = remaining(deadline);
     if (left < 100) break;
-    result = await curlRequest(url, { ...options, headers, body, timeoutMs: left });
+    result = await curlRequest(url, {
+      ...options,
+      headers,
+      body,
+      timeoutMs: Math.min(attemptTimeoutMs, left),
+    });
     const entry = { attempt, ...result.metrics };
     attempts.push(entry);
     await onAttempt(entry);

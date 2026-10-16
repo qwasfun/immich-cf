@@ -11,6 +11,44 @@ const close = async (server) => {
   server.closeAllConnections();
   await new Promise((r) => server.close(r));
 };
+test('单次响应停滞只消耗尝试预算，整体预算内重传已保存内容且不重复资产', async () => {
+  const payload = Buffer.from('fixed-content-timeout-recovery');
+  const stored = new Map();
+  let calls = 0;
+  const { server, base } = await listen((req, res) => {
+    const chunks = [];
+    req.on('data', (b) => chunks.push(b));
+    req.on('end', () => {
+      calls++;
+      assert.deepEqual(Buffer.concat(chunks), payload);
+      const checksum = req.headers['x-immich-checksum'];
+      if (!stored.has(checksum)) stored.set(checksum, 'one-asset');
+      if (calls === 1) {
+        res.writeHead(201, { 'Content-Length': '100' });
+        res.write('{'); // Connection remains open; curl must reach its attempt deadline.
+      } else res.end(JSON.stringify({ id: stored.get(checksum), status: 'duplicate' }));
+    });
+  });
+  try {
+    const r = await retryCurlUpload(base + '/api/assets', {
+      body: payload,
+      headers: { 'x-immich-checksum': 'a'.repeat(40) },
+      timeoutMs: 3000,
+      attemptTimeoutMs: 200,
+    });
+    assert.equal(r.metrics.errorCode, null);
+    assert.equal(r.attempts.length, 2);
+    assert.equal(r.attempts[0].errorCode, 'CURL_28');
+    assert.equal(JSON.parse(r.bytes).id, 'one-asset');
+    assert.equal(stored.size, 1);
+    await assert.rejects(
+      () => retryCurlUpload(base + '/api/assets', { attemptTimeoutMs: 0 }),
+      /attempt timeout/,
+    );
+  } finally {
+    await close(server);
+  }
+});
 test('同内容上传已提交但响应中断后恢复为重复，拒绝不重试且故障有上限', async () => {
   const payload = Buffer.from('fixed test asset'),
     stored = new Map();
