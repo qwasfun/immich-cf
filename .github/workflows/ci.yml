@@ -19,7 +19,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: node scripts/cloud-setup.mjs
+      - run: pnpm cloud:check

@@ -24,6 +24,9 @@ export default {
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
     if (fault === 'upload-read' || fault === 'upload-cancel') {
+      // Drain the real HTTP body before injecting a synthetic stream. Otherwise workerd's
+      // proxy can abort the connection when the injected oversized stream is cancelled.
+      await clean.arrayBuffer();
       let sent = false;
       const stream = new ReadableStream<Uint8Array>({
         pull(controller) {

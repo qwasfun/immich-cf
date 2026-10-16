@@ -47,7 +47,9 @@ Start skill 的启动说明：
 
 `wrangler.local.json` 使用占位 D1 ID、独立资源名称和 `remote: false`；开发数据库和媒体保存在 `.wrangler/cloud-state`。测试使用既有隔离状态，不复用开发数据库。迁移本身不会创建登录用户；需要手动登录时按 `docs/p1-local-poc.md` 创建测试用户，并把生成的 SQL 仅导入此本地配置。
 
-`work/`、`.wrangler/`、`dist/`、`.dev.vars*`、`.env*` 和 `tests/private-fixtures/` 不纳入 Git。不要上传本机状态、真实照片、账户文件、密码或令牌。自动化测试使用合成数据，不需要真实账户。
+`work/`、`.wrangler/`、`dist/`、`.dev.vars*`、`.env*` 和 `tests/private-fixtures/` 不纳入 Git。不要上传本机状态、真实照片、账户文件、密码或令牌。公开自动化测试使用合成数据，不需要真实账户。另有一项可选本机私有 PNG 样本测试，云端缺少该素材时会明确跳过；不要为消除跳过而上传私人照片。
+
+GitHub 的 Checks 流程使用 `.node-version` 指定的版本，运行同一安装入口和 `pnpm cloud:check`，用于验证 Linux 安装、迁移、测试和构建；它不等同于 Codex 云端环境已经发布。
 
 Docker 官方参考对比不属于基础环境安装；需要时另行确认容器支持、镜像网络和资源。云端测试不能代替官方 App 真机验收。
 
