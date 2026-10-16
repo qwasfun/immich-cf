@@ -37,13 +37,41 @@ export default {
             new Uint8Array(fault === 'upload-cancel' ? 4 * 1024 * 1024 + 65537 : 8),
           );
         },
-        cancel() {
-          throw new Error('TEST_CANCEL_PRIVATE_ERROR');
-        },
       });
       const headers = new Headers(clean.headers);
       headers.delete('content-length');
       clean = new Request(clean.url, { method: clean.method, headers, body: stream });
+      if (fault === 'upload-cancel') {
+        // Reject the reader operation without poisoning workerd's HTTP transport stream.
+        const body = new Proxy(clean.body!, {
+          get(target, key) {
+            if (key === 'getReader')
+              return () => {
+                const reader = target.getReader();
+                return new Proxy(reader, {
+                  get(target, key) {
+                    if (key === 'cancel')
+                      return async () => {
+                        await target.cancel();
+                        throw new Error('TEST_CANCEL_PRIVATE_ERROR');
+                      };
+                    const value = Reflect.get(target, key, target);
+                    return typeof value === 'function' ? value.bind(target) : value;
+                  },
+                });
+              };
+            const value = Reflect.get(target, key, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        });
+        clean = new Proxy(clean, {
+          get(target, key) {
+            if (key === 'body') return body;
+            const value = Reflect.get(target, key, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        });
+      }
     }
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {

@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-16T06:28:57.121Z",
+  "tailExitBeforeStop": null,
+  "events": [
+    {
+      "timestamp": 1792132011955,
+      "outcome": "ok",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 201
+    },
+    {
+      "timestamp": 1792132132472,
+      "outcome": "ok",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200
+    }
+  ],
+  "absenceDoesNotProveNoInvocation": true
+}

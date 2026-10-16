@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-10-16T06:26:49.891Z",
+  "transport": "node:https direct, explicit Content-Length, no connection reuse",
+  "timeoutMs": 45000,
+  "results": [
+    {
+      "name": "small-png",
+      "fileBytes": 2347,
+      "requestBytes": 2762,
+      "elapsedMs": 5006,
+      "connectedMs": 4,
+      "tlsMs": null,
+      "requestFinishedMs": null,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "ECONNRESET",
+      "contractPassed": false
+    },
+    {
+      "name": "over-limit",
+      "fileBytes": 4194305,
+      "requestBytes": 4194721,
+      "elapsedMs": 45012,
+      "connectedMs": 2,
+      "tlsMs": 2622,
+      "requestFinishedMs": 2624,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "TIMEOUT",
+      "contractPassed": false
+    },
+    {
+      "name": "below-limit",
+      "fileBytes": 4194303,
+      "requestBytes": 4194720,
+      "elapsedMs": 45010,
+      "connectedMs": 3,
+      "tlsMs": 940,
+      "requestFinishedMs": 942,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "TIMEOUT",
+      "contractPassed": false
+    },
+    {
+      "name": "at-limit",
+      "fileBytes": 4194304,
+      "requestBytes": 4194718,
+      "elapsedMs": 23998,
+      "connectedMs": 4,
+      "tlsMs": 770,
+      "requestFinishedMs": 772,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "ECONNRESET",
+      "contractPassed": false
+    }
+  ],
+  "logout": 200,
+  "officialAppVerified": false
+}

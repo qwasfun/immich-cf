@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-10-16T06:22:48.942Z",
+  "transport": "node:https direct, explicit Content-Length, no connection reuse",
+  "timeoutMs": 45000,
+  "results": [
+    {
+      "name": "small-png",
+      "fileBytes": 2347,
+      "requestBytes": 2762,
+      "elapsedMs": 1087,
+      "connectedMs": 4,
+      "tlsMs": 776,
+      "requestFinishedMs": 776,
+      "responseHeadersMs": 1087,
+      "responseBytes": 66,
+      "status": 200,
+      "errorCode": null,
+      "contractPassed": true
+    },
+    {
+      "name": "over-limit",
+      "fileBytes": 4194305,
+      "requestBytes": 4194721,
+      "elapsedMs": 23947,
+      "connectedMs": 2,
+      "tlsMs": 824,
+      "requestFinishedMs": 827,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "REQUEST_ERROR",
+      "contractPassed": false
+    },
+    {
+      "name": "below-limit",
+      "fileBytes": 4194303,
+      "requestBytes": 4194720,
+      "elapsedMs": 23995,
+      "connectedMs": 3,
+      "tlsMs": 830,
+      "requestFinishedMs": 832,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "REQUEST_ERROR",
+      "contractPassed": false
+    },
+    {
+      "name": "at-limit",
+      "fileBytes": 4194304,
+      "requestBytes": 4194718,
+      "elapsedMs": 45004,
+      "connectedMs": 3,
+      "tlsMs": 1512,
+      "requestFinishedMs": 1515,
+      "responseHeadersMs": null,
+      "responseBytes": 0,
+      "status": null,
+      "errorCode": "TIMEOUT",
+      "contractPassed": false
+    }
+  ],
+  "logout": 200,
+  "officialAppVerified": false
+}

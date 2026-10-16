@@ -14,6 +14,7 @@
 - [备份预检查恢复](docs/p2-bulk-recovery.md)：原图缺失或大小异常时允许重传，恢复已有资产。
 - [异常原图读取保护](docs/p2-media-recovery.md)：大小异常不返回图片或 304，覆盖读取竞态和重传恢复。
 - [上传流中断恢复](docs/p2-upload-stream.md)：中断明确报错，清理失败不覆盖超限状态，重试无脏记录。
+- [上传超时诊断](docs/p2-upload-transport.md)：分阶段计时与脱敏失败报告，区分客户端连接与服务端保存证据。
 
 - [历史 EXIF 安全修复](docs/p2-exif-repair.md)：预检、原图校验、原子同步版本、并发与重试。
 
