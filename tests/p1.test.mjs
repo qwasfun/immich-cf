@@ -1531,14 +1531,14 @@ test('私有媒体支持 Range、HEAD、ETag，条件请求不能绕过归属和
   assert.equal((await get({ 'If-None-Match': etag })).status, 401);
 });
 
-async function uploadBytes(token, bytes) {
+async function uploadBytes(token, bytes, fault = '') {
   const form = new FormData();
   form.set('assetData', new File([bytes], '混合队列.png'));
   form.set('fileCreatedAt', '2026-10-15T00:00:00Z');
   form.set('fileModifiedAt', '2026-10-15T00:00:00Z');
   const encoded = new Request('http://localhost/api/assets', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, 'x-test-storage-fault': fault },
     body: form,
   });
   return worker.fetch('/api/assets', {
@@ -3812,5 +3812,173 @@ test('高像素越界、零尺寸、PNG 超大整数和 Live Photo/XMP 仍拒绝
       assert.equal((await uploadBytes(a.token, atByteLimit)).status, 201);
       assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 2);
     }
+  }
+});
+
+test('高像素恢复：实际编码PNG及JPEG结构变体在R2前后、D1后失败时保留身份并重启恢复', async () => {
+  const { largePng } = await import('./fixtures/large-images.mjs');
+  const { withDimensions } = await import('./fixtures/image-dimensions.mjs');
+  const { withExif, tiff } = await import('./fixtures/exif.mjs');
+  const images = [
+    withExif(await largePng(), tiff(6), 'png'),
+    withDimensions(await readFile('tests/fixtures/small.jpg'), 8064, 6048, 'jpg'),
+  ];
+  for (const [index, bytes] of images.entries()) {
+    for (const fault of ['before-r2', 'after-r2', 'after-d1']) {
+      const a = await reliabilityAccount();
+      assert.equal((await uploadBytes(a.token, bytes, fault)).status, 503);
+      const asset = await db.prepare('SELECT * FROM assets WHERE owner_id=?').bind(a.id).first();
+      const intent = await db
+        .prepare('SELECT * FROM upload_intents WHERE owner_id=?')
+        .bind(a.id)
+        .first();
+      assert.equal(!!asset, fault === 'after-d1');
+      assert.equal(!!intent, fault !== 'after-d1');
+      const identity = asset ?? intent;
+      assert.equal(
+        (await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length,
+        fault === 'after-d1' ? 1 : 0,
+      );
+      if (index === 0 && fault === 'after-r2') {
+        await worker.stop();
+        worker = await unstable_dev('tests/fixtures/fault-worker.ts', config);
+      }
+      const replies = await Promise.all([uploadBytes(a.token, bytes), uploadBytes(a.token, bytes)]);
+      for (const response of replies) {
+        assert.ok([200, 201].includes(response.status));
+        assert.equal((await response.json()).id, identity.id);
+      }
+      const rows = (await db.prepare('SELECT * FROM assets WHERE owner_id=?').bind(a.id).all())
+        .results;
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].object_key, identity.object_key);
+      assert.deepEqual([rows[0].width, rows[0].height], index === 0 ? [6048, 8064] : [8064, 6048]);
+      assert.equal(
+        (
+          await db
+            .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+            .bind(a.id)
+            .first()
+        ).n,
+        0,
+      );
+      assert.equal(
+        (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+        1,
+      );
+      for (const kind of ['original', 'thumbnail?size=preview']) {
+        const r = await worker.fetch(`/api/assets/${identity.id}/${kind}`, {
+          headers: { Authorization: `Bearer ${a.token}` },
+        });
+        assert.equal(r.status, 200);
+        assert.deepEqual(Buffer.from(await r.arrayBuffer()), bytes);
+      }
+      const events = await syncEvents(a.token, { reset: true });
+      assert.equal(events.filter((e) => e.type === 'AssetV2').length, 1);
+      assert.equal(
+        (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+        204,
+      );
+      assert.ok((await syncEvents(a.token)).every((e) => e.type === 'SyncCompleteV1'));
+    }
+  }
+});
+
+test('高像素恢复：multipart截断与读失败无预约，随后完整重传只发布一份', async () => {
+  const { largePng } = await import('./fixtures/large-images.mjs');
+  const bytes = await largePng();
+  const a = await reliabilityAccount();
+  const before = await auditSnapshot(a.id);
+  const encoded = await encodedUpload({ name: 'large-truncated', bytes });
+  const truncated = await worker.fetch('/api/assets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': encoded.type },
+    body: encoded.bytes.subarray(0, encoded.bytes.length - 24),
+  });
+  assert.equal(truncated.status, 400);
+  assert.deepEqual((await truncated.json()).errors[0].path, ['assetData']);
+  assert.equal((await uploadBytes(a.token, bytes, 'upload-read')).status, 400);
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  const saved = await uploadBytes(a.token, bytes);
+  assert.equal(saved.status, 201);
+  const id = (await saved.json()).id;
+  assert.equal((await (await uploadBytes(a.token, bytes)).json()).id, id);
+  assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 1);
+});
+
+test('高像素恢复：缺失或等长损坏原图并发重传修复，不改变资产及同步游标', async () => {
+  const { largePng } = await import('./fixtures/large-images.mjs');
+  const { createHash } = await import('node:crypto');
+  const bytes = await largePng();
+  const a = await reliabilityAccount();
+  const id = (await (await uploadBytes(a.token, bytes)).json()).id;
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  const events = await syncEvents(a.token);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+  const checkpoints = await checkpointRows(a.token);
+  for (const failure of ['missing', 'wrong-sha1']) {
+    if (failure === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+    else {
+      const bad = Buffer.from(bytes);
+      bad[bad.length - 1] ^= 1;
+      await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bad, {
+        sha1: createHash('sha1').update(bad).digest(),
+      });
+    }
+    const denied = await worker.fetch(`/api/assets/${id}/original`, {
+      headers: { Authorization: `Bearer ${a.token}`, Range: 'bytes=0-31', 'If-None-Match': '*' },
+    });
+    assert.equal(denied.status, 503);
+    assert.equal(denied.headers.get('etag'), null);
+    for (const r of await Promise.all([uploadBytes(a.token, bytes), uploadBytes(a.token, bytes)])) {
+      assert.equal(r.status, 200);
+      assert.equal((await r.json()).id, id);
+    }
+    assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first(), row);
+    assert.deepEqual(await checkpointRows(a.token), checkpoints);
+    assert.ok((await syncEvents(a.token)).every((e) => e.type === 'SyncCompleteV1'));
+    const media = await worker.fetch(`/api/assets/${id}/original`, {
+      headers: { Authorization: `Bearer ${a.token}` },
+    });
+    assert.deepEqual(Buffer.from(await media.arrayBuffer()), bytes);
+  }
+});
+
+test('高像素恢复：reset快照后恢复预约，旧ACK不能提交或吞掉新资产', async () => {
+  const { largePng } = await import('./fixtures/large-images.mjs');
+  const bytes = await largePng();
+  const a = await reliabilityAccount();
+  assert.equal((await uploadBytes(a.token, bytes, 'after-r2')).status, 503);
+  const initial = await syncEvents(a.token);
+  const held = await pausedSyncRequest(a.token, '/api/sync/ack', 'POST', {
+    acks: initial.map((e) => e.ack),
+  });
+  try {
+    const reset = await syncEvents(a.token, { reset: true });
+    assert.equal(reset.filter((e) => e.type === 'AssetV2').length, 0);
+    const saved = await uploadBytes(a.token, bytes);
+    assert.equal(saved.status, 201);
+    const id = (await saved.json()).id;
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: reset.map((e) => e.ack) }, a.token)).status,
+      204,
+    );
+    const next = await syncEvents(a.token);
+    const assets = next.filter((e) => e.type === 'AssetV2');
+    assert.equal(assets.length, 1);
+    assert.equal(assets[0].data.id, id);
+    assert.deepEqual([assets[0].data.width, assets[0].data.height], [8064, 6048]);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: next.map((e) => e.ack) }, a.token)).status,
+      204,
+    );
+    assert.ok((await syncEvents(a.token)).every((e) => e.type === 'SyncCompleteV1'));
+  } finally {
+    await held.release();
   }
 });
