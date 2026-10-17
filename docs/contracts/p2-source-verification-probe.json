@@ -1,0 +1,656 @@
+{
+  "checkedAt": "2026-10-17T11:24:37.507Z",
+  "complete": true,
+  "failure": null,
+  "logout": 200,
+  "observations": [
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    }
+  ],
+  "pageCounts": [20, 12],
+  "verifySourcesRequested": true,
+  "sourceChecks": [
+    {
+      "index": 0,
+      "bytes": 256724,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:23:59.477Z"
+    },
+    {
+      "index": 1,
+      "bytes": 3917,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:03.997Z"
+    },
+    {
+      "index": 2,
+      "bytes": 2385,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:06.771Z"
+    },
+    {
+      "index": 3,
+      "bytes": 526,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:09.970Z"
+    },
+    {
+      "index": 4,
+      "bytes": 50720,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:11.864Z"
+    },
+    {
+      "index": 5,
+      "bytes": 2097152,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:14.149Z"
+    },
+    {
+      "index": 6,
+      "bytes": 687010,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:16.898Z"
+    },
+    {
+      "index": 7,
+      "bytes": 380593,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:19.679Z"
+    },
+    {
+      "index": 8,
+      "bytes": 2784,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:21.918Z"
+    },
+    {
+      "index": 9,
+      "bytes": 682722,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:25.231Z"
+    },
+    {
+      "index": 10,
+      "bytes": 2321,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:28.926Z"
+    },
+    {
+      "index": 11,
+      "bytes": 85,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:30.685Z"
+    },
+    {
+      "index": 12,
+      "bytes": 5325,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:32.707Z"
+    },
+    {
+      "index": 13,
+      "bytes": 2097151,
+      "sourceBytesVerified": true,
+      "checkedAt": "2026-10-17T11:24:35.320Z"
+    }
+  ],
+  "metrics": [
+    {
+      "path": "/api/auth/login",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 201,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000042,
+      "connectSeconds": 0.000508,
+      "tlsSeconds": 0.795704,
+      "pretransferSeconds": 0.795829,
+      "uploadedBytes": 76,
+      "uploadFinishedSeconds": 0.795829,
+      "firstByteSeconds": 2.270149,
+      "downloadedBytes": 267,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.272101,
+      "speedUpload": 33
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000041,
+      "connectSeconds": 0.000542,
+      "tlsSeconds": 0.850175,
+      "pretransferSeconds": 0.850327,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 0.850327,
+      "firstByteSeconds": 6.33726,
+      "downloadedBytes": 2565,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 6.339118,
+      "speedUpload": 0
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000042,
+      "connectSeconds": 0.00056,
+      "tlsSeconds": 1.254372,
+      "pretransferSeconds": 1.254517,
+      "uploadedBytes": 55,
+      "uploadFinishedSeconds": 1.254517,
+      "firstByteSeconds": 5.262525,
+      "downloadedBytes": 2616,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 5.263009,
+      "speedUpload": 10
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000041,
+      "connectSeconds": 0.000514,
+      "tlsSeconds": 1.341988,
+      "pretransferSeconds": 1.342119,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.342119,
+      "firstByteSeconds": 2.241754,
+      "downloadedBytes": 171,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.243611,
+      "speedUpload": 28
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.00004,
+      "connectSeconds": 0.000583,
+      "tlsSeconds": 3.172911,
+      "pretransferSeconds": 3.173044,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 3.173045,
+      "firstByteSeconds": 4.482551,
+      "downloadedBytes": 169,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 4.484262,
+      "speedUpload": 14
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000037,
+      "connectSeconds": 0.00053,
+      "tlsSeconds": 1.807117,
+      "pretransferSeconds": 1.807268,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.807268,
+      "firstByteSeconds": 2.736414,
+      "downloadedBytes": 169,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.73841,
+      "speedUpload": 23
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000041,
+      "connectSeconds": 0.000567,
+      "tlsSeconds": 2.241863,
+      "pretransferSeconds": 2.241982,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 2.241982,
+      "firstByteSeconds": 3.162632,
+      "downloadedBytes": 168,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 3.163203,
+      "speedUpload": 20
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.00004,
+      "connectSeconds": 0.000515,
+      "tlsSeconds": 0.952833,
+      "pretransferSeconds": 0.95298,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 0.95298,
+      "firstByteSeconds": 1.85403,
+      "downloadedBytes": 170,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 1.855638,
+      "speedUpload": 35
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000038,
+      "connectSeconds": 0.000609,
+      "tlsSeconds": 0.872141,
+      "pretransferSeconds": 0.8723,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 0.8723,
+      "firstByteSeconds": 2.246063,
+      "downloadedBytes": 172,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.24784,
+      "speedUpload": 28
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000037,
+      "connectSeconds": 0.00057,
+      "tlsSeconds": 1.805505,
+      "pretransferSeconds": 1.805659,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.805659,
+      "firstByteSeconds": 2.710796,
+      "downloadedBytes": 171,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.712784,
+      "speedUpload": 23
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000041,
+      "connectSeconds": 0.000545,
+      "tlsSeconds": 1.806133,
+      "pretransferSeconds": 1.806262,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.806262,
+      "firstByteSeconds": 2.742821,
+      "downloadedBytes": 171,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.743471,
+      "speedUpload": 23
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000049,
+      "connectSeconds": 0.000523,
+      "tlsSeconds": 1.26777,
+      "pretransferSeconds": 1.267898,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.267898,
+      "firstByteSeconds": 2.199351,
+      "downloadedBytes": 169,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.201352,
+      "speedUpload": 29
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000043,
+      "connectSeconds": 0.000586,
+      "tlsSeconds": 1.785013,
+      "pretransferSeconds": 1.785141,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.785141,
+      "firstByteSeconds": 3.272696,
+      "downloadedBytes": 171,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 3.274559,
+      "speedUpload": 19
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000042,
+      "connectSeconds": 0.000519,
+      "tlsSeconds": 2.690694,
+      "pretransferSeconds": 2.690811,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 2.690811,
+      "firstByteSeconds": 3.63984,
+      "downloadedBytes": 169,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 3.658604,
+      "speedUpload": 17
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000038,
+      "connectSeconds": 0.000537,
+      "tlsSeconds": 0.815661,
+      "pretransferSeconds": 0.815777,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 0.815777,
+      "firstByteSeconds": 1.71756,
+      "downloadedBytes": 167,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 1.721261,
+      "speedUpload": 37
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000041,
+      "connectSeconds": 0.000656,
+      "tlsSeconds": 1.072161,
+      "pretransferSeconds": 1.07229,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.07229,
+      "firstByteSeconds": 1.981995,
+      "downloadedBytes": 169,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 1.983851,
+      "speedUpload": 32
+    },
+    {
+      "path": "/api/immich-cf/upgrade-integrity",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000044,
+      "connectSeconds": 0.000517,
+      "tlsSeconds": 1.182933,
+      "pretransferSeconds": 1.183067,
+      "uploadedBytes": 65,
+      "uploadFinishedSeconds": 1.183067,
+      "firstByteSeconds": 2.575151,
+      "downloadedBytes": 172,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.576922,
+      "speedUpload": 25
+    },
+    {
+      "path": "/api/auth/logout",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.00004,
+      "connectSeconds": 0.000624,
+      "tlsSeconds": 1.448702,
+      "pretransferSeconds": 1.448822,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 1.448822,
+      "firstByteSeconds": 2.14895,
+      "downloadedBytes": 37,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.150603,
+      "speedUpload": 0
+    }
+  ],
+  "scope": "public-read-only-observations",
+  "remoteStorageFaultInjected": false,
+  "officialAppVerified": false,
+  "snapshotConsistent": false,
+  "deployedCommit": "63a3dad",
+  "deployedVersion": "dfaf0c06-e5ed-4669-baeb-a25149462813"
+}
