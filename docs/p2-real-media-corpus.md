@@ -1,5 +1,7 @@
 # P2 真实 JPEG/PNG 样本验收工具
 
+当前 dev 分支本机上限已调整为 6400 万像素、宽高各不超过 16384，单文件仍不超过 4 MiB，见[像素上限评估](p2-image-limits.md)。下方按日期保留的 400 万像素/4096 筛选记录是当时结果，不代表最新代码策略；本轮尚未部署。
+
 本轮交付本机验收工具与回归，不宣称已完成 100 张真实照片。当前默认私人样本清单不存在；合成 JPEG/PNG 只用于验证工具与故障路径，不能充当真实媒体覆盖。CPU 超预算继续暂缓，官方 App、bcrypt cost 12、reset/ACK 并发隔离和 20 张逻辑额度不改动。
 
 ## 准备清单
@@ -7,7 +9,7 @@
 1. 将有权用于测试的非唯一 JPEG/PNG 原件放入 `tests/private-fixtures/real-media/`；该目录已被 Git 忽略。请保留手机原件与独立备份。
 2. 复制[清单示例](templates/real-media-manifest.example.json)到该目录的 manifest.json，替换所有示例文件名与尺寸。示例中的两张图片不存在，也不代表用户实际样本。
 3. 每项填写 file、provenance、captureId 和 expected。file 为清单目录内的相对路径，不得用绝对路径、..、驱动器/数据流或逃逸链接。provenance 为 user-original（用户声明的原件）或 synthetic-fixture（合成/变体）。同次拍摄的导出版本、格式转换或元数据变体使用相同 captureId；不要填姓名、联系方式或位置。
-4. expected.status：201 表示预期支持（实际重复可返回 200），400/413 表示预期拒绝。expected.mime 只允许 image/jpeg 或 image/png；预期支持时必须填写独立确认的布局 width/height，包含 EXIF 方向的宽高交换，不能从本服务输出反填。可从本机图片查看器或独立元数据工具确认，来源仍需人工审阅。
+4. expected.status：201 表示预期支持（实际重复可返回 200），400/413 表示预期拒绝。expected.mime 只允许 image/jpeg 或 image/png；预期支持时必须填写独立确认的布局 width/height（各为 1～16384，总像素不超过 6400 万），包含 EXIF 方向的宽高交换，不能从本服务输出反填。可从本机图片查看器或独立元数据工具确认，来源仍需人工审阅。
 
 清单限 1～200 条、256 KiB；每个文件 1 字节～8 MiB、全批最多 1 GiB。支持上传范围仍为 4 MiB、既有尺寸/像素与格式限制，验收工具接受较大输入只是为验证拒绝。大于 8 MiB 的超限文件另行测试，不做截断或转码来凑样本。
 

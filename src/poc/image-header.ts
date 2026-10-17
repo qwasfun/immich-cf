@@ -2,6 +2,7 @@ import { invalid } from './http';
 import { exifOrientation } from './exif';
 import { rejectLivePhotoExif } from './live-photo-exif';
 import { checkPngXmp, checkStaticXmp, xmpFailure } from './xmp';
+import { MAX_IMAGE_EDGE, MAX_IMAGE_PIXELS } from './image-limits';
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -177,8 +178,8 @@ export function imageHeader(bytes: Uint8Array) {
   }
   if (!mime || !width || !height)
     invalid('assetData', '请选择有效的静态 JPEG 或 PNG 图片，不支持 HEIC、视频或 Live Photo');
-  if (width > 4096 || height > 4096 || width * height > 4_000_000)
-    invalid('assetData', '图片最多 400 万像素，且宽高均不超过 4096，请缩小后上传');
+  if (width > MAX_IMAGE_EDGE || height > MAX_IMAGE_EDGE || width * height > MAX_IMAGE_PIXELS)
+    invalid('assetData', '图片最多 6400 万像素，且宽高均不超过 16384，请缩小后上传');
   // Match frozen Immich asset dimensions; original EXIF/pixels remain unchanged.
   if (orientation !== undefined && orientation >= 5) [width, height] = [height, width];
   return { width, height, mime };

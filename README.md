@@ -92,3 +92,5 @@ pnpm check
 - [P2 历史原图只读完整校验](docs/p2-source-verification.md)：按需完整重算摘要，识别无原生摘要旧原图的等长损坏，不修改源或预约。
 
 - [P2 真实 JPEG/PNG 样本验收工具](docs/p2-real-media-corpus.md)：私人清单、隔离本地存储、独立尺寸和去重统计，不默认上传公网。
+
+- [P2 手机尺寸原图与像素上限](docs/p2-image-limits.md)：6400 万像素、单边 16384，保留 4 MiB 与 Live Photo 防护；仅本机验证，尚未部署。

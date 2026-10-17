@@ -53,6 +53,35 @@ test('清单链接不能逃出样本目录，且不接受目录作为样本', as
     await assert.rejects(loadCorpus(a.manifest), (e) => e.field === 'samples.0.file');
   }
 });
+
+test('大像素清单与服务端共用上限，独立布局尺寸仍须校验且允许声明超限拒绝', async () => {
+  const { manifest } = await fixture();
+  const entry = sample();
+  for (const [width, height] of [
+    [8064, 6048],
+    [8192, 6144],
+    [8000, 8000],
+    [16384, 1],
+  ]) {
+    entry.expected = { status: 201, mime: 'image/png', width, height };
+    await writeFile(manifest, JSON.stringify({ version: 1, samples: [entry] }));
+    assert.equal((await loadCorpus(manifest)).length, 1);
+  }
+  for (const [width, height] of [
+    [16385, 1],
+    [1, 16385],
+    [8000, 8001],
+    [0, 200],
+    [1.5, 200],
+  ]) {
+    entry.expected = { status: 201, mime: 'image/png', width, height };
+    await writeFile(manifest, JSON.stringify({ version: 1, samples: [entry] }));
+    await assert.rejects(loadCorpus(manifest), (e) => e.field.startsWith('samples.0.expected.'));
+  }
+  entry.expected = { status: 400, mime: 'image/png' };
+  await writeFile(manifest, JSON.stringify({ version: 1, samples: [entry] }));
+  assert.equal((await loadCorpus(manifest)).length, 1);
+});
 test('100个合成/重复内容或同次拍摄变体不能计为100个独立真实样本', () => {
   const entries = Array.from({ length: 100 }, (_, index) => ({
     index,

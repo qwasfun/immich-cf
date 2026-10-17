@@ -1,6 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { MAX_IMAGE_EDGE, MAX_IMAGE_PIXELS } from '../../src/poc/image-limits.ts';
 export class CorpusError extends Error {
   constructor(field, reason) {
     super(`${field}：${reason}`);
@@ -66,10 +67,16 @@ export async function loadCorpus(manifestFile) {
         requireCorpus(
           Number.isInteger(expected[dimension]) &&
             expected[dimension] > 0 &&
-            expected[dimension] <= 4096,
+            expected[dimension] <= MAX_IMAGE_EDGE,
           `${field}.expected.${dimension}`,
-          '请填写独立确认的布局尺寸，范围 1～4096',
+          '请填写独立确认的布局尺寸，范围 1～16384',
         );
+    if (expected.status === 201)
+      requireCorpus(
+        expected.width * expected.height <= MAX_IMAGE_PIXELS,
+        `${field}.expected.width/height`,
+        '布局尺寸：总像素最多 6400 万，请核对独立尺寸或将超限项标为预期拒绝',
+      );
     let file;
     try {
       file = await realpath(path.resolve(root, sample.file));

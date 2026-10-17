@@ -1,0 +1,49 @@
+{
+  "complete": true,
+  "proxyRequests": 0,
+  "scope": "isolated-local-encoded-large-pixel-synthetic",
+  "goldenDimensionOracle": "Windows System.Drawing",
+  "checkedAt": "2026-10-17T19:24:21.019Z",
+  "processExitCode": 0,
+  "remoteUpload": false,
+  "samples": [
+    {
+      "width": 8064,
+      "bytes": 767483,
+      "height": 6048,
+      "format": "jpeg"
+    },
+    {
+      "width": 8064,
+      "bytes": 209222,
+      "height": 6048,
+      "format": "png"
+    },
+    {
+      "width": 8192,
+      "bytes": 791867,
+      "height": 6144,
+      "format": "jpeg"
+    }
+  ],
+  "summary": {
+    "samples": 3,
+    "accepted": 3,
+    "acceptedUniqueContents": 3,
+    "declaredRealEntries": 0,
+    "declaredRealUniqueContents": 0,
+    "declaredRealUniqueCaptures": 0,
+    "syntheticEntries": 3,
+    "declaredRealThresholdMet": false,
+    "provenanceIndependentlyVerified": false,
+    "fullDecodeVerified": false,
+    "officialAppVerified": false,
+    "g1Passed": false
+  },
+  "transportRequests": 24,
+  "failure": null,
+  "officialIosVerified": false,
+  "transportErrors": 0,
+  "passed": 3,
+  "fullPixelDecodeOrColorReview": false
+}

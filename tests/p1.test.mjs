@@ -3692,3 +3692,125 @@ test('真实样本验收器使用curl有界恢复，21个独立样本跨账户�
   );
   assert.ok(progress.every((r) => !r.passed));
 });
+
+test('大像素 JPEG/PNG 边界、EXIF 交换、去重、原图和 reset 快照保持布局一致', async () => {
+  const { withDimensions } = await import('./fixtures/image-dimensions.mjs');
+  const { tiff, withExif } = await import('./fixtures/exif.mjs');
+  for (const format of ['jpg', 'png']) {
+    const a = await reliabilityAccount();
+    const source = await readFile(`tests/fixtures/small.${format}`);
+    const expected = new Map();
+    // Header-only synthetic fixtures exercise limits/state, not full pixel decode.
+    for (const [width, height, orientation] of [
+      [4032, 3024, 1],
+      [4208, 3120, 1],
+      [8064, 6048, 1],
+      [8192, 6144, 1],
+      [8000, 8000, 1],
+      [16384, 1, 1],
+      [16000, 4000, 1],
+      [8064, 6048, 6],
+      [16384, 1, 8],
+    ]) {
+      const bytes = withExif(
+        withDimensions(source, width, height, format),
+        tiff(orientation),
+        format,
+      );
+      const response = await uploadBytes(a.token, bytes);
+      assert.equal(response.status, 201);
+      const saved = await response.json();
+      const duplicate = await uploadBytes(a.token, bytes);
+      assert.equal(duplicate.status, 200);
+      assert.equal((await duplicate.json()).id, saved.id);
+      const row = await db
+        .prepare('SELECT width,height FROM assets WHERE id=?')
+        .bind(saved.id)
+        .first();
+      const layout = orientation >= 5 ? [height, width] : [width, height];
+      assert.deepEqual([row.width, row.height], layout);
+      expected.set(saved.id, layout);
+      for (const route of ['original', 'thumbnail?size=preview']) {
+        const media = await worker.fetch(`/api/assets/${saved.id}/${route}`, {
+          headers: { Authorization: `Bearer ${a.token}` },
+        });
+        assert.equal(media.status, 200);
+        assert.deepEqual(Buffer.from(await media.arrayBuffer()), bytes);
+      }
+    }
+    for (const reset of [false, true]) {
+      const events = await syncEvents(a.token, { reset });
+      const assets = events.filter((e) => e.type === 'AssetV2');
+      assert.equal(assets.length, expected.size);
+      for (const e of assets)
+        assert.deepEqual([e.data.width, e.data.height], expected.get(e.data.id));
+      assert.equal(
+        (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+        204,
+      );
+      assert.ok((await syncEvents(a.token)).every((e) => e.type === 'SyncCompleteV1'));
+    }
+  }
+});
+
+test('高像素越界、零尺寸、PNG 超大整数和 Live Photo/XMP 仍拒绝，无写入且随后可恢复上传', async () => {
+  const { withDimensions } = await import('./fixtures/image-dimensions.mjs');
+  const { withExif } = await import('./fixtures/exif.mjs');
+  const { appleExif, withXmp } = await import('./fixtures/live-photo-exif.mjs');
+  for (const format of ['jpg', 'png']) {
+    const a = await reliabilityAccount();
+    const source = await readFile(`tests/fixtures/small.${format}`);
+    const before = await auditSnapshot(a.id);
+    const dimensions = [
+      [16385, 1],
+      [1, 16385],
+      [8000, 8001],
+      [8001, 8000],
+      [0, 4000],
+      [4000, 0],
+    ];
+    if (format === 'png') dimensions.push([0xffffffff, 0xffffffff]);
+    for (const [width, height] of dimensions) {
+      const response = await uploadBytes(a.token, withDimensions(source, width, height, format));
+      assert.equal(response.status, 400);
+      const error = await response.json();
+      assert.deepEqual(error.errors[0].path, ['assetData']);
+      if (width && height) assert.match(JSON.stringify(error), /6400 万像素.*16384.*缩小/);
+    }
+    const large = withDimensions(source, 8064, 6048, format);
+    for (const bytes of [withExif(large, appleExif(0x11), format), withXmp(large, format)]) {
+      const response = await uploadBytes(a.token, bytes);
+      assert.equal(response.status, 400);
+      assert.deepEqual((await response.json()).errors[0].path, ['assetData']);
+    }
+    let atByteLimit;
+    if (format === 'png') {
+      const { mixedCases } = await import('./fixtures/mixed-queue.mjs');
+      const cases = await mixedCases();
+      const over = withDimensions(
+        cases.find((c) => c.name === 'over-limit').bytes,
+        8064,
+        6048,
+        format,
+      );
+      const rejected = await uploadBytes(a.token, over);
+      assert.equal(rejected.status, 413);
+      assert.deepEqual((await rejected.json()).errors[0].path, ['assetData']);
+      atByteLimit = withDimensions(
+        cases.find((c) => c.name === 'at-limit').bytes,
+        8064,
+        6048,
+        format,
+      );
+    }
+    assert.deepEqual(await auditSnapshot(a.id), before);
+    assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 0);
+    assert.equal((await uploadBytes(a.token, large)).status, 201);
+    assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 1);
+    if (atByteLimit) {
+      assert.equal(atByteLimit.length, 4 * 1024 * 1024);
+      assert.equal((await uploadBytes(a.token, atByteLimit)).status, 201);
+      assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 2);
+    }
+  }
+});
