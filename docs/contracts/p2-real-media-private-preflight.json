@@ -1,0 +1,49 @@
+{
+  "remoteUpload": false,
+  "failure": null,
+  "input": {
+    "captureIndependenceReviewed": false,
+    "jpeg": 100,
+    "orientation1": 100,
+    "portrait2268x4032": 96,
+    "metadataOracle": "Windows System.Drawing",
+    "landscape4032x2268": 4,
+    "distinctContents": 100,
+    "png": 0,
+    "files": 100,
+    "maxBytes": 3855698,
+    "pixelsEach": 9144576
+  },
+  "checkedAt": "2026-10-17T18:41:34.593Z",
+  "summary": {
+    "samples": 100,
+    "accepted": 0,
+    "acceptedUniqueContents": 0,
+    "declaredRealEntries": 0,
+    "declaredRealUniqueContents": 0,
+    "declaredRealUniqueCaptures": 0,
+    "syntheticEntries": 0,
+    "declaredRealThresholdMet": false,
+    "provenanceIndependentlyVerified": false,
+    "fullDecodeVerified": false,
+    "officialAppVerified": false,
+    "g1Passed": false
+  },
+  "sourceCommit": "a690733",
+  "originalsModified": false,
+  "privateIdentifiersExported": false,
+  "deploymentPerformed": false,
+  "scope": "isolated-local-private-corpus-rejection",
+  "validation": {
+    "syncAckAndEmptyIncremental": true,
+    "transportRequests": 125,
+    "proxyRequests": 0,
+    "http400": 100,
+    "failedAssetsInSync": 0,
+    "passedExpectedRejections": 100,
+    "processExitCode": 0,
+    "batches": 5
+  },
+  "workerChanged": false,
+  "complete": true
+}
