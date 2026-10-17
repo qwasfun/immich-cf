@@ -19,6 +19,7 @@ export function localCorpusTransport(base, onAttempt = async () => {}) {
   return {
     async json(route, data, token) {
       const r = await curlRequest(new URL(route, url).href, {
+        direct: true,
         timeoutMs: 30000,
         maxResponseBytes: 1048576,
         headers: {
@@ -49,6 +50,7 @@ export function localCorpusTransport(base, onAttempt = async () => {}) {
       form.set('fileModifiedAt', '2026-10-17T00:00:00Z');
       const request = new Request(url, { method: 'POST', body: form });
       const r = await retryCurlUpload(new URL('/api/assets', url).href, {
+        direct: true,
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': request.headers.get('content-type'),
@@ -66,6 +68,7 @@ export function localCorpusTransport(base, onAttempt = async () => {}) {
     },
     async read(route, bytes, token) {
       const r = await readCurlRanges(new URL(route, url).href, {
+        direct: true,
         headers: { Authorization: `Bearer ${token}` },
         expected: bytes,
         onAttempt: (entry) => onAttempt({ route: '/api/assets/{id}/media', ...entry }),
@@ -78,6 +81,7 @@ export function localCorpusTransport(base, onAttempt = async () => {}) {
     },
     async detail(id, token) {
       const r = await curlRequest(new URL(`/api/assets/${id}`, url).href, {
+        direct: true,
         method: 'GET',
         timeoutMs: 30000,
         headers: { Authorization: `Bearer ${token}` },

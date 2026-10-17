@@ -52,3 +52,17 @@ accepted 是通过的输入条目数（可包含重复），acceptedUniqueConten
 `pnpm check` 113 项回归通过，无失败或跳过；格式/lint/类型和 dry-run 构建通过。冻结契约仍为 279 个操作、53 个来源。Worker 构建保持 203.29 KiB / gzip 50.17 KiB，本轮业务运行时代码未改动。
 
 CLI 合成清单实际结果为 201 → 400 → 413 → 201 → 200，完整 Sync/ACK、空增量及退出通过；5 条输入、3 条通过输入、2 份独立内容、0 条声明真实样本，declaredRealThresholdMet=false。原图/预览有界 Range 读取与上传使用既有 curl 恢复路径，未出现传输错误。报告仅作为本地工具证明；当前没有真实样本清单，100 张真实照片关口未通过。
+
+## dev 发布与证据
+
+代码 `ba4597e`，dev 版本 `34c435a2-a3f4-4063-9c7e-8d158cd9aa77`，2026-10-17 通过已验证本机代理由 Wrangler 发布，无待执行迁移，D1 保持 0013，test/生产未变更。业务 Worker 构建与上轮一致；新增内容在本机验收工具、测试和文档中。
+
+[本地合成工具实跑报告](contracts/p2-real-media-local-smoke.json)明确 scope=isolated-local-synthetic-tool-smoke、remoteUpload=false 和真实来源门槛未通过。[dev 正常链路报告](contracts/p2-real-media-dev-probe.json)验证上传去重、预检查、原图、Sync/ACK、退出，7 次请求无传输错误，未上传私人清单。私人原件和清单不在发布/提交范围，真实 100 张验收仍等待清单与人工来源复核。
+
+工具上传使用索引文件名与固定测试日期，不验收原始拍摄时间/GPS 映射；原图字节不改写。真实清单准备后运行前述命令，先确认 complete=true，再审阅真实独立内容/拍摄计数和未完成关口。
+
+## 私人样本直连加固
+
+本机样本的 JSON、上传重试、详情与 Range 请求显式设置 curl proxy 为空、noproxy=*，覆盖环境代理；不会修改系统代理。公网脚本的显式代理配置保持原状。新增陷阱代理回归：先确认普通对照请求会进入代理，再确认私人本机上传与 Range 请求的代理命中为 0。
+
+加固后完整 `pnpm check` 114 项通过，无失败或跳过；直连专项单独重跑通过，最新 CLI 的 5 条合成用例再次完整通过。业务 Worker 构建仍为 203.29 KiB / gzip 50.17 KiB；真实样本门槛仍为 false。

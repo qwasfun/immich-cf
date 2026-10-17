@@ -225,3 +225,77 @@ test('显式本机代理真正承载请求，拒绝私密代理凭据与配置�
     await new Promise((r) => proxy.close(r));
   }
 });
+
+test('显式本机直连绕过环境代理，上传重试与Range恢复不经过代理', async () => {
+  const { retryCurlUpload, readCurlRanges } = await import('../scripts/lib/curl-recovery.mjs');
+  let proxyHits = 0;
+  const proxy = http.createServer((req, res) => {
+    proxyHits++;
+    req.resume();
+    res.writeHead(502);
+    res.end();
+  });
+  const origin = http.createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      if (req.method === 'GET') {
+        res.writeHead(206, { 'Content-Range': 'bytes 0-2/3', ETag: '"direct"' });
+        res.end('abc');
+      } else res.end('ok');
+    });
+  });
+  await new Promise((r) => proxy.listen(0, '127.0.0.1', r));
+  await new Promise((r) => origin.listen(0, '127.0.0.1', r));
+  const keys = [
+    'HTTP_PROXY',
+    'http_proxy',
+    'HTTPS_PROXY',
+    'https_proxy',
+    'ALL_PROXY',
+    'all_proxy',
+    'NO_PROXY',
+    'no_proxy',
+  ];
+  const before = keys.map((k) => [k, process.env[k]]);
+  try {
+    for (const key of keys)
+      process.env[key] =
+        key.toLowerCase() === 'no_proxy' ? '' : `http://127.0.0.1:${proxy.address().port}`;
+    const base = `http://127.0.0.1:${origin.address().port}`;
+    const control = await curlRequest(base, { body: Buffer.from('non-private-control') });
+    assert.equal(control.metrics.status, 502);
+    assert.equal(proxyHits, 1);
+    proxyHits = 0;
+    const r = await curlRequest(base, { direct: true, body: Buffer.from('private-local') });
+    assert.equal(r.metrics.status, 200);
+    assert.equal(r.metrics.errorCode, null);
+    const up = await retryCurlUpload(base + '/api/assets', {
+      direct: true,
+      headers: { 'x-immich-checksum': '0'.repeat(40) },
+      body: Buffer.from('private-local'),
+    });
+    assert.equal(up.metrics.status, 200);
+    const read = await readCurlRanges(base + '/media', {
+      direct: true,
+      expected: Buffer.from('abc'),
+    });
+    assert.equal(read.metrics.errorCode, null);
+    assert.deepEqual(read.bytes, Buffer.from('abc'));
+    assert.equal(proxyHits, 0);
+    await assert.rejects(
+      curlRequest(base, {
+        direct: true,
+        proxy: `http://127.0.0.1:${proxy.address().port}`,
+        body: Buffer.from('x'),
+      }),
+      /Invalid direct\/proxy policy/,
+    );
+  } finally {
+    for (const [key, value] of before)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    origin.closeAllConnections();
+    proxy.closeAllConnections();
+    await Promise.all([new Promise((r) => origin.close(r)), new Promise((r) => proxy.close(r))]);
+  }
+});

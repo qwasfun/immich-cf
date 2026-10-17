@@ -36,10 +36,13 @@ export async function curlRequest(
     timeoutMs = 120000,
     maxResponseBytes = 65536,
     tls12 = false,
+    direct = false,
     proxy,
   } = {},
 ) {
   if (typeof tls12 !== 'boolean') throw new Error('Invalid TLS policy');
+  if (typeof direct !== 'boolean' || (direct && proxy !== undefined))
+    throw new Error('Invalid direct/proxy policy');
   if (proxy !== undefined) validateLoopbackProxy(proxy);
   if (!['POST', 'GET'].includes(method) || (method === 'GET' && body !== undefined))
     throw new Error('Invalid request method or body');
@@ -80,6 +83,7 @@ export async function curlRequest(
         'http1.1',
         ...(tls12 ? ['tlsv1.2', 'tls-max = "1.2"'] : []),
         ...(proxy ? [`proxy = ${quote(proxy)}`, 'noproxy = ""'] : []),
+        ...(direct ? ['proxy = ""', 'noproxy = "*"'] : []),
         'retry = 0',
       ].join('\n') + '\n';
     const result = await new Promise((resolve) => {
