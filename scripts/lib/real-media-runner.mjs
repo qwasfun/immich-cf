@@ -38,13 +38,18 @@ export function localCorpusTransport(base, onAttempt = async () => {}) {
     },
     async upload(entry, bytes, token) {
       const form = new FormData();
+      const extension = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/heic': 'heic',
+        'image/heif': 'heif',
+        'video/quicktime': 'mov',
+        'video/mp4': 'mp4',
+      }[entry.expected.mime];
+      requireCorpus(extension, 'expected.mime', '请选择受支持的样本 MIME 或已列出的拒绝格式');
       form.set(
         'assetData',
-        new File(
-          [bytes],
-          `sample-${entry.index}.${entry.expected.mime === 'image/png' ? 'png' : 'jpg'}`,
-          { type: entry.expected.mime },
-        ),
+        new File([bytes], `sample-${entry.index}.${extension}`, { type: entry.expected.mime }),
       );
       form.set('fileCreatedAt', '2026-10-17T00:00:00Z');
       form.set('fileModifiedAt', '2026-10-17T00:00:00Z');

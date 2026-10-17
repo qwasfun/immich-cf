@@ -3982,3 +3982,89 @@ test('高像素恢复：reset快照后恢复预约，旧ACK不能提交或吞掉
     await held.release();
   }
 });
+
+test('特殊媒体拒绝清单混合队列保留真实MIME，失败后JPEG/PNG继续同步且不计通过照片', async () => {
+  const { loadCorpus, corpusSummary } = await import('../scripts/lib/real-media-corpus.mjs');
+  const { verifyCorpus, localCorpusTransport } =
+    await import('../scripts/lib/real-media-runner.mjs');
+  const { writeFile } = await import('node:fs/promises');
+  const { withExif } = await import('./fixtures/exif.mjs');
+  const { appleExif } = await import('./fixtures/live-photo-exif.mjs');
+  const root = path.join(state, 'rejected-format-corpus');
+  await mkdir(root, { recursive: true });
+  const samples = [];
+  const add = async (file, bytes, mime, status) => {
+    await writeFile(path.join(root, file), bytes);
+    samples.push({
+      file,
+      provenance: 'synthetic-fixture',
+      captureId: `case-${samples.length}`,
+      expected: { mime, status, ...(status === 201 ? { width: 320, height: 240 } : {}) },
+    });
+  };
+  await add('before.png', await readFile('tests/fixtures/small.png'), 'image/png', 201);
+  // Brand/container rejection probes, not decodable real HEIC or video samples.
+  for (const [mime, extension, brand] of [
+    ['image/heic', 'heic', 'heic'],
+    ['image/heif', 'heif', 'mif1'],
+    ['video/quicktime', 'mov', 'qt  '],
+    ['video/mp4', 'mp4', 'isom'],
+  ]) {
+    const bytes = Buffer.alloc(32);
+    bytes.writeUInt32BE(24);
+    bytes.write('ftyp', 4);
+    bytes.write(brand, 8);
+    bytes.write(brand, 16);
+    bytes.write('mif1', 20);
+    bytes.writeUInt32BE(8, 24);
+    bytes.write('mdat', 28);
+    await add(`reject.${extension}`, bytes, mime, 400);
+  }
+  const jpg = await readFile('tests/fixtures/small.jpg');
+  await add('live-marked.jpg', withExif(jpg, appleExif(0x11)), 'image/jpeg', 400);
+  await add('after.jpg', jpg, 'image/jpeg', 201);
+  const manifest = path.join(root, 'manifest.json');
+  await writeFile(manifest, JSON.stringify({ version: 1, samples }));
+  const entries = await loadCorpus(manifest),
+    a = await reliabilityAccount();
+  const results = await verifyCorpus(entries, {
+    transport: localCorpusTransport(`http://${worker.address}:${worker.port}`),
+    account: async () => a.token,
+  });
+  assert.deepEqual(
+    results.map((r) => r.status),
+    [201, 400, 400, 400, 400, 400, 201],
+  );
+  assert.ok(results.every((r) => r.passed));
+  assert.equal(corpusSummary(entries, results).acceptedUniqueContents, 2);
+  assert.equal(corpusSummary(entries, results).declaredRealThresholdMet, false);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    2,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?').bind(a.id).first())
+      .n,
+    0,
+  );
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 2);
+});
+
+test('20MiB超限流在已知或未知长度下早停，保持4MiB策略且随后普通上传恢复', async () => {
+  for (const fault of ['multipart-20mib', 'multipart-20mib-declared']) {
+    const a = await reliabilityAccount();
+    const before = await auditSnapshot(a.id);
+    const r = await uploadBytes(a.token, await readFile('tests/fixtures/small.png'), fault);
+    assert.equal(r.status, 413);
+    const error = await r.json();
+    assert.deepEqual(error.errors[0].path, ['assetData']);
+    assert.match(error.message, /4 MiB/);
+    assert.equal(r.headers.get('x-test-body-locked'), 'false');
+    if (fault === 'multipart-20mib') assert.equal(r.headers.get('x-test-body-cancelled'), 'true');
+    else assert.ok(Number(r.headers.get('x-test-body-chunks')) <= 1); // Header rejection never acquires a body reader.
+    assert.ok(Number(r.headers.get('x-test-body-chunks')) * 65536 <= 4 * 1024 * 1024 + 3 * 65536);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+    assert.equal((await uploadFixture(a.token)).status, 201);
+    assert.equal((await syncEvents(a.token)).filter((e) => e.type === 'AssetV2').length, 1);
+  }
+});

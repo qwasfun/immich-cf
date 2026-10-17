@@ -58,9 +58,11 @@ export async function loadCorpus(manifestFile) {
       '必须为 201（支持）或 400/413（预期拒绝）',
     );
     requireCorpus(
-      ['image/jpeg', 'image/png'].includes(expected.mime),
+      ['image/jpeg', 'image/png'].includes(expected.mime) ||
+        (expected.status !== 201 &&
+          ['image/heic', 'image/heif', 'video/quicktime', 'video/mp4'].includes(expected.mime)),
       `${field}.expected.mime`,
-      '必须为 image/jpeg 或 image/png',
+      '支持项仅允许 image/jpeg、image/png；HEIC/HEIF、MOV/MP4 只能声明为 400/413 预期拒绝',
     );
     if (expected.status === 201)
       for (const dimension of ['width', 'height'])

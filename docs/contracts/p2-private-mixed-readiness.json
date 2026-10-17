@@ -1,0 +1,59 @@
+{
+  "scope": "isolated-local-private-mixed-readiness",
+  "deploymentPerformed": false,
+  "inputs": {
+    "files": 124,
+    "png": 23,
+    "dimensionOracle": "Windows System.Drawing",
+    "safetyClassificationOracle": "current production image-header parser",
+    "nativeScaledDecodeSpotChecks": 124,
+    "captureIndependenceReviewed": false,
+    "independentContents": 124,
+    "sourceFilesUnchanged": 124,
+    "jpeg": 101
+  },
+  "officialAppTestStatus": "user confirmed not yet tested",
+  "results": {
+    "accepted": 24,
+    "http201": 24,
+    "syncAckEmptyIncremental": true,
+    "batches": 7,
+    "rejected": 100,
+    "http400": 100,
+    "processExitCode": 0,
+    "logoutConfirmed": true,
+    "passed": 124
+  },
+  "sourceFilesDeleted": false,
+  "metrics": {
+    "requests": 295,
+    "transportErrors": 0,
+    "proxyRequests": 0
+  },
+  "remoteUpload": false,
+  "cpuWorkPaused": true,
+  "privateIdentifiersExported": false,
+  "checkedAt": "2026-10-17T19:57:20.067Z",
+  "failure": null,
+  "businessWorkerChanged": false,
+  "initialAllStaticAssumption": {
+    "processed": 0,
+    "complete": false,
+    "reason": "First request rejected for Live Photo pairing metadata; original failure report retained locally"
+  },
+  "summary": {
+    "samples": 124,
+    "accepted": 24,
+    "acceptedUniqueContents": 24,
+    "declaredRealEntries": 24,
+    "declaredRealUniqueContents": 24,
+    "declaredRealUniqueCaptures": 24,
+    "syntheticEntries": 0,
+    "declaredRealThresholdMet": false,
+    "provenanceIndependentlyVerified": false,
+    "fullDecodeVerified": false,
+    "officialAppVerified": false,
+    "g1Passed": false
+  },
+  "complete": true
+}

@@ -4,7 +4,7 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
-当前为 **P1 小图片实验**：dev 支持身份、会话、onboarding、少量 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 4 MiB / 400 万像素，每账户最多 20 张；官方 iOS 单张上传、显示与预览已获用户确认；完整备份仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
+当前处于 **P2 媒体与可靠性验证**：dev 已具备身份、会话、onboarding、有限 JPEG/PNG 上传、私有图片读取和资产 Sync。单张最多 4 MiB / 6400 万像素、单边 16384，每账户最多 20 张；官方 iOS 原小图片上传、显示与预览已获用户确认；高像素、混合队列、完整备份和 G1 仍待验收。`/healthz` 成功仅表示 Worker 正在运行。
 
 ## 需求与开发顺序
 
@@ -96,3 +96,5 @@ pnpm check
 - [P2 手机尺寸原图与像素上限](docs/p2-image-limits.md)：6400 万像素、单边 16384，保留 4 MiB 与 Live Photo 防护；已部署 dev，含公网验证与 iOS 验收步骤。
 
 - [P2 高像素原图异常恢复](docs/p2-large-pixel-recovery.md)：实际编码 48MP PNG、存储故障/重启/并发恢复与 reset/ACK 交错回归，以及固定合成公网探针。
+
+- [P2 逐项计划与退出验收](docs/p2-plan.md)：六项任务、真实混合拒绝样本、特殊格式清单与未通过关口。

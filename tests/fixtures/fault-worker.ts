@@ -25,6 +25,34 @@ export default {
     if (!fault && !gateId && !countReads) return app.fetch(request, env);
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
+    if (fault === 'multipart-20mib' || fault === 'multipart-20mib-declared') {
+      await clean.arrayBuffer();
+      const prefix = new TextEncoder().encode(
+        '--large\r\nContent-Disposition: form-data; name="assetData"; filename="large.png"\r\nContent-Type: image/png\r\n\r\n',
+      );
+      const suffix = new TextEncoder().encode('\r\n--large--\r\n');
+      const block = new Uint8Array(65536);
+      let step = 0;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          bodyChunks++;
+          if (step === 0) controller.enqueue(prefix);
+          else if (step <= 320) controller.enqueue(block);
+          else if (step === 321) controller.enqueue(suffix);
+          else controller.close();
+          step++;
+        },
+        cancel() {
+          bodyCancelled = true;
+        },
+      });
+      const headers = new Headers(clean.headers);
+      headers.set('content-type', 'multipart/form-data; boundary=large');
+      headers.delete('content-length');
+      if (fault === 'multipart-20mib-declared')
+        headers.set('content-length', String(prefix.length + 20 * 1024 * 1024 + suffix.length));
+      clean = new Request(clean.url, { method: clean.method, headers, body: stream });
+    }
     if (fault === 'multipart-byte-split' || fault === 'multipart-block-split') {
       // Inject the requested chunk boundaries after the real HTTP body was received.
       const bytes = new Uint8Array(await clean.arrayBuffer());

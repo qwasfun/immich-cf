@@ -149,3 +149,79 @@ test('样本验收保留服务端具体字段原因，即使退出失败也不�
       !e.message.includes('not-exported-token'),
   );
 });
+
+test('拒绝格式清单允许HEIC/HEIF/MOV/MP4，但不能将它们申报为支持或计入真实通过数', async () => {
+  const { manifest } = await fixture();
+  for (const mime of ['image/heic', 'image/heif', 'video/quicktime', 'video/mp4']) {
+    for (const status of [400, 413]) {
+      const item = { ...sample(), expected: { status, mime } };
+      await writeFile(manifest, JSON.stringify({ version: 1, samples: [item] }));
+      const entries = await loadCorpus(manifest);
+      assert.equal(entries[0].expected.mime, mime);
+      assert.equal(
+        corpusSummary(entries, [{ index: 0, accepted: false, passed: true }]).accepted,
+        0,
+      );
+    }
+    await writeFile(
+      manifest,
+      JSON.stringify({
+        version: 1,
+        samples: [{ ...sample(), expected: { status: 201, mime, width: 320, height: 240 } }],
+      }),
+    );
+    await assert.rejects(
+      loadCorpus(manifest),
+      (e) => e.field === 'samples.0.expected.mime' && /只能声明/.test(e.message),
+    );
+  }
+});
+
+test('本机拒绝格式传输保留MIME和匿名后缀，不将HEIC或MOV伪装成JPEG', async (t) => {
+  const { createServer } = await import('node:http');
+  const { once } = await import('node:events');
+  const seen = [];
+  const server = createServer(async (req, res) => {
+    try {
+      const chunks = [];
+      for await (const b of req) chunks.push(b);
+      const request = new Request('http://127.0.0.1/api/assets', {
+        method: 'POST',
+        headers: req.headers,
+        body: Buffer.concat(chunks),
+      });
+      const file = (await request.formData()).get('assetData');
+      seen.push({ name: file.name, mime: file.type });
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end('{}');
+    } catch {
+      res.writeHead(500);
+      res.end();
+    }
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const transport = localCorpusTransport(`http://127.0.0.1:${server.address().port}`);
+  const cases = [
+    ['image/heic', 'heic'],
+    ['image/heif', 'heif'],
+    ['video/quicktime', 'mov'],
+    ['video/mp4', 'mp4'],
+  ];
+  for (const [index, [mime]] of cases.entries())
+    assert.equal(
+      (
+        await transport.upload(
+          { index, expected: { mime } },
+          Buffer.from('synthetic-rejection'),
+          'local-only-test-token',
+        )
+      ).status,
+      400,
+    );
+  assert.deepEqual(
+    seen,
+    cases.map(([mime, extension], index) => ({ mime, name: `sample-${index}.${extension}` })),
+  );
+});

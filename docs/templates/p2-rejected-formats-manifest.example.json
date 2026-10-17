@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "file": "ordinary-before.png",
+      "provenance": "user-original",
+      "captureId": "capture-before",
+      "expected": { "status": 201, "mime": "image/png", "width": 1600, "height": 1200 }
+    },
+    {
+      "file": "unsupported.heic",
+      "provenance": "user-original",
+      "captureId": "capture-heic",
+      "expected": { "status": 400, "mime": "image/heic" }
+    },
+    {
+      "file": "paired.mov",
+      "provenance": "user-original",
+      "captureId": "capture-heic",
+      "expected": { "status": 400, "mime": "video/quicktime" }
+    },
+    {
+      "file": "unsupported.mp4",
+      "provenance": "user-original",
+      "captureId": "capture-video",
+      "expected": { "status": 400, "mime": "video/mp4" }
+    },
+    {
+      "file": "ordinary-after.jpg",
+      "provenance": "user-original",
+      "captureId": "capture-after",
+      "expected": { "status": 201, "mime": "image/jpeg", "width": 1600, "height": 1200 }
+    }
+  ]
+}
