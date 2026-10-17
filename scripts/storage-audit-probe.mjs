@@ -55,6 +55,7 @@ try {
       observations.push({
         kind: entry.kind,
         objectStatus: entry.objectStatus,
+        ...(entry.kind === 'asset' ? { checksumRequired: entry.checksumRequired } : {}),
         ...(entry.relation ? { relation: entry.relation } : {}),
       });
     if (!data.nextAfter) {

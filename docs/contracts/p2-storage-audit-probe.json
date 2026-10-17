@@ -1,0 +1,169 @@
+{
+  "checkedAt": "2026-10-17T00:18:08.765Z",
+  "complete": true,
+  "failure": null,
+  "logout": 200,
+  "observations": [
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false
+    }
+  ],
+  "metrics": [
+    {
+      "path": "/api/auth/login",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 201,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000037,
+      "connectSeconds": 0.000562,
+      "tlsSeconds": 0.745329,
+      "pretransferSeconds": 0.745446,
+      "uploadedBytes": 76,
+      "uploadFinishedSeconds": 0.745446,
+      "firstByteSeconds": 2.390216,
+      "downloadedBytes": 267,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.392073,
+      "speedUpload": 31
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000044,
+      "connectSeconds": 0.000646,
+      "tlsSeconds": 0.78748,
+      "pretransferSeconds": 0.787607,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 0.787607,
+      "firstByteSeconds": 5.502146,
+      "downloadedBytes": 2288,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 5.50281,
+      "speedUpload": 0
+    },
+    {
+      "path": "/api/auth/logout",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000038,
+      "connectSeconds": 0.000491,
+      "tlsSeconds": 0.831397,
+      "pretransferSeconds": 0.831537,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 0.831537,
+      "firstByteSeconds": 1.621551,
+      "downloadedBytes": 37,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 1.622525,
+      "speedUpload": 1
+    }
+  ],
+  "scope": "public-read-only-observations",
+  "remoteStorageFaultInjected": false,
+  "officialAppVerified": false,
+  "snapshotConsistent": false,
+  "deployedCommit": "55fbdfd",
+  "deployedVersion": "9da964af-5567-460b-9d26-8d9534c2bc45"
+}

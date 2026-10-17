@@ -17,3 +17,13 @@ D1 查询与多个 R2 HEAD、分页之间不是一致性快照，响应固定 ob
 CPU 超预算继续暂缓；100 张真实照片、官方 iOS 混合队列以及 G1 仍未完成。
 
 本轮决策：可继续 dev 只读诊断与原有小图实验；不可据对账报告自动删除数据或宣告 P2/G1 完成。发现 missing、摘要异常或 unavailable 时保留手机原件，先确认网络/存储恢复，再重传同一图片并重新核对。published-checksum 的预约保留既有引用，仍不计双份逻辑名额。
+
+## 本轮验证与 dev 发布
+
+2026-10-17：代码提交 `55fbdfd`，dev 版本 `9da964af-5567-460b-9d26-8d9534c2bc45`。通过本机代理由 Wrangler 发布，无待执行迁移，数据库保持 0012。`pnpm check` 91 项测试全部通过、无跳过，格式/lint/类型和 dry-run 通过；冻结契约仍为 279 个操作、53 个来源。构建 196.69 KiB / gzip 48.92 KiB。
+
+公网只读核对 18 条资产：4 条 verified 且 checksumRequired=true；14 条 checksum-unavailable 且 checksumRequired=false，属于历史未升级对象，不能据此认定原图损坏或丢失。本轮没有为升级摘要而上传私人原件，也没有改变旧对象读取策略。临时会话退出 200，无传输错误。见[脱敏对账报告](contracts/p2-storage-audit-probe.json)。
+
+已有上传去重、预检查、原图逐字节读取、Sync/ACK、退出均通过，见[正常链路报告](contracts/p2-storage-audit-bulk-probe.json)。故障、跨页及账户隔离只在本地隔离资源注入验证；公网报告不代表远程异常注入或官方 iOS 实测。
+
+完整 4 MiB 混合 HTTP 队列通过：[最终报告](contracts/p2-storage-audit-mixed-probe.json)、[尝试与进度](contracts/p2-storage-audit-mixed-progress.json)。10 项上传检查、10 次上传尝试、18 次分段原图读取无传输错误，4 张合规图片原图字节一致；Sync/ACK、随后空增量和退出 200。此为合成数据的服务端 HTTP 回归，不替代官方 App 调度、重试真机验收或 100 张真实照片验证。
