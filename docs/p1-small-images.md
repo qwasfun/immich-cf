@@ -18,7 +18,7 @@
 
 ### 限制与校验
 
-JPEG/PNG 静态图片，单文件最多 4 MiB；请求体最多 4 MiB + 64 KiB，不依赖 Content-Length 进行最终限流。当前 dev 分支宽高不超过 16384，最多 6400 万像素（[本机变更，尚未部署](p2-image-limits.md)）；每用户最多 20 张，D1 触发器约束并发容量。文件类型按内容头识别，接受官方 App 默认的 application/octet-stream 文件 MIME。
+JPEG/PNG 静态图片，单文件最多 4 MiB；请求体最多 4 MiB + 64 KiB，不依赖 Content-Length 进行最终限流。当前 dev 分支宽高不超过 16384，最多 6400 万像素（[已部署 dev，真机待验](p2-image-limits.md)）；每用户最多 20 张，D1 触发器约束并发容量。文件类型按内容头识别，接受官方 App 默认的 application/octet-stream 文件 MIME。
 
 必填 fileCreatedAt/fileModifiedAt；isFavorite 支持 true/false，visibility 仅 timeline，duration 仅 0。拒绝 HEIC、视频、Live Photo、sidecar、动画 PNG。保留一项最多 8 KiB 的 mobile-app JSON 元数据及相应 Sync 事件；旧 deviceId/deviceAssetId 不参与跨用户标识。字段错误具体返回 errors/path，不回显提交值。
 

@@ -93,4 +93,4 @@ pnpm check
 
 - [P2 真实 JPEG/PNG 样本验收工具](docs/p2-real-media-corpus.md)：私人清单、隔离本地存储、独立尺寸和去重统计，不默认上传公网。
 
-- [P2 手机尺寸原图与像素上限](docs/p2-image-limits.md)：6400 万像素、单边 16384，保留 4 MiB 与 Live Photo 防护；仅本机验证，尚未部署。
+- [P2 手机尺寸原图与像素上限](docs/p2-image-limits.md)：6400 万像素、单边 16384，保留 4 MiB 与 Live Photo 防护；已部署 dev，含公网验证与 iOS 验收步骤。
