@@ -54,6 +54,7 @@ async function request(path, data, method = 'POST', retry = true) {
     r = await curlRequest(base + path, {
       ...transport,
       method,
+      maxResponseBytes: method === 'GET' ? 4 * 1024 * 1024 : 65536,
       timeoutMs: Math.min(left, 20000),
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

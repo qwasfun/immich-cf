@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-17T06:00:35.752Z",
+  "scope": "dev-read-only-d1-aggregate",
+  "assets": 18,
+  "verified": 18,
+  "retained_sources": 14,
+  "same_reference": 0,
+  "deployedCommit": "b8de7d3",
+  "deployedVersion": "3d500a57-dafe-4a62-8735-2be54e947825"
+}

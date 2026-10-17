@@ -1,0 +1,169 @@
+{
+  "checkedAt": "2026-10-17T06:00:10.733Z",
+  "complete": true,
+  "failure": null,
+  "logout": 200,
+  "observations": [
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    }
+  ],
+  "metrics": [
+    {
+      "path": "/api/auth/login",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 201,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000029,
+      "connectSeconds": 0.000493,
+      "tlsSeconds": 0.796526,
+      "pretransferSeconds": 0.796648,
+      "uploadedBytes": 76,
+      "uploadFinishedSeconds": 0.796648,
+      "firstByteSeconds": 2.287556,
+      "downloadedBytes": 267,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.288125,
+      "speedUpload": 33
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000028,
+      "connectSeconds": 0.000563,
+      "tlsSeconds": 1.129152,
+      "pretransferSeconds": 1.129281,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 1.129281,
+      "firstByteSeconds": 6.289346,
+      "downloadedBytes": 2105,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 6.291245,
+      "speedUpload": 0
+    },
+    {
+      "path": "/api/auth/logout",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000028,
+      "connectSeconds": 0.000517,
+      "tlsSeconds": 2.230983,
+      "pretransferSeconds": 2.231097,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 2.231097,
+      "firstByteSeconds": 2.979099,
+      "downloadedBytes": 37,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 2.992088,
+      "speedUpload": 0
+    }
+  ],
+  "scope": "public-read-only-observations",
+  "remoteStorageFaultInjected": false,
+  "officialAppVerified": false,
+  "snapshotConsistent": false,
+  "deployedCommit": "b8de7d3",
+  "deployedVersion": "3d500a57-dafe-4a62-8735-2be54e947825"
+}

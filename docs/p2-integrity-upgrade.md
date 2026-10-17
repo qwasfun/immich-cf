@@ -31,8 +31,24 @@ R2 与 D1 之间没有跨服务事务，外部删除/修改仍可能在检查后
 
 ## 本机工具与回归
 
-`node scripts/integrity-upgrade-probe.mjs` 默认预检一条历史资产；`--apply --limit 20` 顺序升级至多 20 条。固定 dev URL 与已确认代理 127.0.0.1:7890，curl HTTP/1.1 + TLS 1.2，证书校验开启；凭据从忽略的 work/dev-account.json 读取。单请求最多 3 次、每次 20 秒、总预算 60 秒；只重试可恢复传输错误和 502/503/504，不重试 400/401/409/证书错误。登录不自动重试，避免制造不确定会话。读取后核对 D1 摘要，升级后复用有界 Range 恢复逐字节比较；报告只保留大小、状态与脱敏传输指标，不落盘照片内容。
+`node scripts/integrity-upgrade-probe.mjs` 默认预检一条历史资产；`--apply --limit 20` 顺序升级至多 20 条。固定 dev URL 与已确认代理 127.0.0.1:7890，curl HTTP/1.1 + TLS 1.2，证书校验开启；凭据从忽略的 work/dev-account.json 读取。单请求最多 3 次、每次 20 秒、总预算 60 秒；只重试可恢复传输错误和 502/503/504，不重试 400/401/409/证书错误。登录不自动重试，避免制造不确定会话。读取后核对 D1 摘要，升级后复用有界 Range 恢复逐字节比较；报告只保留大小、状态与脱敏传输指标，报告不包含照片内容；curl 临时响应文件由既有工具清理。
 
 本地覆盖：预检零写入、旧原图/预约/元数据保留、幂等、Sync 游标不变、源缺失与等长损坏、异常目标和条件创建竞争、R2/事务失败及响应丢失、并发 CAS、会话撤销/过期、账户隔离与字段错误、4 MiB 边界、副本缺失/损坏恢复和坏源拒绝。完整套件继续执行密码、Live Photo 和 reset/ACK 并发隔离回归。
 
 Go：本机与 dev 的逐项预检及安全升级。No-Go：自动删除旧原图/预约、跳过摘要校验、降低密码或同步隔离要求、宣称真实 iOS 混合队列/100 张照片/CPU 关口完成。若回退 Worker，保留 0013 和原生摘要标记；旧版本仍读取既有 object_key，不回退到未知原图或清除源路径。
+
+安全清理边界：未来任何 GC/存储对账扩展都必须同时保留 assets.object_key、assets.integrity_source_key 和 upload_intents.object_key 的引用。当前只读对账只检查当前资产与预约，不能把未出现在当前路径列表中的历史原图当作孤立对象删除。
+
+## 本轮本机验证与 dev 发布
+
+代码 `b8de7d3`，dev 版本 `3d500a57-dafe-4a62-8735-2be54e947825`。2026-10-17 通过已确认的本机代理由 Wrangler 应用 0013 并成功发布。迁移和旧 Worker 在发布窗口兼容；test/生产未变更。
+
+最终 `pnpm check` 99 项测试通过，无失败或跳过，格式/lint/类型及 dry-run 构建通过。包括非空 SQLite 的 0013 数据保留检查，以及实际本地 Wrangler 迁移/Worker/D1/R2 的升级与恢复测试。冻结契约保持 279 个操作、53 个来源。构建 201.77 KiB / gzip 49.87 KiB。
+
+首轮公网探针在读取大于 64 KiB 的原图时触发工具默认 JSON 响应上限，未进入 apply；修正为原图单独 4 MiB 上限后，只读预检、摘要和字节比较、空增量及退出均通过。JSON 响应仍保持 64 KiB；没有扩大服务端上传限额或关闭证书验证。首次记录保留在本机 work/integrity-upgrade-preflight-initial.json。
+
+公网预检[首次工具限额记录](contracts/p2-integrity-preflight-initial.json)与[修复后通过记录](contracts/p2-integrity-preflight-probe.json)均保留。普通去重/预检查/原图/Sync/ACK 复测出现一次 CURL_35，已按间歇性网络波动保留[首次记录](contracts/p2-integrity-bulk-first.json)，只重试一轮后[完整通过](contracts/p2-integrity-bulk-probe.json)；不将此单次网络波动归因为服务端缺陷。
+
+历史资产升级已完成：[14 项顺序升级报告](contracts/p2-integrity-upgrade-probe.json)。每项原图摘要核对、预检、apply、重复请求和升级前后原图逐字节对比通过；批次后 Sync 仅 Complete、退出 200，升级链路无传输错误。报告不保存原图内容、资产 ID、存储路径或摘要。
+
+升级后[独立 R2 对账](contracts/p2-integrity-upgrade-audit.json)观察到 18 条当前资产全部 verified、checksumRequired=true；[D1 只读汇总](contracts/p2-integrity-upgrade-db.json)确认资产仍为 18 条，14 条持久源引用、没有源路径与当前副本路径相同的记录。14 条旧无摘要资产均已升级，其余 4 条既有已验证资产保留。原图备份和预约未执行清理；公网未注入损坏，副本异常恢复仅由前述本地回归证明。CPU 超预算、iOS 真机混合队列、100 张真实照片与 G1 仍未关闭。
