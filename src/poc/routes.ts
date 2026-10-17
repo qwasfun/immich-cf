@@ -7,8 +7,10 @@ import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
 import { repairDimensions } from './repair-dimensions';
 import { storageAudit } from './storage-audit';
+import { upgradeIntegrity } from './upgrade-integrity';
 
 const methods: Record<string, string[]> = {
+  '/api/immich-cf/upgrade-integrity': ['POST'],
   '/api/immich-cf/storage-audit': ['POST'],
   '/api/immich-cf/repair-dimensions': ['POST'],
   '/api/assets': ['POST'],
@@ -148,6 +150,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/immich-cf/upgrade-integrity') return upgradeIntegrity(request, env, identity);
   if (path === '/api/immich-cf/storage-audit') return storageAudit(request, env, identity);
   if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);
   if (path === '/api/assets') return upload(request, env, identity);

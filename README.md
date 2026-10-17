@@ -84,3 +84,5 @@ pnpm check
 - [P2 CPU 预算探针](docs/p2-budget-probe.md)：平台 CPU 实测、免费预算关口及后续限制。
 
 - [P2 认证评估与同步优化](docs/p2-auth-sync-cpu.md)：标准 KDF 的线上边界、检查点读取优化与复测。
+
+- [P2 历史原生摘要升级与恢复](docs/p2-integrity-upgrade.md)：保留原图及预约，校验副本、持久源引用和有界重试。

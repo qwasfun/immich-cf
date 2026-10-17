@@ -3008,3 +3008,282 @@ test('对账入口要求认证，游标与误用写入参数返回具体字段�
   }
   assert.equal((await worker.fetch(auditPath)).status, 405);
 });
+
+const upgradePath = '/api/immich-cf/upgrade-integrity';
+async function legacyIntegrity() {
+  const a = await reliabilityAccount();
+  const { id } = await (await uploadFixture(a.token)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  const bytes = await readFile('tests/fixtures/small.png');
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes, {
+    httpMetadata: { contentType: 'image/png', cacheControl: 'private', contentLanguage: 'en' },
+    customMetadata: { retained: 'original' },
+  });
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
+  await db
+    .prepare('INSERT INTO upload_intents VALUES (?,?,?,?,?)')
+    .bind(a.id, row.checksum, crypto.randomUUID(), row.object_key, row.created_at)
+    .run();
+  return {
+    ...a,
+    assetId: id,
+    row: { ...row, r2_sha1_verified: 0 },
+    bytes,
+    target: `${a.id}/${id}/verified-sha1-${Buffer.from(row.checksum, 'base64').toString('hex')}`,
+  };
+}
+const integrityFault = (a, fault) =>
+  worker.fetch(upgradePath, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${a.token}`,
+      'x-test-storage-fault': fault,
+    },
+    body: JSON.stringify({ id: a.assetId, apply: true }),
+  });
+
+test('历史原图预检只读，摘要副本升级保留原图/预约/元数据与同步游标，重复请求幂等', async () => {
+  const a = await legacyIntegrity();
+  const intents = (
+    await db.prepare('SELECT * FROM upload_intents WHERE owner_id=?').bind(a.id).all()
+  ).results;
+  const clock = await db.prepare('SELECT * FROM asset_sync_clock').first();
+  const original = await platform.env.IMMICH_CF_MEDIA.head(a.row.object_key);
+  const preview = await (await send(upgradePath, { id: a.assetId }, a.token)).json();
+  assert.equal(preview.applied, false);
+  assert.equal(preview.sourceBytesVerified, true);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(a.target), null);
+  assert.deepEqual(
+    await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first(),
+    a.row,
+  );
+  const events = await syncEvents(a.token);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+  const applied = await (await send(upgradePath, { id: a.assetId, apply: true }, a.token)).json();
+  assert.equal(applied.applied, true);
+  assert.equal(applied.originalRetained, true);
+  const upgraded = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first();
+  assert.deepEqual(upgraded, {
+    ...a.row,
+    object_key: a.target,
+    r2_sha1_verified: 1,
+    integrity_source_key: a.row.object_key,
+  });
+  assert.deepEqual(await db.prepare('SELECT * FROM asset_sync_clock').first(), clock);
+  assert.deepEqual(
+    (await db.prepare('SELECT * FROM upload_intents WHERE owner_id=?').bind(a.id).all()).results,
+    intents,
+  );
+  const source = await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key);
+  const copy = await platform.env.IMMICH_CF_MEDIA.get(a.target);
+  assert.equal(source.etag, original.etag);
+  assert.deepEqual(Buffer.from(await source.arrayBuffer()), a.bytes);
+  assert.deepEqual(Buffer.from(await copy.arrayBuffer()), a.bytes);
+  assert.deepEqual(copy.customMetadata, { retained: 'original' });
+  assert.equal(copy.httpMetadata.cacheControl, 'private');
+  assert.ok(copy.checksums.sha1);
+  assert.equal(
+    (await (await send(upgradePath, { id: a.assetId, apply: true }, a.token)).json())
+      .alreadyVerified,
+    true,
+  );
+  assert.deepEqual(
+    (await syncEvents(a.token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  const served = await worker.fetch(`/api/assets/${a.assetId}/original`, {
+    headers: { Authorization: `Bearer ${a.token}` },
+  });
+  assert.deepEqual(Buffer.from(await served.arrayBuffer()), a.bytes);
+});
+
+test('历史摘要升级遇到源缺失/错误或目标竞争不改写原图与数据库', async () => {
+  for (const fault of ['missing', 'size', 'checksum', 'target-existing', 'upgrade-target-race']) {
+    const a = await legacyIntegrity();
+    if (fault === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(a.row.object_key);
+    if (fault === 'size')
+      await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, Buffer.from([1]));
+    if (fault === 'checksum') {
+      const bytes = Buffer.from(a.bytes);
+      bytes[0] ^= 1;
+      await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, bytes);
+    }
+    if (fault === 'target-existing')
+      await platform.env.IMMICH_CF_MEDIA.put(a.target, Buffer.from([9, 8, 7]));
+    const response =
+      fault === 'upgrade-target-race'
+        ? await integrityFault(a, fault)
+        : await send(upgradePath, { id: a.assetId, apply: true }, a.token);
+    assert.equal(response.status, 409, fault);
+    assert.deepEqual((await response.json()).errors[0].path, ['id']);
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first(),
+      a.row,
+    );
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      1,
+    );
+    if (fault.startsWith('target-') || fault === 'upgrade-target-race') {
+      assert.deepEqual(
+        Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.target)).arrayBuffer()),
+        Buffer.from([9, 8, 7]),
+      );
+      assert.deepEqual(
+        Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key)).arrayBuffer()),
+        a.bytes,
+      );
+    }
+  }
+});
+
+test('摘要升级存储/事务故障和响应丢失后重试恢复，不删除原图与预约', async () => {
+  for (const fault of ['get-r2', 'before-r2', 'after-r2', 'integrity-upgrade-db', 'after-d1']) {
+    const a = await legacyIntegrity();
+    const failed = await integrityFault(a, fault);
+    assert.equal(failed.status, 503, fault);
+    assert.deepEqual((await failed.json()).errors[0].path, ['id']);
+    assert.deepEqual(
+      Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key)).arrayBuffer()),
+      a.bytes,
+    );
+    assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+    assert.equal(
+      (await db.prepare('SELECT r2_sha1_verified FROM assets WHERE id=?').bind(a.assetId).first())
+        .r2_sha1_verified,
+      1,
+    );
+    assert.equal(
+      (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length,
+      2,
+    );
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      1,
+    );
+  }
+});
+
+test('摘要升级 CAS 拒绝并发旧操作、会话撤销/过期和资产改变', async () => {
+  for (const change of ['upgraded', 'revoked', 'expired', 'asset']) {
+    const a = await legacyIntegrity();
+    const held = await pausedSyncRequest(a.token, upgradePath, 'POST', {
+      id: a.assetId,
+      apply: true,
+    });
+    try {
+      if (change === 'upgraded')
+        assert.equal(
+          (await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status,
+          200,
+        );
+      if (change === 'revoked')
+        assert.equal((await send('/api/auth/logout', {}, a.token)).status, 200);
+      if (change === 'expired')
+        await db.prepare('UPDATE sessions SET expires_at=1 WHERE user_id=?').bind(a.id).run();
+      if (change === 'asset')
+        await db.prepare('UPDATE assets SET width=321 WHERE id=?').bind(a.assetId).run();
+      await held.release();
+      assert.equal((await held.response).status, 409, change);
+      const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first();
+      assert.equal(row.r2_sha1_verified, change === 'upgraded' ? 1 : 0);
+      assert.deepEqual(
+        Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key)).arrayBuffer()),
+        a.bytes,
+      );
+    } finally {
+      await held.release();
+    }
+  }
+});
+
+test('摘要升级认证、账户隔离和字段校验，不静默修复已声明验证的坏对象', async () => {
+  const a = await legacyIntegrity();
+  const other = await reliabilityAccount();
+  assert.equal((await send(upgradePath, { id: a.assetId })).status, 401);
+  assert.equal((await send(upgradePath, { id: a.assetId }, other.token)).status, 404);
+  for (const [input, field] of [
+    [{}, 'id'],
+    [{ id: a.assetId, apply: 'yes' }, 'apply'],
+    [{ id: a.assetId, delete: true }, 'delete'],
+  ]) {
+    const response = await send(upgradePath, input, a.token);
+    assert.equal(response.status, 400);
+    assert.deepEqual((await response.json()).errors[0].path, [field]);
+  }
+  await db.prepare('UPDATE assets SET r2_sha1_verified=1 WHERE id=?').bind(a.assetId).run();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 409);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(a.target), null);
+});
+
+test('持久源引用支持缺失/损坏校验副本恢复，不降级摘要要求；坏备份拒绝恢复', async () => {
+  for (const fault of ['missing', 'corrupt', 'bad-source']) {
+    const a = await legacyIntegrity();
+    assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+    if (fault === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(a.target);
+    else await platform.env.IMMICH_CF_MEDIA.put(a.target, Buffer.from([7]));
+    if (fault === 'bad-source')
+      await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, Buffer.from([9]));
+    const before = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first();
+    const response = await send(upgradePath, { id: a.assetId, apply: true }, a.token);
+    assert.equal(response.status, fault === 'bad-source' ? 409 : 200);
+    assert.deepEqual(
+      await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first(),
+      before,
+    );
+    if (fault !== 'bad-source') {
+      assert.equal((await response.json()).recovering, true);
+      const source = await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key);
+      const copy = await platform.env.IMMICH_CF_MEDIA.get(a.target);
+      assert.deepEqual(Buffer.from(await source.arrayBuffer()), a.bytes);
+      assert.deepEqual(Buffer.from(await copy.arrayBuffer()), a.bytes);
+      assert.ok(copy.checksums.sha1);
+    }
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      1,
+    );
+  }
+});
+
+test('4 MiB 历史原图可完整升级，超限历史记录预检拒绝且不新增副本', async () => {
+  const { mixedCases } = await import('./fixtures/mixed-queue.mjs');
+  const bytes = (await mixedCases()).find((e) => e.name === 'at-limit').bytes;
+  const a = await reliabilityAccount();
+  const { id } = await (await uploadBytes(a.token, bytes)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
+  assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 200);
+  const upgraded = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  assert.equal(upgraded.integrity_source_key, row.object_key);
+  assert.deepEqual(
+    Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(upgraded.object_key)).arrayBuffer()),
+    bytes,
+  );
+  await db
+    .prepare('UPDATE assets SET r2_sha1_verified=0,bytes=? WHERE id=?')
+    .bind(bytes.length + 1, id)
+    .run();
+  assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 409);
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 2);
+});

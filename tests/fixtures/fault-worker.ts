@@ -127,6 +127,9 @@ export default {
         if (key === 'put')
           return async (...args: Parameters<R2Bucket['put']>) => {
             if (fault === 'before-r2') throw new Error('TEST_R2_UNAVAILABLE');
+            if (fault === 'upgrade-target-race') {
+              await target.put(args[0], new Uint8Array([9, 8, 7]));
+            }
             if (fault === 'put-wrong-sha1') args[2] = { ...args[2], sha1: new Uint8Array(20) };
             if (fault === 'put-no-sha1') {
               const { sha1: ignored, ...rest } = args[2] ?? {};
