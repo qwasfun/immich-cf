@@ -112,7 +112,7 @@ export async function authenticate(request: Request, db: D1Database): Promise<Id
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, '请先登录');
   const identity = await db
     .prepare(
-      'SELECT users.*, sessions.id AS session_id, sessions.expires_at, sessions.reset_pending, (SELECT COALESCE(SUM(bytes),0) FROM assets WHERE owner_id = users.id) AS quota_usage, (SELECT COALESCE(MAX(seq),0) FROM assets WHERE owner_id = users.id) AS asset_revision FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND disabled = 0',
+      'SELECT users.*, sessions.id AS session_id, sessions.expires_at, sessions.reset_pending, (SELECT COALESCE(SUM(bytes),0) FROM assets WHERE owner_id = users.id) AS quota_usage, COALESCE((SELECT revision FROM asset_owner_revisions WHERE owner_id=users.id),0) AS asset_revision FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ? AND disabled = 0',
     )
     .bind(await digest(token), Date.now())
     .first<Identity>();

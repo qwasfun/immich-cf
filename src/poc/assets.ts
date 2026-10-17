@@ -376,10 +376,18 @@ export async function assetEvents(
   reset = false,
 ) {
   if (!types.includes('AssetsV2') && !types.includes('AssetMetadataV1')) return [];
-  const rows = await db
-    .prepare('SELECT * FROM assets WHERE owner_id = ? ORDER BY sync_seq')
-    .bind(identity.id)
-    .all<Asset>();
+  const watermark = (await db
+    .prepare('SELECT value FROM asset_sync_clock WHERE id=1')
+    .first<{ value: number }>())!.value;
+  const floor = (type: string) => (reset ? 0 : Number(checkpoints.get(type)?.split('|')[1] ?? 0));
+  const rows = types.includes('AssetsV2')
+    ? await db
+        .prepare(
+          'SELECT * FROM assets WHERE owner_id=? AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq',
+        )
+        .bind(identity.id, floor('AssetV2'), watermark)
+        .all<Asset>()
+    : { results: [] };
   const events: { type: string; ack: string; data: unknown }[] = [];
   const metadataEvents: typeof events = [];
   for (const row of rows.results) {
@@ -390,10 +398,51 @@ export async function assetEvents(
         (type === 'AssetMetadataV1' ? metadataEvents : events).push({ type, ack, data });
     };
     if (types.includes('AssetsV2')) add('AssetV2', assetDto(row));
-    if (types.includes('AssetMetadataV1'))
-      for (const entry of JSON.parse(row.metadata))
-        add('AssetMetadataV1', { assetId: row.id, ...entry });
   }
+  if (types.includes('AssetMetadataV1')) {
+    const removed = await db
+      .prepare(
+        `SELECT t.asset_id,t.metadata_key,t.sync_seq FROM asset_metadata_tombstones t
+      WHERE t.owner_id=? AND t.sync_seq>? AND t.sync_seq<=?
+      AND NOT EXISTS(SELECT 1 FROM assets a,json_each(a.metadata) entry WHERE a.id=t.asset_id AND a.owner_id=t.owner_id AND json_extract(entry.value,'$.key')=t.metadata_key)
+      ORDER BY t.sync_seq`,
+      )
+      .bind(identity.id, floor('AssetMetadataDeleteV1'), watermark)
+      .all<{ asset_id: string; metadata_key: string; sync_seq: number }>();
+    for (const row of removed.results)
+      metadataEvents.push({
+        type: 'AssetMetadataDeleteV1',
+        ack: `AssetMetadataDeleteV1|${String(row.sync_seq).padStart(20, '0')}`,
+        data: { assetId: row.asset_id, key: row.metadata_key },
+      });
+    const metadata = await db
+      .prepare(
+        "SELECT id,metadata,sync_seq FROM assets WHERE owner_id=? AND metadata<>'[]' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq",
+      )
+      .bind(identity.id, floor('AssetMetadataV1'), watermark)
+      .all<{ id: string; metadata: string; sync_seq: number }>();
+    for (const row of metadata.results)
+      for (const entry of JSON.parse(row.metadata))
+        metadataEvents.push({
+          type: 'AssetMetadataV1',
+          ack: `AssetMetadataV1|${String(row.sync_seq).padStart(20, '0')}`,
+          data: { assetId: row.id, ...entry },
+        });
+  }
+  const deletions = types.includes('AssetsV2')
+    ? await db
+        .prepare(
+          'SELECT asset_id,sync_seq FROM asset_tombstones WHERE owner_id=? AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq',
+        )
+        .bind(identity.id, floor('AssetDeleteV1'), watermark)
+        .all<{ asset_id: string; sync_seq: number }>()
+    : { results: [] };
+  for (const row of deletions.results)
+    events.push({
+      type: 'AssetDeleteV1',
+      ack: `AssetDeleteV1|${String(row.sync_seq).padStart(20, '0')}`,
+      data: { assetId: row.asset_id },
+    });
   // Frozen upstream emits all asset rows before the metadata family.
   return [...events, ...metadataEvents];
 }

@@ -8,7 +8,10 @@ export async function storageAudit(request: Request, env: Env, identity: Identit
   for (const field of Object.keys(input))
     if (field !== 'after') invalid(field, '只读检查仅接受 after 分页字段，请移除此字段');
   const after = input.after ?? '';
-  if (typeof after !== 'string' || (after && !/^(asset|intent|source):[a-f0-9-]{36}$/i.test(after)))
+  if (
+    typeof after !== 'string' ||
+    (after && !/^(asset|intent|source|retired|retired-source):[a-f0-9-]{36}$/i.test(after))
+  )
     invalid('after', '必须使用上一页返回的 nextAfter，首次检查请省略此字段');
   const rows = await env.IMMICH_CF_DB.prepare(
     `SELECT * FROM (
@@ -23,9 +26,16 @@ export async function storageAudit(request: Request, env: Env, identity: Identit
       SELECT 'source:' || id cursor, 'source' kind, id, integrity_source_key object_key,
         bytes, checksum, 0 r2_sha1_verified, id published_id
       FROM assets WHERE owner_id=? AND integrity_source_key IS NOT NULL
+      UNION ALL
+      SELECT 'retired:' || id cursor,'retired' kind,id,object_key,bytes,checksum,
+        r2_sha1_verified,NULL published_id FROM retired_assets WHERE owner_id=?
+      UNION ALL
+      SELECT 'retired-source:' || id cursor,'retired-source' kind,id,integrity_source_key object_key,
+        bytes,checksum,0 r2_sha1_verified,NULL published_id FROM retired_assets
+        WHERE owner_id=? AND integrity_source_key IS NOT NULL
     ) WHERE cursor > ? ORDER BY cursor LIMIT 21`,
   )
-    .bind(identity.id, identity.id, identity.id, after)
+    .bind(identity.id, identity.id, identity.id, identity.id, identity.id, after)
     .all<{
       cursor: string;
       kind: string;
@@ -55,18 +65,24 @@ export async function storageAudit(request: Request, env: Env, identity: Identit
       kind: row.kind,
       id: row.id,
       objectStatus,
-      ...(row.kind === 'asset'
-        ? { checksumRequired: !!row.r2_sha1_verified }
-        : row.kind === 'source'
-          ? {
-              checksumRequired: false,
-              relation: 'retained-original',
-              publishedId: row.published_id,
-            }
-          : {
-              relation: row.published_id ? 'published-checksum' : 'pending',
-              publishedId: row.published_id,
-            }),
+      ...(row.kind === 'retired' || row.kind === 'retired-source'
+        ? {
+            checksumRequired: row.kind === 'retired' && !!row.r2_sha1_verified,
+            relation:
+              row.kind === 'retired' ? 'retained-deleted-original' : 'retained-deleted-source',
+          }
+        : row.kind === 'asset'
+          ? { checksumRequired: !!row.r2_sha1_verified }
+          : row.kind === 'source'
+            ? {
+                checksumRequired: false,
+                relation: 'retained-original',
+                publishedId: row.published_id,
+              }
+            : {
+                relation: row.published_id ? 'published-checksum' : 'pending',
+                publishedId: row.published_id,
+              }),
     });
   }
   return Response.json({

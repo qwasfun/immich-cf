@@ -1,5 +1,9 @@
 // Test-only entry point. Production builds still use src/index.ts.
 import app from '../../src/index';
+import { authenticate } from '../../src/poc/auth';
+import { retireAsset } from '../../src/poc/asset-history';
+import { HttpError } from '../../src/poc/http';
+import { compactHistory } from '../../src/poc/history-cleanup';
 
 const gates = new Map<string, { released: boolean }>();
 
@@ -22,7 +26,9 @@ export default {
     let bodyCancelled = false;
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
-    if (!fault && !gateId && !countReads) return app.fetch(request, env);
+    const retirement = new URL(request.url).pathname.match(/^\/__test\/retire\/([a-f0-9-]{36})$/i);
+    const cleanup = new URL(request.url).pathname === '/__test/history-cleanup';
+    if (!fault && !gateId && !countReads && !retirement && !cleanup) return app.fetch(request, env);
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
     if (fault === 'multipart-20mib' || fault === 'multipart-20mib-declared') {
@@ -232,7 +238,22 @@ export default {
         return typeof value === 'function' ? value.bind(target) : value;
       },
     });
-    const response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
+    let response: Response;
+    if ((retirement || cleanup) && clean.method === 'POST') {
+      try {
+        const identity = await authenticate(clean, db);
+        response = Response.json(
+          cleanup
+            ? await compactHistory(db, identity, await clean.json())
+            : await retireAsset(db, identity, retirement![1]!),
+        );
+      } catch (error) {
+        response = Response.json(
+          { message: error instanceof HttpError ? error.message : 'Test retirement failed' },
+          { status: error instanceof HttpError ? error.status : 503 },
+        );
+      }
+    } else response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
     if (fault === 'upload-read' || fault === 'upload-cancel')
       response.headers.set('x-test-body-locked', String(clean.body?.locked));
     if (fault?.startsWith('multipart-')) {

@@ -9,6 +9,8 @@ interface SyncState {
   sync_epoch: string;
   reset_pending: number;
   reset_ack: string | null;
+  asset_history_floor: number;
+  metadata_history_floor: number;
 }
 async function guarded(
   db: D1Database,
@@ -17,14 +19,25 @@ async function guarded(
   operation: string,
   statements: D1PreparedStatement[],
   acks: string[] = [],
+  historyFloor = -1,
 ) {
   const id = crypto.randomUUID();
   try {
     await db.batch([
       db
-        .prepare('INSERT INTO sync_guards VALUES (?,?,?,?,?,?)')
+        .prepare(
+          'INSERT INTO sync_guards (id,session_id,epoch,operation,acks,now_ms) VALUES (?,?,?,?,?,?)',
+        )
         .bind(id, session, epoch, operation, JSON.stringify(acks), Date.now()),
+      ...(historyFloor >= 0 && (operation === 'stream' || operation === 'reset-snapshot')
+        ? [
+            db
+              .prepare('INSERT INTO sync_history_guards VALUES (?,?,?)')
+              .bind(id, session, historyFloor),
+          ]
+        : []),
       ...statements,
+      db.prepare('DELETE FROM sync_history_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_guards WHERE id=?').bind(id),
     ]);
   } catch (error) {
@@ -52,7 +65,9 @@ export async function sync(
   }
   const input = await body(request);
   const state = await db
-    .prepare('SELECT sync_epoch,reset_pending,reset_ack FROM sessions WHERE id=?')
+    .prepare(
+      'SELECT sync_epoch,reset_pending,reset_ack,asset_history_floor,metadata_history_floor FROM sessions WHERE id=?',
+    )
     .bind(session)
     .first<SyncState>();
   if (!state) throw new HttpError(401, '会话已失效，请重新登录');
@@ -132,6 +147,21 @@ export async function sync(
         .bind(session)
         .all<{ type: string; ack: string }>();
   const checkpoints = new Map(checkpointRows.results.map((row) => [row.type, row.ack]));
+  const assetsRequested = types.includes('AssetsV2');
+  const metadataRequested = types.includes('AssetMetadataV1');
+  const historyRequested = assetsRequested || metadataRequested;
+  const historyFloor = historyRequested
+    ? ((
+        await db
+          .prepare('SELECT min_seq FROM asset_history_floor WHERE owner_id=?')
+          .bind(identity.id)
+          .first<{ min_seq: number }>()
+      )?.min_seq ?? 0)
+    : 0;
+  const deletionCheckpoint = Number(checkpoints.get('AssetDeleteV1')?.split('|')[1] ?? 0);
+  const metadataDeletionCheckpoint = Number(
+    checkpoints.get('AssetMetadataDeleteV1')?.split('|')[1] ?? 0,
+  );
   const complete = checkpoints.get('SyncCompleteV1');
   const completeTime = complete
     ? Number.parseInt(complete.split('|')[1]!.replaceAll('-', '').slice(0, 12), 16)
@@ -140,7 +170,16 @@ export async function sync(
     await guarded(db, session, epoch, 'pending', []);
     return lines([{ type: 'SyncResetV1', data: {}, ack: state.reset_ack! }]);
   }
-  if (!explicitReset && Date.now() - completeTime > 30 * 86400000) {
+  const historyExpired =
+    ((assetsRequested && historyFloor > Math.max(state.asset_history_floor, deletionCheckpoint)) ||
+      (metadataRequested &&
+        historyFloor > Math.max(state.metadata_history_floor, metadataDeletionCheckpoint))) &&
+    (checkpoints.has('SyncCompleteV1') ||
+      checkpoints.has('AssetV2') ||
+      checkpoints.has('AssetDeleteV1') ||
+      checkpoints.has('AssetMetadataV1') ||
+      checkpoints.has('AssetMetadataDeleteV1'));
+  if (!explicitReset && (Date.now() - completeTime > 30 * 86400000 || historyExpired)) {
     const next = crypto.randomUUID();
     const ack = `SyncResetV1|reset|${next}`;
     await guarded(db, session, epoch, 'reset', [
@@ -207,31 +246,65 @@ export async function sync(
   const deliveryEpoch = explicitReset ? crypto.randomUUID() : epoch;
   if (deliveryEpoch) for (const event of events) event.ack += `|${deliveryEpoch}`;
   // Progress reset and snapshot delivery registration share the generation guard transaction.
-  await guarded(db, session, epoch, explicitReset ? 'reset-snapshot' : 'stream', [
-    ...(explicitReset
-      ? [
-          db.prepare('DELETE FROM sync_checkpoints WHERE session_id=?').bind(session),
-          db.prepare('DELETE FROM sync_deliveries WHERE session_id=?').bind(session),
-          db
-            .prepare(
-              `UPDATE sessions SET sync_epoch=?,reset_pending=0,reset_ack=NULL,
+  await guarded(
+    db,
+    session,
+    epoch,
+    explicitReset ? 'reset-snapshot' : 'stream',
+    [
+      ...(metadataRequested &&
+      (explicitReset ||
+        (!checkpoints.has('SyncCompleteV1') &&
+          !checkpoints.has('AssetMetadataV1') &&
+          !checkpoints.has('AssetMetadataDeleteV1')))
+        ? [
+            db
+              .prepare(
+                'UPDATE sessions SET metadata_history_floor=MAX(metadata_history_floor,?) WHERE id=?',
+              )
+              .bind(historyFloor, session),
+          ]
+        : []),
+      ...(assetsRequested &&
+      (explicitReset ||
+        (!checkpoints.has('SyncCompleteV1') &&
+          !checkpoints.has('AssetV2') &&
+          !checkpoints.has('AssetDeleteV1')))
+        ? [
+            db
+              .prepare(
+                'UPDATE sessions SET asset_history_floor=MAX(asset_history_floor,?) WHERE id=?',
+              )
+              .bind(historyFloor, session),
+          ]
+        : []),
+      ...(explicitReset
+        ? [
+            db.prepare('DELETE FROM sync_checkpoints WHERE session_id=?').bind(session),
+            db.prepare('DELETE FROM sync_deliveries WHERE session_id=?').bind(session),
+            db
+              .prepare(
+                `UPDATE sessions SET sync_epoch=?,reset_pending=0,reset_ack=NULL,
         last_reset_ack=NULL,updated_at=? WHERE id=?`,
-            )
-            .bind(deliveryEpoch, Date.now(), session),
-        ]
-      : []),
-    db
-      .prepare('DELETE FROM sync_deliveries WHERE session_id = ? AND issued_at < ?')
-      .bind(session, Date.now() - 86400000),
-    // Keep bulk delivery registration inside the same epoch/session guard transaction.
-    db
-      .prepare(
-        `INSERT INTO sync_deliveries (session_id,type,ack,issued_at)
+              )
+              .bind(deliveryEpoch, Date.now(), session),
+          ]
+        : []),
+      db
+        .prepare('DELETE FROM sync_deliveries WHERE session_id = ? AND issued_at < ?')
+        .bind(session, Date.now() - 86400000),
+      // Keep bulk delivery registration inside the same epoch/session guard transaction.
+      db
+        .prepare(
+          `INSERT INTO sync_deliveries (session_id,type,ack,issued_at)
       SELECT ?,json_extract(value,'$[0]'),json_extract(value,'$[1]'),?
       FROM json_each(?) WHERE true
       ON CONFLICT(session_id,ack) DO UPDATE SET issued_at=excluded.issued_at`,
-      )
-      .bind(session, Date.now(), JSON.stringify(events.map((event) => [event.type, event.ack]))),
-  ]);
+        )
+        .bind(session, Date.now(), JSON.stringify(events.map((event) => [event.type, event.ack]))),
+    ],
+    [],
+    historyRequested ? historyFloor : -1,
+  );
   return lines(events);
 }

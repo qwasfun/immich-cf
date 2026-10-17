@@ -1,0 +1,51 @@
+{
+  "scope": "isolated-local-p3-infrastructure",
+  "localChecks": {
+    "complete": true,
+    "tests": 136,
+    "passed": 136,
+    "failed": 0,
+    "skipped": 0,
+    "format": true,
+    "lint": true,
+    "types": true,
+    "dryRunBuild": true
+  },
+  "contract": {
+    "operations": 279,
+    "sources": 53,
+    "unchanged": true
+  },
+  "migrations": [
+    "0014_asset_history.sql",
+    "0015_history_retention.sql",
+    "0016_asset_metadata_history.sql"
+  ],
+  "forwardNonemptyMigrationVerified": true,
+  "localQueryCost": {
+    "scope": "single-owner synthetic asset-deletion metadata query",
+    "syntheticDeletionRows": 10000,
+    "firstRowsRead": 10001,
+    "emptyIncrementalRowsRead": 1,
+    "platformBillingOrWholeRequestCostVerified": false
+  },
+  "build": {
+    "uploadKiB": 208.13,
+    "gzipKiB": 51.12
+  },
+  "originalsRetained": true,
+  "reservationsRetained": true,
+  "publicDeleteApiEnabled": false,
+  "publicMaintenanceApiEnabled": false,
+  "r2PhysicalGarbageCollectionImplemented": false,
+  "real1000AssetsVerified": false,
+  "officialAppDeletionAndRecoveryVerified": false,
+  "allSyncFamiliesScaleVerified": false,
+  "p2G1Passed": false,
+  "p3ExitPassed": false,
+  "cpuWorkPaused": true,
+  "deploymentPerformed": false,
+  "remoteMigrationPerformed": false,
+  "privatePhotosExported": false,
+  "legacySixColumnGuardVerified": true
+}
