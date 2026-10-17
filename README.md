@@ -90,3 +90,5 @@ pnpm check
 - [P2 历史原图引用对账](docs/p2-source-audit.md)：将保留原图纳入分页检查，区分未知摘要与损坏，保留全部引用。
 
 - [P2 历史原图只读完整校验](docs/p2-source-verification.md)：按需完整重算摘要，识别无原生摘要旧原图的等长损坏，不修改源或预约。
+
+- [P2 真实 JPEG/PNG 样本验收工具](docs/p2-real-media-corpus.md)：私人清单、隔离本地存储、独立尺寸和去重统计，不默认上传公网。

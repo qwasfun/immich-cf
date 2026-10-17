@@ -3623,3 +3623,72 @@ test('只读源完整校验支持4MiB边界，超限源拒绝且不改变引用�
   assert.equal((await send(upgradePath, { id, verifySource: true }, a.token)).status, 409);
   assert.deepEqual(await auditSnapshot(a.id), invalid);
 });
+
+test('真实样本验收器使用curl有界恢复，21个独立样本跨账户、预期失败后继续且不虚报真实照片', async () => {
+  const { loadCorpus, corpusSummary } = await import('../scripts/lib/real-media-corpus.mjs');
+  const { verifyCorpus, localCorpusTransport } =
+    await import('../scripts/lib/real-media-runner.mjs');
+  const root = path.join(state, 'corpus-runner');
+  await mkdir(root, { recursive: true });
+  const samples = [];
+  const { writeFile } = await import('node:fs/promises');
+  for (let i = 0; i < 21; i++) {
+    await writeFile(path.join(root, `synthetic-${i}.png`), await quotaVariant(500 + i));
+    samples.push({
+      file: `synthetic-${i}.png`,
+      provenance: 'synthetic-fixture',
+      captureId: `synthetic-${i}`,
+      expected: { status: 201, mime: 'image/png', width: 320, height: 240 },
+    });
+  }
+  await writeFile(path.join(root, 'bad.png'), Buffer.from([1, 2, 3]));
+  samples.splice(1, 0, {
+    file: 'bad.png',
+    provenance: 'synthetic-fixture',
+    captureId: 'bad',
+    expected: { status: 400, mime: 'image/png' },
+  });
+  const manifest = path.join(root, 'manifest.json');
+  await writeFile(manifest, JSON.stringify({ version: 1, samples }));
+  const entries = await loadCorpus(manifest);
+  const accounts = [],
+    metrics = [];
+  const transport = localCorpusTransport(`http://${worker.address}:${worker.port}`, (m) =>
+    metrics.push(m),
+  );
+  const results = await verifyCorpus(entries, {
+    transport,
+    account: async () => {
+      const a = await reliabilityAccount();
+      accounts.push(a);
+      return a.token;
+    },
+  });
+  assert.equal(accounts.length, 2);
+  assert.equal(results.length, 22);
+  assert.ok(results.every((r) => r.passed));
+  assert.deepEqual(
+    await Promise.all(
+      accounts.map(
+        async (a) =>
+          (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+      ),
+    ),
+    [19, 2],
+  );
+  assert.ok(metrics.some((m) => m.route === '/api/assets' && m.status === 400));
+  assert.equal(corpusSummary(entries, results).declaredRealThresholdMet, false);
+  assert.equal(JSON.stringify(results).includes('synthetic-'), false);
+  // A wrong golden layout must fail even when bytes upload and download successfully.
+  const wrong = [{ ...entries[0], expected: { ...entries[0].expected, width: 1 } }];
+  const progress = [];
+  await assert.rejects(
+    verifyCorpus(wrong, {
+      transport,
+      account: async () => (await reliabilityAccount()).token,
+      onResult: (r) => progress.push({ ...r }),
+    }),
+    (e) => e.field === 'samples.0.expected.width/height',
+  );
+  assert.ok(progress.every((r) => !r.passed));
+});
