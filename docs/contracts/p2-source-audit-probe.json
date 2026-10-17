@@ -1,0 +1,275 @@
+{
+  "checkedAt": "2026-10-17T11:18:48.770Z",
+  "complete": true,
+  "failure": null,
+  "logout": 200,
+  "observations": [
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "asset",
+      "objectStatus": "verified",
+      "checksumRequired": true
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    },
+    {
+      "kind": "source",
+      "objectStatus": "checksum-unavailable",
+      "checksumRequired": false,
+      "relation": "retained-original"
+    }
+  ],
+  "pageCounts": [20, 12],
+  "metrics": [
+    {
+      "path": "/api/auth/login",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 201,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000038,
+      "connectSeconds": 0.000571,
+      "tlsSeconds": 1.265232,
+      "pretransferSeconds": 1.265381,
+      "uploadedBytes": 76,
+      "uploadFinishedSeconds": 1.265381,
+      "firstByteSeconds": 3.71341,
+      "downloadedBytes": 267,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 3.715142,
+      "speedUpload": 20
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.00004,
+      "connectSeconds": 0.000572,
+      "tlsSeconds": 1.922133,
+      "pretransferSeconds": 1.922245,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 1.922245,
+      "firstByteSeconds": 6.888445,
+      "downloadedBytes": 2565,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 6.890282,
+      "speedUpload": 0
+    },
+    {
+      "path": "/api/immich-cf/storage-audit",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000039,
+      "connectSeconds": 0.000551,
+      "tlsSeconds": 0.763868,
+      "pretransferSeconds": 0.763997,
+      "uploadedBytes": 55,
+      "uploadFinishedSeconds": 0.763997,
+      "firstByteSeconds": 3.954058,
+      "downloadedBytes": 2616,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 3.955752,
+      "speedUpload": 13
+    },
+    {
+      "path": "/api/auth/logout",
+      "attempt": 1,
+      "exitCode": 0,
+      "errorCode": null,
+      "status": 200,
+      "tlsPolicy": "TLS1.2-only",
+      "certificateVerifyResult": 0,
+      "dnsSeconds": 0.000036,
+      "connectSeconds": 0.000514,
+      "tlsSeconds": 0.748692,
+      "pretransferSeconds": 0.748811,
+      "uploadedBytes": 2,
+      "uploadFinishedSeconds": 0.748811,
+      "firstByteSeconds": 1.44555,
+      "downloadedBytes": 37,
+      "proxyUsed": 1,
+      "proxyConnectStatus": 200,
+      "totalSeconds": 1.447181,
+      "speedUpload": 1
+    }
+  ],
+  "scope": "public-read-only-observations",
+  "remoteStorageFaultInjected": false,
+  "officialAppVerified": false,
+  "snapshotConsistent": false,
+  "deployedCommit": "8ce92b6",
+  "deployedVersion": "f7d21826-c9a6-40e4-be45-3a32b6461fac"
+}

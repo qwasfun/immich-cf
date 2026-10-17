@@ -42,3 +42,11 @@ Go：dev 只读核对当前资产、历史源与预约，以及既有副本恢�
 ## 本轮本机验收
 
 `pnpm check` 103 项回归全部通过，无失败或跳过，格式/lint/类型与 dry-run 构建通过。冻结契约保持 279 个操作、53 个来源。构建 202.16 KiB / gzip 49.94 KiB。没有修改认证、密码参数、Sync 协议、数据库结构或升级写入路径；test/生产不在本轮发布范围。
+
+## dev 发布与公网证据
+
+2026-10-17：代码 `8ce92b6`，dev 版本 `f7d21826-c9a6-40e4-be45-3a32b6461fac`。通过已确认本机代理由 Wrangler 发布，无待执行迁移，数据库保持 0013，test/生产未变更。
+
+[公网只读报告](contracts/p2-source-audit-probe.json)：32 条引用跨两页 20+12，18 条当前资产 verified 且 checksumRequired=true；14 条 source 均 retained-original、checksumRequired=false、checksum-unavailable。此状态说明历史原图存在且大小与 D1 相符，但未提供原生 SHA-1；不代表损坏，也不代表已完整重算摘要。已验证 source 游标续页且按 kind+id 不重不漏，没有导出 ID、路径、文件名或摘要。4 次请求无传输错误，临时会话退出 200。
+
+[普通链路报告](contracts/p2-source-audit-bulk-probe.json)：上传去重、已存/未知预检查、原图逐字节读取、Sync/ACK、退出均通过，7 次请求无传输错误。没有上传私人样本、修改历史原图或预约来制造异常；故障与恢复闭环仅由前述本地隔离回归证明。HEAD 对账不代替全部源的完整内容校验，CPU/Free、官方 iOS 混合队列和 G1 关口仍未关闭。
