@@ -2898,3 +2898,113 @@ test('最后一个上传名额并发只允许一张新图，不增加超限预�
     20,
   );
 });
+
+const auditPath = '/api/immich-cf/storage-audit';
+test('只读对账逐页核对已发布原图与保留预约，不改变数据库或对象', async () => {
+  const a = await reliabilityAccount();
+  const raced = await uploadFixture(a.token, 'small.png', 'rollout-other-publisher');
+  assert.equal(raced.status, 200);
+  const published = await raced.json();
+  assert.equal((await uploadFixture(a.token, 'small.jpg', 'before-r2')).status, 503);
+  for (let i = 0; i < 18; i++)
+    assert.equal((await uploadBytes(a.token, await quotaVariant(200 + i))).status, 201);
+  const snapshot = async () => ({
+    assets: (await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(a.id).all())
+      .results,
+    intents: (
+      await db.prepare('SELECT * FROM upload_intents WHERE owner_id=? ORDER BY id').bind(a.id).all()
+    ).results,
+    objects: (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.map(
+      ({ key, size, etag, uploaded }) => ({ key, size, etag, uploaded: uploaded.toISOString() }),
+    ),
+  });
+  const before = await snapshot();
+  const first = await worker.fetch(auditPath, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${a.token}`,
+      'x-test-count-checkpoints': 'true',
+    },
+    body: '{}',
+  });
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get('x-test-media-heads'), '20');
+  assert.equal(first.headers.get('cache-control'), 'no-store');
+  const page = await first.json();
+  assert.equal(page.entries.length, 20);
+  assert.ok(page.nextAfter);
+  assert.equal(page.snapshotConsistent, false);
+  const second = await (await send(auditPath, { after: page.nextAfter }, a.token)).json();
+  assert.equal(second.entries.length, 1);
+  assert.equal(second.nextAfter, null);
+  const entries = [...page.entries, ...second.entries];
+  assert.equal(new Set(entries.map((e) => e.kind + e.id)).size, 21);
+  assert.equal(entries.filter((e) => e.objectStatus === 'verified').length, 19);
+  assert.ok(
+    entries.some(
+      (e) =>
+        e.relation === 'published-checksum' &&
+        e.publishedId === published.id &&
+        e.objectStatus === 'present-unverified',
+    ),
+  );
+  assert.ok(entries.some((e) => e.relation === 'pending' && e.objectStatus === 'missing'));
+  assert.equal(JSON.stringify(entries).includes('object_key'), false);
+  assert.equal(JSON.stringify(entries).includes(a.id), false);
+  assert.deepEqual(await snapshot(), before);
+  const other = await reliabilityAccount();
+  const empty = await (await send(auditPath, {}, other.token)).json();
+  assert.deepEqual(empty.entries, []);
+  assert.equal(empty.pageObjectsVerified, false);
+});
+
+test('对账区分缺失、长度错误、摘要错误、旧对象无摘要和存储不可用，重传可恢复', async () => {
+  const a = await reliabilityAccount();
+  const uploaded = await (await uploadFixture(a.token)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(uploaded.id).first();
+  const bytes = await readFile('tests/fixtures/small.png');
+  const observed = async () => (await (await send(auditPath, {}, a.token)).json()).entries[0];
+  assert.equal((await observed()).objectStatus, 'verified');
+  await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+  assert.equal((await observed()).objectStatus, 'missing');
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, Buffer.from([1]));
+  assert.equal((await observed()).objectStatus, 'size-mismatch');
+  const changed = Buffer.from(bytes);
+  changed[0] ^= 1;
+  const { createHash } = await import('node:crypto');
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, changed, {
+    sha1: createHash('sha1').update(changed).digest('hex'),
+  });
+  assert.equal((await observed()).objectStatus, 'checksum-mismatch');
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(row.id).run();
+  assert.equal((await observed()).objectStatus, 'checksum-unavailable');
+  assert.equal((await observed()).checksumRequired, false);
+  const failed = await worker.fetch(auditPath, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${a.token}`,
+      'x-test-storage-fault': 'head-r2',
+    },
+    body: '{}',
+  });
+  const failure = await failed.json();
+  assert.equal(failure.entries[0].objectStatus, 'unavailable');
+  assert.equal(failure.pageObjectsVerified, false);
+  assert.equal((await uploadFixture(a.token)).status, 200);
+  assert.equal((await observed()).objectStatus, 'verified');
+  assert.equal((await observed()).checksumRequired, true);
+});
+
+test('对账入口要求认证，游标与误用写入参数返回具体字段错误', async () => {
+  assert.equal((await send(auditPath, {})).status, 401);
+  const a = await reliabilityAccount();
+  for (const input of [{ after: 7 }, { after: 'invalid' }, { apply: true }]) {
+    const result = await send(auditPath, input, a.token);
+    assert.equal(result.status, 400);
+    assert.equal((await result.json()).errors[0].path[0], Object.keys(input)[0]);
+  }
+  assert.equal((await worker.fetch(auditPath)).status, 405);
+});

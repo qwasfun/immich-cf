@@ -6,8 +6,10 @@ import { sessions } from './sessions';
 import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
 import { repairDimensions } from './repair-dimensions';
+import { storageAudit } from './storage-audit';
 
 const methods: Record<string, string[]> = {
+  '/api/immich-cf/storage-audit': ['POST'],
   '/api/immich-cf/repair-dimensions': ['POST'],
   '/api/assets': ['POST'],
   '/api/assets/bulk-upload-check': ['POST'],
@@ -146,6 +148,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path === '/api/immich-cf/storage-audit') return storageAudit(request, env, identity);
   if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);
   if (path === '/api/assets') return upload(request, env, identity);
   if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, env, identity);
