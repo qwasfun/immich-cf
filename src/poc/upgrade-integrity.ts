@@ -11,7 +11,7 @@ export async function upgradeIntegrity(request: Request, env: Env, identity: Ide
     if (error instanceof HttpError) throw error;
     throw new HttpError(
       503,
-      'id：升级结果暂不可确认，请稍后对同一资产重新预检并重试；原图和预约均保留',
+      'id：原图校验或升级结果暂不可确认，请稍后对同一资产重新预检并重试；原图和预约均保留',
       'id',
     );
   }
@@ -20,11 +20,16 @@ export async function upgradeIntegrity(request: Request, env: Env, identity: Ide
 async function upgrade(request: Request, env: Env, identity: Identity) {
   const input = await body(request);
   for (const field of Object.keys(input))
-    if (!['id', 'apply'].includes(field)) invalid(field, '仅接受 id 和 apply，请移除此字段');
+    if (!['id', 'apply', 'verifySource'].includes(field))
+      invalid(field, '仅接受 id、apply 和 verifySource，请移除此字段');
   if (typeof input.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(input.id))
     invalid('id', '请提供有效资产 ID');
   if (input.apply !== undefined && typeof input.apply !== 'boolean')
     invalid('apply', '必须为 true 或 false；请先省略或设为 false 进行预检');
+  if (input.verifySource !== undefined && typeof input.verifySource !== 'boolean')
+    invalid('verifySource', '必须为 true 或 false；检查历史原图时设为 true');
+  if (input.verifySource === true && input.apply === true)
+    invalid('apply', 'verifySource=true 为只读校验，请将 apply 设为 false 或省略');
   const row = await env.IMMICH_CF_DB.prepare(
     'SELECT id,object_key,checksum,bytes,sync_seq,r2_sha1_verified,integrity_source_key FROM assets WHERE id=? AND owner_id=?',
   )
@@ -42,9 +47,37 @@ async function upgrade(request: Request, env: Env, identity: Identity) {
   const conflict = () =>
     new HttpError(
       409,
-      'id：原图或资产状态不满足升级条件，请保留原件并恢复同一图片后重新预检',
+      'id：原图或资产状态不满足校验条件，请保留原件并恢复同一图片后重新预检',
       'id',
     );
+  const readSource = async (key: string) => {
+    if (row.bytes < 1 || row.bytes > MAX_IMAGE) throw conflict();
+    const source = await env.IMMICH_CF_MEDIA.get(key);
+    if (!source) throw conflict();
+    if (source.size !== row.bytes) {
+      await source.body.cancel();
+      throw conflict();
+    }
+    const bytes = new Uint8Array(await source.arrayBuffer());
+    const sha1 = await crypto.subtle.digest('SHA-1', bytes);
+    const digest = new Uint8Array(sha1);
+    if (bytes.length !== row.bytes || btoa(String.fromCharCode(...digest)) !== row.checksum)
+      throw conflict();
+    return { source, bytes, sha1, digest };
+  };
+  if (input.verifySource === true) {
+    if (!row.integrity_source_key || row.integrity_source_key === row.object_key) throw conflict();
+    await readSource(row.integrity_source_key);
+    return Response.json({
+      id: row.id,
+      target: 'source',
+      sourceBytesVerified: true,
+      bytes: row.bytes,
+      applied: false,
+      observationOnly: true,
+      snapshotConsistent: false,
+    });
+  }
   let recovering = false;
   if (row.r2_sha1_verified) {
     if (
@@ -67,19 +100,8 @@ async function upgrade(request: Request, env: Env, identity: Identity) {
       });
   }
   const result = { id: row.id, alreadyVerified: false, originalRetained: true, recovering };
-  if (row.bytes < 1 || row.bytes > MAX_IMAGE) throw conflict();
   const sourceKey = recovering ? row.integrity_source_key! : row.object_key;
-  const source = await env.IMMICH_CF_MEDIA.get(sourceKey);
-  if (!source) throw conflict();
-  if (source.size !== row.bytes) {
-    await source.body.cancel();
-    throw conflict();
-  }
-  const bytes = new Uint8Array(await source.arrayBuffer());
-  const sha1 = await crypto.subtle.digest('SHA-1', bytes);
-  const digest = new Uint8Array(sha1);
-  if (bytes.length !== row.bytes || btoa(String.fromCharCode(...digest)) !== row.checksum)
-    throw conflict();
+  const { source, bytes, sha1, digest } = await readSource(sourceKey);
   if (input.apply !== true)
     return Response.json({ ...result, applied: false, sourceBytesVerified: true });
   const hex = [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');

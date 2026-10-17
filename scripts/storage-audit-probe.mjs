@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { curlRequest } from './lib/curl-request.mjs';
+const args = process.argv.slice(2);
+assert.ok(
+  args.length <= 1 && args.every((arg) => arg === '--verify-sources'),
+  'Use --verify-sources or no arguments',
+);
+const verifySources = args.includes('--verify-sources');
 const base = 'https://immich-cf-api-dev.fun.workers.dev';
 const transport = { tls12: true, proxy: 'http://127.0.0.1:7890' };
 const account = JSON.parse(await readFile('work/dev-account.json', 'utf8'));
@@ -10,7 +16,8 @@ let token,
   complete = false;
 const metrics = [],
   observations = [],
-  pageCounts = [];
+  pageCounts = [],
+  sourceChecks = [];
 async function post(path, data, retry = false) {
   const deadline = performance.now() + 60000;
   let result;
@@ -46,6 +53,7 @@ try {
   let after;
   const cursors = new Set();
   const references = new Set();
+  const sources = [];
   for (let page = 0; page < 10; page++) {
     const response = await post('/api/immich-cf/storage-audit', after ? { after } : {}, true);
     assert.equal(response.status, 200);
@@ -59,6 +67,7 @@ try {
       const reference = `${entry.kind}:${entry.id}`;
       assert.equal(references.has(reference), false);
       references.add(reference);
+      if (entry.kind === 'source') sources.push(entry.id);
       observations.push({
         kind: entry.kind,
         objectStatus: entry.objectStatus,
@@ -77,7 +86,31 @@ try {
     after = data.nextAfter;
   }
   assert.equal(complete, true);
+  if (verifySources) {
+    for (const id of sources) {
+      const response = await post(
+        '/api/immich-cf/upgrade-integrity',
+        { id, verifySource: true },
+        true,
+      );
+      assert.equal(response.status, 200);
+      const data = await response.json();
+      assert.equal(data.target, 'source');
+      assert.equal(data.sourceBytesVerified, true);
+      assert.equal(data.applied, false);
+      assert.equal(data.observationOnly, true);
+      assert.equal(data.snapshotConsistent, false);
+      assert.ok(Number.isInteger(data.bytes) && data.bytes > 0 && data.bytes <= 4 * 1024 * 1024);
+      sourceChecks.push({
+        index: sourceChecks.length,
+        bytes: data.bytes,
+        sourceBytesVerified: true,
+        checkedAt: new Date().toISOString(),
+      });
+    }
+  }
 } catch {
+  complete = false;
   failure = 'PROBE_FAILED';
   process.exitCode = 1;
 } finally {
@@ -103,6 +136,8 @@ try {
         logout,
         observations,
         pageCounts,
+        verifySourcesRequested: verifySources,
+        sourceChecks,
         metrics,
         scope: 'public-read-only-observations',
         remoteStorageFaultInjected: false,

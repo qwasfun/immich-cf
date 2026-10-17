@@ -88,3 +88,5 @@ pnpm check
 - [P2 历史原生摘要升级与恢复](docs/p2-integrity-upgrade.md)：保留原图及预约，校验副本、持久源引用和有界重试。
 
 - [P2 历史原图引用对账](docs/p2-source-audit.md)：将保留原图纳入分页检查，区分未知摘要与损坏，保留全部引用。
+
+- [P2 历史原图只读完整校验](docs/p2-source-verification.md)：按需完整重算摘要，识别无原生摘要旧原图的等长损坏，不修改源或预约。

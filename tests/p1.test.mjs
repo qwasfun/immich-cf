@@ -3491,3 +3491,135 @@ test('对账发现副本故障后可从历史源恢复；坏源拒绝恢复，�
   assert.deepEqual(await auditSnapshot(a.id), unchanged);
   assert.equal(unchanged.assets[0].r2_sha1_verified, 1);
 });
+
+const verifyRetained = (a) => send(upgradePath, { id: a.assetId, verifySource: true }, a.token);
+test('历史源完整校验识别无原生摘要的等长损坏，成功/失败均只读且不推进同步', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const events = await syncEvents(a.token);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+  const original = await auditSnapshot(a.id);
+  const response = await verifyRetained(a);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.target, 'source');
+  assert.equal(data.sourceBytesVerified, true);
+  assert.equal(data.applied, false);
+  assert.equal(data.observationOnly, true);
+  assert.equal(data.snapshotConsistent, false);
+  assert.equal(data.bytes, a.bytes.length);
+  assert.deepEqual(await auditSnapshot(a.id), original);
+  assert.equal(
+    (await observedAudit(a.token)).entries.find((e) => e.kind === 'source').objectStatus,
+    'checksum-unavailable',
+  );
+  const changed = Buffer.from(a.bytes);
+  changed[0] ^= 1;
+  await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, changed);
+  const before = await auditSnapshot(a.id);
+  assert.equal(
+    (await observedAudit(a.token)).entries.find((e) => e.kind === 'source').objectStatus,
+    'checksum-unavailable',
+  );
+  const failed = await verifyRetained(a);
+  assert.equal(failed.status, 409);
+  assert.deepEqual((await failed.json()).errors[0].path, ['id']);
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  const current = await worker.fetch(`/api/assets/${a.assetId}/original`, {
+    headers: { Authorization: `Bearer ${a.token}` },
+  });
+  assert.deepEqual(Buffer.from(await current.arrayBuffer()), a.bytes);
+  assert.deepEqual(
+    (await syncEvents(a.token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+});
+
+test('只读历史源校验在副本缺失时不触发修复，源或存储故障后可重试', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  await platform.env.IMMICH_CF_MEDIA.delete(a.target);
+  const initial = await auditSnapshot(a.id);
+  assert.equal((await verifyRetained(a)).status, 200);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(a.target), null);
+  assert.deepEqual(await auditSnapshot(a.id), initial);
+  for (const state of ['missing', 'size', 'unavailable']) {
+    if (state === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(a.row.object_key);
+    else
+      await platform.env.IMMICH_CF_MEDIA.put(
+        a.row.object_key,
+        state === 'size' ? Buffer.from([1]) : a.bytes,
+      );
+    const before = await auditSnapshot(a.id);
+    const response =
+      state === 'unavailable'
+        ? await worker.fetch(upgradePath, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${a.token}`,
+              'x-test-storage-fault': 'get-r2',
+            },
+            body: JSON.stringify({ id: a.assetId, verifySource: true }),
+          })
+        : await verifyRetained(a);
+    assert.equal(response.status, state === 'unavailable' ? 503 : 409);
+    assert.deepEqual((await response.json()).errors[0].path, ['id']);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+  }
+  await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, a.bytes);
+  assert.equal((await verifyRetained(a)).status, 200);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(a.target), null);
+});
+
+test('只读源校验强制拒绝 apply，校验字段与源引用、认证及账户边界', async () => {
+  const a = await legacyIntegrity();
+  const other = await reliabilityAccount();
+  assert.equal((await verifyRetained(a)).status, 409); // No retained reference until upgrade.
+  assert.equal((await send(upgradePath, { id: a.assetId, verifySource: true })).status, 401);
+  assert.equal(
+    (await send(upgradePath, { id: a.assetId, verifySource: true }, other.token)).status,
+    404,
+  );
+  for (const [input, field] of [
+    [{ id: a.assetId, verifySource: 'yes' }, 'verifySource'],
+    [{ id: a.assetId, verifySource: true, apply: true }, 'apply'],
+  ]) {
+    const before = await auditSnapshot(a.id);
+    const response = await send(upgradePath, input, a.token);
+    assert.equal(response.status, 400);
+    assert.deepEqual((await response.json()).errors[0].path, [field]);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+  }
+  await db
+    .prepare('UPDATE assets SET integrity_source_key=object_key WHERE id=?')
+    .bind(a.assetId)
+    .run();
+  assert.equal((await verifyRetained(a)).status, 409);
+});
+
+test('只读源完整校验支持4MiB边界，超限源拒绝且不改变引用或对象', async () => {
+  const { mixedCases } = await import('./fixtures/mixed-queue.mjs');
+  const bytes = (await mixedCases()).find((e) => e.name === 'at-limit').bytes;
+  const a = await reliabilityAccount();
+  const { id } = await (await uploadBytes(a.token, bytes)).json();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
+  assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 200);
+  const before = await auditSnapshot(a.id);
+  const result = await send(upgradePath, { id, verifySource: true }, a.token);
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).bytes, 4 * 1024 * 1024);
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  await db
+    .prepare('UPDATE assets SET bytes=? WHERE id=?')
+    .bind(bytes.length + 1, id)
+    .run();
+  const invalid = await auditSnapshot(a.id);
+  assert.equal((await send(upgradePath, { id, verifySource: true }, a.token)).status, 409);
+  assert.deepEqual(await auditSnapshot(a.id), invalid);
+});

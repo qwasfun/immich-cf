@@ -50,3 +50,5 @@ Go：dev 只读核对当前资产、历史源与预约，以及既有副本恢�
 [公网只读报告](contracts/p2-source-audit-probe.json)：32 条引用跨两页 20+12，18 条当前资产 verified 且 checksumRequired=true；14 条 source 均 retained-original、checksumRequired=false、checksum-unavailable。此状态说明历史原图存在且大小与 D1 相符，但未提供原生 SHA-1；不代表损坏，也不代表已完整重算摘要。已验证 source 游标续页且按 kind+id 不重不漏，没有导出 ID、路径、文件名或摘要。4 次请求无传输错误，临时会话退出 200。
 
 [普通链路报告](contracts/p2-source-audit-bulk-probe.json)：上传去重、已存/未知预检查、原图逐字节读取、Sync/ACK、退出均通过，7 次请求无传输错误。没有上传私人样本、修改历史原图或预约来制造异常；故障与恢复闭环仅由前述本地隔离回归证明。HEAD 对账不代替全部源的完整内容校验，CPU/Free、官方 iOS 混合队列和 G1 关口仍未关闭。
+
+历史源 HEAD 摘要未知时，可按需执行[只读完整校验](p2-source-verification.md)。此模式不写原生摘要或修复副本，完整字节比对通过也不会将 HEAD 状态改为 verified。
