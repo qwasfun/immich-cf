@@ -1,0 +1,53 @@
+{
+  "sourceCommit": "25a62ce",
+  "summary": {
+    "samples": 24,
+    "accepted": 24,
+    "acceptedUniqueContents": 24,
+    "declaredRealEntries": 24,
+    "declaredRealUniqueContents": 24,
+    "declaredRealUniqueCaptures": 24,
+    "syntheticEntries": 0,
+    "declaredRealThresholdMet": false,
+    "provenanceIndependentlyVerified": false,
+    "fullDecodeVerified": false,
+    "officialAppVerified": false,
+    "g1Passed": false
+  },
+  "complete": true,
+  "scope": "isolated-local-corpus-after-additional-jpg-selection",
+  "validation": {
+    "transportRequests": 170,
+    "proxyRequests": 0,
+    "firstUploads201": 24,
+    "batches": 2,
+    "originalAndPreviewBytesEqual": true,
+    "passed": 24,
+    "processExitCode": 0,
+    "duplicateSameAsset": true,
+    "syncAckAndEmptyIncremental": true,
+    "transportErrors": 0,
+    "mimeAndLayoutDimensions": true
+  },
+  "remoteUpload": false,
+  "failure": null,
+  "workerChanged": false,
+  "privateIdentifiersExported": false,
+  "deploymentPerformed": false,
+  "selection": {
+    "captureIndependenceReviewed": false,
+    "newJpgMaxBytes": 1790011,
+    "newJpgFiles": 100,
+    "retainedJpeg": 1,
+    "newJpgMaxPixels": 13128960,
+    "retained": 24,
+    "retainedPng": 23,
+    "inputFiles": 124,
+    "newJpgMinPixels": 10628376,
+    "deletedNewJpgOverPixelLimit": 100,
+    "retainedBytesUnchanged": 24,
+    "retainedMatchPriorRun": 24,
+    "dimensionOracle": "Windows System.Drawing"
+  },
+  "checkedAt": "2026-10-17T19:20:45.936Z"
+}
