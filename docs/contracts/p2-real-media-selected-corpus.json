@@ -1,0 +1,51 @@
+{
+  "scope": "isolated-local-selected-private-corpus",
+  "checkedAt": "2026-10-17T19:03:42.675Z",
+  "deploymentPerformed": false,
+  "complete": true,
+  "validation": {
+    "duplicateSameAsset": true,
+    "batches": 2,
+    "firstUploads201": 24,
+    "originalAndPreviewBytesEqual": true,
+    "mimeAndLayoutDimensions": true,
+    "passed": 24,
+    "proxyRequests": 0,
+    "syncAckAndEmptyIncremental": true,
+    "transportErrors": 0,
+    "transportRequests": 170,
+    "processExitCode": 0
+  },
+  "selection": {
+    "retainedPng": 23,
+    "rejectionDoesNotProveLivePhoto": true,
+    "retainedBytesUnchanged": 24,
+    "deletedCurrentXmpUnsupported": 76,
+    "dimensionOracle": "Windows System.Drawing",
+    "deletedOverPixelLimit": 100,
+    "retainedJpeg": 1,
+    "currentParserUsedForCompatibilitySelection": true,
+    "captureIndependenceReviewed": false,
+    "retained": 24,
+    "initialFiles": 200
+  },
+  "sourceCommit": "8a4ac6d",
+  "failure": null,
+  "remoteUpload": false,
+  "summary": {
+    "samples": 24,
+    "accepted": 24,
+    "acceptedUniqueContents": 24,
+    "declaredRealEntries": 24,
+    "declaredRealUniqueContents": 24,
+    "declaredRealUniqueCaptures": 24,
+    "syntheticEntries": 0,
+    "declaredRealThresholdMet": false,
+    "provenanceIndependentlyVerified": false,
+    "fullDecodeVerified": false,
+    "officialAppVerified": false,
+    "g1Passed": false
+  },
+  "workerChanged": false,
+  "privateIdentifiersExported": false
+}
