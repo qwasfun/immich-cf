@@ -37,7 +37,7 @@ R2 与 D1 之间没有跨服务事务，外部删除/修改仍可能在检查后
 
 Go：本机与 dev 的逐项预检及安全升级。No-Go：自动删除旧原图/预约、跳过摘要校验、降低密码或同步隔离要求、宣称真实 iOS 混合队列/100 张照片/CPU 关口完成。若回退 Worker，保留 0013 和原生摘要标记；旧版本仍读取既有 object_key，不回退到未知原图或清除源路径。
 
-安全清理边界：未来任何 GC/存储对账扩展都必须同时保留 assets.object_key、assets.integrity_source_key 和 upload_intents.object_key 的引用。当前只读对账只检查当前资产与预约，不能把未出现在当前路径列表中的历史原图当作孤立对象删除。
+安全清理边界：未来任何 GC/存储对账扩展都必须同时保留 assets.object_key、assets.integrity_source_key 和 upload_intents.object_key 的引用。只读对账已扩展至[当前资产、历史原图与预约](p2-source-audit.md)，但仍不覆盖全桶对象，不能据此删除任何对象。
 
 ## 本轮本机验证与 dev 发布
 

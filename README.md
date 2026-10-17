@@ -86,3 +86,5 @@ pnpm check
 - [P2 认证评估与同步优化](docs/p2-auth-sync-cpu.md)：标准 KDF 的线上边界、检查点读取优化与复测。
 
 - [P2 历史原生摘要升级与恢复](docs/p2-integrity-upgrade.md)：保留原图及预约，校验副本、持久源引用和有界重试。
+
+- [P2 历史原图引用对账](docs/p2-source-audit.md)：将保留原图纳入分页检查，区分未知摘要与损坏，保留全部引用。

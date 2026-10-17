@@ -3287,3 +3287,207 @@ test('4 MiB 历史原图可完整升级，超限历史记录预检拒绝且不�
   assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 409);
   assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 2);
 });
+
+async function auditSnapshot(owner) {
+  return {
+    assets: (
+      await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(owner).all()
+    ).results,
+    intents: (
+      await db
+        .prepare('SELECT * FROM upload_intents WHERE owner_id=? ORDER BY id')
+        .bind(owner)
+        .all()
+    ).results,
+    clock: await db.prepare('SELECT * FROM asset_sync_clock').first(),
+    objects: (await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${owner}/` })).objects.map(
+      ({ key, size, etag, uploaded }) => ({ key, size, etag, uploaded: uploaded.toISOString() }),
+    ),
+  };
+}
+const observedAudit = async (token) => {
+  const response = await send(auditPath, {}, token);
+  assert.equal(response.status, 200);
+  return response.json();
+};
+
+test('历史源引用跨页核对保持每页20次HEAD，按引用不重不漏且不暴露路径、不跨账户', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  for (let i = 0; i < 11; i++) {
+    const bytes = await quotaVariant(300 + i);
+    const { id } = await (await uploadBytes(a.token, bytes)).json();
+    const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+    await platform.env.IMMICH_CF_MEDIA.put(row.object_key, bytes);
+    await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
+    assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 200);
+  }
+  const events = await syncEvents(a.token);
+  assert.equal(
+    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+    204,
+  );
+  const before = await auditSnapshot(a.id);
+  const entries = [];
+  let after;
+  const sizes = [];
+  for (let page = 0; page < 3; page++) {
+    const response = await worker.fetch(auditPath, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${a.token}`,
+        'x-test-count-checkpoints': 'true',
+      },
+      body: JSON.stringify(after ? { after } : {}),
+    });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(Number(response.headers.get('x-test-media-heads')), data.entries.length);
+    assert.ok(data.entries.length <= 20);
+    assert.equal(data.snapshotConsistent, false);
+    sizes.push(data.entries.length);
+    entries.push(...data.entries);
+    if (!data.nextAfter) break;
+    assert.match(data.nextAfter, /^source:/);
+    after = data.nextAfter;
+  }
+  assert.deepEqual(sizes, [20, 5]);
+  assert.equal(entries.length, 25);
+  assert.equal(new Set(entries.map((e) => `${e.kind}:${e.id}`)).size, 25);
+  assert.equal(
+    entries.filter((e) => e.kind === 'asset' && e.objectStatus === 'verified').length,
+    12,
+  );
+  const sources = entries.filter((e) => e.kind === 'source');
+  assert.equal(sources.length, 12);
+  assert.ok(
+    sources.every(
+      (e) =>
+        e.relation === 'retained-original' &&
+        e.publishedId === e.id &&
+        !e.checksumRequired &&
+        e.objectStatus === 'checksum-unavailable',
+    ),
+  );
+  for (const row of before.assets) {
+    assert.equal(JSON.stringify(entries).includes(row.object_key), false);
+    assert.equal(JSON.stringify(entries).includes(row.integrity_source_key), false);
+    assert.equal(JSON.stringify(entries).includes(row.checksum), false);
+  }
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  assert.deepEqual(
+    (await syncEvents(a.token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  const other = await reliabilityAccount();
+  assert.deepEqual((await observedAudit(other.token)).entries, []);
+  assert.deepEqual((await (await send(auditPath, { after }, other.token)).json()).entries, []);
+});
+
+test('历史源缺失、大小/原生摘要错误和无摘要分别报告，检查不修复且当前预览仍可读', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const { createHash } = await import('node:crypto');
+  const changed = Buffer.from(a.bytes);
+  changed[0] ^= 1;
+  const cases = [
+    ['missing', null, undefined],
+    ['size-mismatch', Buffer.from([1]), undefined],
+    ['checksum-mismatch', changed, { sha1: createHash('sha1').update(changed).digest('hex') }],
+    ['checksum-unavailable', changed, undefined],
+    ['verified', a.bytes, { sha1: createHash('sha1').update(a.bytes).digest('hex') }],
+  ];
+  for (const [expected, bytes, options] of cases) {
+    if (bytes) await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, bytes, options);
+    else await platform.env.IMMICH_CF_MEDIA.delete(a.row.object_key);
+    const before = await auditSnapshot(a.id);
+    const data = await observedAudit(a.token);
+    assert.equal(data.entries.find((e) => e.kind === 'source').objectStatus, expected);
+    assert.equal(data.entries.find((e) => e.kind === 'asset').objectStatus, 'verified');
+    assert.equal(data.pageObjectsVerified, false); // Retained upload intent is not verified by HEAD.
+    assert.deepEqual(await auditSnapshot(a.id), before);
+    const served = await worker.fetch(`/api/assets/${a.assetId}/original`, {
+      headers: { Authorization: `Bearer ${a.token}` },
+    });
+    assert.equal(served.status, 200);
+    assert.deepEqual(Buffer.from(await served.arrayBuffer()), a.bytes);
+  }
+});
+
+test('历史源对账遇存储不可用不当作缺失，恢复后重查且所有引用与对象保持不变', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const before = await auditSnapshot(a.id);
+  const response = await worker.fetch(auditPath, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${a.token}`,
+      'x-test-storage-fault': 'head-r2',
+    },
+    body: '{}',
+  });
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.entries.length, 3);
+  assert.ok(data.entries.every((e) => e.objectStatus === 'unavailable'));
+  assert.equal(data.pageObjectsVerified, false);
+  const recovered = await observedAudit(a.token);
+  assert.equal(
+    recovered.entries.find((e) => e.kind === 'source').objectStatus,
+    'checksum-unavailable',
+  );
+  assert.equal(recovered.entries.find((e) => e.kind === 'asset').objectStatus, 'verified');
+  assert.deepEqual(await auditSnapshot(a.id), before);
+});
+
+test('对账发现副本故障后可从历史源恢复；坏源拒绝恢复，保留原图、预约和严格摘要标记', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const initial = await auditSnapshot(a.id);
+  const { createHash } = await import('node:crypto');
+  for (const fault of ['missing', 'checksum']) {
+    if (fault === 'missing') await platform.env.IMMICH_CF_MEDIA.delete(a.target);
+    else {
+      const bytes = Buffer.from(a.bytes);
+      bytes[0] ^= 1;
+      await platform.env.IMMICH_CF_MEDIA.put(a.target, bytes, {
+        sha1: createHash('sha1').update(bytes).digest('hex'),
+      });
+    }
+    const before = await observedAudit(a.token);
+    assert.equal(
+      before.entries.find((e) => e.kind === 'asset').objectStatus,
+      fault === 'missing' ? 'missing' : 'checksum-mismatch',
+    );
+    assert.equal(
+      before.entries.find((e) => e.kind === 'source').objectStatus,
+      'checksum-unavailable',
+    );
+    assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+    const recovered = await observedAudit(a.token);
+    assert.equal(recovered.entries.find((e) => e.kind === 'asset').objectStatus, 'verified');
+    const now = await auditSnapshot(a.id);
+    assert.deepEqual(now.assets, initial.assets);
+    assert.deepEqual(now.intents, initial.intents);
+    assert.deepEqual(now.clock, initial.clock);
+    assert.deepEqual(
+      Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key)).arrayBuffer()),
+      a.bytes,
+    );
+  }
+  const bad = Buffer.from(a.bytes);
+  bad[0] ^= 1;
+  await platform.env.IMMICH_CF_MEDIA.put(a.row.object_key, bad, {
+    sha1: createHash('sha1').update(bad).digest('hex'),
+  });
+  await platform.env.IMMICH_CF_MEDIA.delete(a.target);
+  const unchanged = await auditSnapshot(a.id);
+  const failed = await observedAudit(a.token);
+  assert.equal(failed.entries.find((e) => e.kind === 'source').objectStatus, 'checksum-mismatch');
+  assert.equal(failed.entries.find((e) => e.kind === 'asset').objectStatus, 'missing');
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 409);
+  assert.deepEqual(await auditSnapshot(a.id), unchanged);
+  assert.equal(unchanged.assets[0].r2_sha1_verified, 1);
+});

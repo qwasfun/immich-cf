@@ -2,9 +2,10 @@
 
 补齐 P2-02 上传预约与 R2/D1 对账的诊断入口。它只报告当前账户的记录，不执行删除、预约过期、补写或同步状态修改。
 
-`POST /api/immich-cf/storage-audit` 使用现有会话认证，受实验入口开关控制。首次提交 `{}`，后续提交 `{ "after": "上一页 nextAfter" }`。固定每页最多 20 条资产/预约，最多 20 次 R2 HEAD；SQL 多取一条判断后续页，不扫描整个 R2。其他参数（例如 apply）返回可定位字段错误。响应不包含对象路径、文件名、原始摘要或底层异常。
+`POST /api/immich-cf/storage-audit` 使用现有会话认证，受实验入口开关控制。首次提交 `{}`，后续提交 `{ "after": "上一页 nextAfter" }`。固定每页最多 20 条当前资产/历史源/预约引用，最多 20 次 R2 HEAD；SQL 多取一条判断后续页，不扫描整个 R2。其他参数（例如 apply）返回可定位字段错误。响应不包含对象路径、文件名、原始摘要或底层异常。
 
 - 资产状态：verified、missing、size-mismatch、checksum-mismatch、checksum-unavailable、unavailable。旧资产无原生摘要也明确显示未验证，不将旧版大小回退当作摘要通过。
+- 历史源引用：source 对应 integrity_source_key，使用所属资产 ID 和 retained-original 关系。无原生摘要仅表示未知，不判为损坏；细节见[历史原图引用对账](p2-source-audit.md)。
 - 预约关系：pending 或 published-checksum；后者只说明同账户同摘要已有资产，不能据此断定预约对象可删。预约对象存在只报 present-unverified，因为预约不保存完整期望大小。
 - pageObjectsVerified 仅表示本页非空且所有条目均获原生摘要证明，不能代替全库验收。unavailable 不是 missing。
 
