@@ -44,7 +44,7 @@
 
 ## 本机运行与后续步骤
 
-新代码依赖本机 0014～0020 schema。只在隔离/本机数据库运行：
+新代码依赖本机 0014～0021 schema。只在隔离/本机数据库运行：
 
 ```powershell
 pnpm db:migrate:local

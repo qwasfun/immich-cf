@@ -2,8 +2,8 @@
   "scope": "isolated-local-p3-infrastructure",
   "localChecks": {
     "complete": true,
-    "tests": 161,
-    "passed": 161,
+    "tests": 174,
+    "passed": 174,
     "failed": 0,
     "skipped": 0,
     "format": true,
@@ -23,7 +23,8 @@
     "0017_r2_cleanup.sql",
     "0018_cleanup_pending_index.sql",
     "0019_sync_read_guards.sql",
-    "0020_asset_updated_at.sql"
+    "0020_asset_updated_at.sql",
+    "0021_personal_albums.sql"
   ],
   "forwardNonemptyMigrationVerified": true,
   "localQueryCost": {
@@ -34,8 +35,8 @@
     "platformBillingOrWholeRequestCostVerified": false
   },
   "build": {
-    "uploadKiB": 212.11,
-    "gzipKiB": 51.98
+    "uploadKiB": 229.57,
+    "gzipKiB": 55.78
   },
   "originalsRetained": true,
   "reservationsRetained": true,
@@ -94,6 +95,14 @@
     "singleAndBulk": true,
     "atomicAuthorization": true,
     "idempotentResponseLossRecovery": true,
+    "officialAppVerified": false
+  },
+  "personalAlbums": {
+    "CRUD": true,
+    "photoRelations": true,
+    "cover": true,
+    "albumSyncFamilies": true,
+    "atomicAuthorizationAndRecoveryVerified": true,
     "officialAppVerified": false
   }
 }

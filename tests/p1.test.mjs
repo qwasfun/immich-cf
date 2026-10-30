@@ -5440,3 +5440,576 @@ test('测试维护入口拒绝未认证JSON后下一次正常multipart连接仍�
     assert.ok(data.id);
   }
 });
+
+const albumCall = (token, path = '', data, method = 'GET', extra = {}) =>
+  worker.fetch('/api/albums' + path, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(data !== undefined ? { 'content-type': 'application/json' } : {}),
+      ...extra,
+    },
+    ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+  });
+async function albumSetup() {
+  const a = await reliabilityAccount(),
+    ids = [];
+  for (const f of ['small.png', 'small.jpg'])
+    ids.push((await (await uploadFixture(a.token, f)).json()).id);
+  return { ...a, ids };
+}
+async function albumState(owner) {
+  return {
+    albums: (
+      await db.prepare('SELECT * FROM albums WHERE owner_id=? ORDER BY id').bind(owner).all()
+    ).results,
+    links: (
+      await db
+        .prepare('SELECT * FROM album_assets WHERE owner_id=? ORDER BY album_id,asset_id')
+        .bind(owner)
+        .all()
+    ).results,
+    deleted: (
+      await db
+        .prepare('SELECT * FROM album_deletions WHERE owner_id=? ORDER BY sync_seq')
+        .bind(owner)
+        .all()
+    ).results,
+    edgesDeleted: (
+      await db
+        .prepare('SELECT * FROM album_asset_deletions WHERE owner_id=? ORDER BY sync_seq')
+        .bind(owner)
+        .all()
+    ).results,
+    requests: (
+      await db
+        .prepare('SELECT * FROM album_create_requests WHERE owner_id=? ORDER BY request_key')
+        .bind(owner)
+        .all()
+    ).results,
+  };
+}
+
+test('P4 相册CRUD、成员照片、封面与过滤符合冻结schema，删除不删照片', async () => {
+  const a = await albumSetup();
+  const originals = await auditSnapshot(a.id);
+  const r = await albumCall(
+    a.token,
+    '',
+    { albumName: '相册测试', description: '描述', assetIds: a.ids },
+    'POST',
+  );
+  assert.equal(r.status, 201);
+  let album = await r.json();
+  schema(album, 'AlbumResponseDto');
+  assert.equal(album.assetCount, 2);
+  assert.equal(album.albumUsers[0].role, 'owner');
+  assert.equal(album.albumThumbnailAssetId, a.ids[0]);
+  const id = album.id;
+  assert.equal((await (await albumCall(a.token)).json()).length, 1);
+  for (const q of [
+    '?isOwned=true',
+    '?isShared=false',
+    '?name=' + encodeURIComponent('相册测试'),
+    '?assetId=' + a.ids[0] + '&isShared=true',
+  ])
+    assert.equal((await (await albumCall(a.token, q)).json()).length, 1);
+  for (const q of ['?isOwned=false', '?isShared=true', '?assetId=' + crypto.randomUUID()])
+    assert.deepEqual(await (await albumCall(a.token, q)).json(), []);
+  const beforeDuplicate = await albumState(a.id);
+  const duplicate = await (
+    await albumCall(a.token, `/${id}/assets`, { ids: [a.ids[0]] }, 'PUT')
+  ).json();
+  schema(duplicate[0], 'BulkIdResponseDto');
+  assert.equal(duplicate[0].error, 'duplicate');
+  assert.deepEqual(await albumState(a.id), beforeDuplicate);
+  album = await (
+    await albumCall(
+      a.token,
+      `/${id}`,
+      {
+        albumName: '已改名',
+        description: null,
+        order: 'asc',
+        albumThumbnailAssetId: a.ids[1],
+        isActivityEnabled: false,
+      },
+      'PATCH',
+    )
+  ).json();
+  schema(album, 'AlbumResponseDto');
+  assert.equal(album.albumName, '已改名');
+  assert.equal(album.description, '');
+  assert.equal(album.albumThumbnailAssetId, a.ids[1]);
+  assert.equal(album.order, 'asc');
+  const patched = await albumState(a.id);
+  assert.equal(
+    (
+      await albumCall(
+        a.token,
+        `/${id}`,
+        { albumName: '已改名', description: null, order: 'asc', albumThumbnailAssetId: a.ids[1] },
+        'PATCH',
+      )
+    ).status,
+    200,
+  );
+  assert.deepEqual(await albumState(a.id), patched);
+  assert.equal(
+    (await albumCall(a.token, `/${id}/assets`, { ids: [a.ids[1]] }, 'DELETE')).status,
+    200,
+  );
+  album = await (await albumCall(a.token, `/${id}`)).json();
+  assert.equal(album.assetCount, 1);
+  assert.equal(album.albumThumbnailAssetId, a.ids[0]);
+  assert.equal(
+    (await albumCall(a.token, `/${id}/assets`, { ids: [a.ids[0]] }, 'DELETE')).status,
+    200,
+  );
+  album = await (await albumCall(a.token, `/${id}`)).json();
+  assert.equal(album.assetCount, 0);
+  assert.equal(album.albumThumbnailAssetId, null);
+  assert.equal((await albumCall(a.token, `/${id}/assets`, { ids: [a.ids[0]] }, 'PUT')).status, 200);
+  assert.equal((await albumCall(a.token, `/${id}`, undefined, 'DELETE')).status, 204);
+  assert.equal((await albumCall(a.token, `/${id}`, undefined, 'DELETE')).status, 204);
+  assert.equal((await albumCall(a.token, `/${id}`)).status, 404);
+  const after = await auditSnapshot(a.id);
+  assert.deepEqual(after.assets, originals.assets);
+  assert.deepEqual(after.intents, originals.intents);
+  assert.deepEqual(after.objects, originals.objects);
+});
+
+test('P4 相册越权、封面成员资格和字段校验均明确且无部分写入', async () => {
+  const a = await albumSetup(),
+    b = await albumSetup();
+  const album = await (
+    await albumCall(a.token, '', { albumName: 'private', assetIds: [a.ids[0]] }, 'POST')
+  ).json();
+  const before = await albumState(a.id);
+  for (const [method, path, data] of [
+    ['GET', `/${album.id}`, undefined],
+    ['PATCH', `/${album.id}`, { albumName: 'PRIVATE' }],
+    ['DELETE', `/${album.id}`, undefined],
+    ['PUT', `/${album.id}/assets`, { ids: b.ids }],
+    ['DELETE', `/${album.id}/assets`, { ids: a.ids }],
+  ])
+    assert.equal((await albumCall(b.token, path, data, method)).status, 404);
+  assert.equal(
+    (await albumCall(a.token, '', { albumName: 'bad', assetIds: [a.ids[0], b.ids[0]] }, 'POST'))
+      .status,
+    404,
+  );
+  assert.equal(
+    (await albumCall(a.token, `/${album.id}/assets`, { ids: [a.ids[1], b.ids[0]] }, 'PUT')).status,
+    404,
+  );
+  for (const cover of [b.ids[0], a.ids[1]]) {
+    const r = await albumCall(a.token, `/${album.id}`, { albumThumbnailAssetId: cover }, 'PATCH');
+    assert.equal(r.status, 400);
+    assert.deepEqual((await r.json()).errors[0].path, ['albumThumbnailAssetId']);
+  }
+  for (const [input, field] of [
+    [{ albumName: '' }, 'albumName'],
+    [{ albumName: '汉'.repeat(86) }, 'albumName'],
+    [{ albumName: 'n', description: 'x'.repeat(8193) }, 'description'],
+    [{ albumName: 'n', albumUsers: [{ userId: b.id }] }, 'albumUsers'],
+    [{ albumName: 'n', bad: 'PRIVATE' }, 'bad'],
+  ]) {
+    const r = await albumCall(a.token, '', input, 'POST');
+    assert.equal(r.status, 400);
+    const d = await r.json();
+    assert.deepEqual(d.errors[0].path, [field]);
+    assert.ok(!JSON.stringify(d).includes('PRIVATE'));
+  }
+  for (const input of [
+    { isActivityEnabled: true },
+    { order: ['asc'] },
+    { albumThumbnailAssetId: null },
+  ])
+    assert.equal((await albumCall(a.token, `/${album.id}`, input, 'PATCH')).status, 400);
+  assert.equal((await albumCall(a.token, '?isOwned=maybe')).status, 400);
+  assert.deepEqual(await albumState(a.id), before);
+  await assert.rejects(
+    db
+      .prepare('INSERT INTO album_assets(album_id,asset_id,owner_id) VALUES(?,?,?)')
+      .bind(album.id, b.ids[0], a.id)
+      .run(),
+    /ALBUM_ASSET_PERMISSION/,
+  );
+});
+
+test('P4 相册创建响应丢失用幂等键恢复，重试不覆盖后续编辑或复活删除相册', async () => {
+  const a = await albumSetup(),
+    key = crypto.randomUUID(),
+    input = { albumName: 'request recovery', assetIds: a.ids };
+  assert.equal(
+    (
+      await albumCall(a.token, '', input, 'POST', {
+        'Idempotency-Key': key,
+        'x-test-storage-fault': 'after-d1',
+      })
+    ).status,
+    503,
+  );
+  const retry = await albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key });
+  assert.equal(retry.status, 201);
+  const album = await retry.json();
+  assert.equal((await albumState(a.id)).albums.length, 1);
+  assert.equal(
+    (
+      await albumCall(a.token, '', { ...input, albumName: 'different' }, 'POST', {
+        'Idempotency-Key': key,
+      })
+    ).status,
+    409,
+  );
+  await albumCall(a.token, `/${album.id}`, { albumName: 'edited later' }, 'PATCH');
+  await albumCall(a.token, `/${album.id}/assets`, { ids: [a.ids[1]] }, 'DELETE');
+  const before = await albumState(a.id);
+  const again = await (
+    await albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key })
+  ).json();
+  assert.equal(again.albumName, 'edited later');
+  assert.equal(again.assetCount, 1);
+  assert.deepEqual(await albumState(a.id), before);
+  assert.equal(
+    (
+      await albumCall(a.token, `/${album.id}`, undefined, 'DELETE', {
+        'x-test-storage-fault': 'after-d1',
+      })
+    ).status,
+    503,
+  );
+  assert.equal((await albumCall(a.token, `/${album.id}`, undefined, 'DELETE')).status, 204);
+  assert.equal(
+    (await albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key })).status,
+    409,
+  );
+  assert.equal((await albumState(a.id)).albums.length, 0);
+});
+
+test('P4 相册提交时会话撤销/过期/禁用均整体拒绝', async () => {
+  for (const change of ['revoked', 'expired', 'disabled'])
+    for (const operation of ['create', 'patch', 'add', 'remove', 'delete']) {
+      const a = await albumSetup();
+      const album = await (
+        await albumCall(a.token, '', { albumName: 'session', assetIds: [a.ids[0]] }, 'POST')
+      ).json();
+      const before = await albumState(a.id);
+      const map = {
+        create: ['/api/albums', 'POST', { albumName: 'must not create' }],
+        patch: [`/api/albums/${album.id}`, 'PATCH', { albumName: 'must not edit' }],
+        add: [`/api/albums/${album.id}/assets`, 'PUT', { ids: [a.ids[1]] }],
+        remove: [`/api/albums/${album.id}/assets`, 'DELETE', { ids: [a.ids[0]] }],
+        delete: [`/api/albums/${album.id}`, 'DELETE', {}],
+      };
+      const [path, method, data] = map[operation],
+        held = await pausedSyncRequest(a.token, path, method, data);
+      try {
+        if (change === 'revoked')
+          await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+        if (change === 'expired')
+          await db.prepare('UPDATE sessions SET expires_at=1 WHERE user_id=?').bind(a.id).run();
+        if (change === 'disabled')
+          await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(a.id).run();
+        await held.release();
+        assert.equal((await held.response).status, 401, change + '/' + operation);
+        assert.deepEqual(await albumState(a.id), before);
+      } finally {
+        await held.release();
+      }
+    }
+});
+
+test('P4 相册与关系写入故障整体回滚，原图、预约、同步时钟和创建预约保留原状态', async () => {
+  const a = await albumSetup();
+  const state = await albumState(a.id),
+    before = await auditSnapshot(a.id),
+    key = crypto.randomUUID();
+  await db
+    .prepare(
+      `CREATE TRIGGER test_album_fail AFTER INSERT ON album_assets WHEN NEW.owner_id='${a.id}' BEGIN SELECT RAISE(ABORT,'TEST_ALBUM_WRITE_FAIL'); END`,
+    )
+    .run();
+  try {
+    assert.equal(
+      (
+        await albumCall(a.token, '', { albumName: 'rollback', assetIds: a.ids }, 'POST', {
+          'Idempotency-Key': key,
+        })
+      ).status,
+      503,
+    );
+    assert.deepEqual(await albumState(a.id), state);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM album_write_guards').first()).n, 0);
+  } finally {
+    await db.prepare('DROP TRIGGER test_album_fail').run();
+  }
+  assert.equal(
+    (
+      await albumCall(a.token, '', { albumName: 'rollback', assetIds: a.ids }, 'POST', {
+        'Idempotency-Key': key,
+      })
+    ).status,
+    201,
+  );
+});
+
+test('P4 相册Sync全量/增量/重放与reset在独立关系模型中保持封面、owner和照片关系', async () => {
+  const { SyncClientModel } = await import('./fixtures/sync-client-model.mjs');
+  const { createHash } = await import('node:crypto');
+  const a = await albumSetup(),
+    token = crypto.randomUUID().replaceAll('-', '').repeat(2);
+  await db
+    .prepare('INSERT INTO sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)')
+    .bind(
+      crypto.randomUUID(),
+      a.id,
+      createHash('sha256').update(token).digest('hex'),
+      Date.now() + 86400000,
+    )
+    .run();
+  const client = new SyncClientModel();
+  const apply = async (extra = {}) => {
+    const events = await syncEvents(token, extra);
+    for (const event of events) {
+      if (event.type === 'AlbumV2') schema(event.data, 'SyncAlbumV2');
+      if (event.type === 'AlbumUserV1') schema(event.data, 'SyncAlbumUserV1');
+      if (event.type === 'AlbumToAssetV1') schema(event.data, 'SyncAlbumToAssetV1');
+    }
+    client.apply(events, { reset: !!extra.reset });
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token)).status,
+      204,
+    );
+    return events;
+  };
+  try {
+    await apply();
+    const album = await (
+      await albumCall(a.token, '', { albumName: 'sync', assetIds: a.ids }, 'POST')
+    ).json();
+    const events = await apply();
+    assert.ok(
+      events.findIndex((e) => e.type === 'AlbumV2') <
+        events.findIndex((e) => e.type === 'AlbumUserV1'),
+    );
+    assert.ok(
+      events.findIndex((e) => e.type === 'AlbumUserV1') <
+        events.findIndex((e) => e.type === 'AlbumToAssetV1'),
+    );
+    assert.ok(events.some((e) => e.type === 'AlbumAssetCreateV2'));
+    assert.equal(client.albumSnapshot().album_users[0].role, 'owner');
+    assert.equal(client.albumSnapshot().album_assets.length, 2);
+    await albumCall(
+      a.token,
+      `/${album.id}`,
+      { albumName: 'new', albumThumbnailAssetId: a.ids[1] },
+      'PATCH',
+    );
+    await apply();
+    assert.equal(client.albumSnapshot().albums[0].thumbnailAssetId, a.ids[1]);
+    await albumCall(a.token, `/${album.id}/assets`, { ids: [a.ids[1]] }, 'DELETE');
+    await apply();
+    assert.equal(client.albumSnapshot().albums[0].thumbnailAssetId, a.ids[0]);
+    await albumCall(a.token, `/${album.id}/assets`, { ids: [a.ids[1]] }, 'PUT');
+    const current = await syncEvents(token);
+    assert.ok(
+      !current.some((e) => e.type === 'AlbumToAssetDeleteV1' && e.data.assetId === a.ids[1]),
+    );
+    client.apply(current);
+    client.apply(current);
+    assert.equal(client.albumSnapshot().album_assets.length, 2);
+    await send('/api/sync/ack', { acks: current.map((e) => e.ack) }, token);
+    const snapshot = client.albumSnapshot();
+    const reset = await apply({ reset: true });
+    assert.deepEqual(client.albumSnapshot(), snapshot);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: current.map((e) => e.ack) }, token)).status,
+      400,
+    );
+    assert.ok(reset.some((e) => e.type === 'AlbumUserV1'));
+    await albumCall(a.token, `/${album.id}`, undefined, 'DELETE');
+    const deleted = await apply();
+    assert.ok(deleted.some((e) => e.type === 'AlbumDeleteV1'));
+    assert.ok(deleted.some((e) => e.type === 'AlbumUserDeleteV1'));
+    assert.deepEqual(client.albumSnapshot(), { albums: [], album_users: [], album_assets: [] });
+    assert.equal(client.snapshot().assets.length, 2);
+    assert.deepEqual(
+      (await syncEvents(token)).map((e) => e.type),
+      ['SyncCompleteV1'],
+    );
+  } finally {
+    client.close();
+  }
+});
+
+test('P4 相册写入与普通/显式reset竞态拒绝旧Complete，纯资产同步不受无关相册写入影响', async () => {
+  for (const reset of [false, true]) {
+    const a = await albumSetup();
+    const album = await (
+      await albumCall(a.token, '', { albumName: 'race', assetIds: a.ids }, 'POST')
+    ).json();
+    const prior = await syncEvents(a.token);
+    await send('/api/sync/ack', { acks: prior.map((e) => e.ack) }, a.token);
+    const checkpoints = await checkpointRows(a.token);
+    const held = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', {
+      types: manifest.sync.requestedTypes,
+      reset,
+    });
+    try {
+      assert.equal(
+        (await albumCall(a.token, `/${album.id}`, { albumName: 'raced' }, 'PATCH')).status,
+        200,
+      );
+      await held.release();
+      assert.equal((await held.response).status, 409);
+      assert.deepEqual(await checkpointRows(a.token), checkpoints);
+    } finally {
+      await held.release();
+    }
+    const fresh = await syncEvents(a.token, { reset });
+    assert.equal(fresh.find((e) => e.type === 'AlbumV2').data.name, 'raced');
+    const assetOnly = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', {
+      types: ['UsersV1', 'AssetsV2'],
+    });
+    try {
+      await albumCall(a.token, `/${album.id}`, { albumName: 'independent' }, 'PATCH');
+      await assetOnly.release();
+      assert.equal((await assetOnly.response).status, 200);
+    } finally {
+      await assetOnly.release();
+    }
+  }
+});
+
+test('P4 资产退役级联移除相册关系和失效封面，但保留R2原图', async () => {
+  const a = await albumSetup();
+  const album = await (
+    await albumCall(a.token, '', { albumName: 'retire', assetIds: a.ids }, 'POST')
+  ).json();
+  const keys = (
+    await db.prepare('SELECT object_key FROM assets WHERE owner_id=?').bind(a.id).all()
+  ).results.map((r) => r.object_key);
+  assert.equal((await retireForTest(a.token, a.ids[0])).status, 200);
+  const updated = await (await albumCall(a.token, `/${album.id}`)).json();
+  assert.equal(updated.assetCount, 1);
+  assert.equal(updated.albumThumbnailAssetId, a.ids[1]);
+  for (const key of keys) assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+  const events = await syncEvents(a.token);
+  assert.ok(events.some((e) => e.type === 'AlbumToAssetDeleteV1' && e.data.assetId === a.ids[0]));
+  assert.equal(events.find((e) => e.type === 'AlbumV2').data.thumbnailAssetId, a.ids[1]);
+});
+
+test('P4 相册并发幂等创建不重复，封面和移除竞争始终保持有效引用', async () => {
+  const a = await albumSetup(),
+    key = crypto.randomUUID(),
+    input = { albumName: 'concurrent', assetIds: a.ids };
+  const created = await Promise.all([
+    albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key }),
+    albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key }),
+  ]);
+  assert.ok(created.every((r) => r.status === 201));
+  const rows = await Promise.all(created.map((r) => r.json()));
+  assert.equal(rows[0].id, rows[1].id);
+  assert.equal((await albumState(a.id)).albums.length, 1);
+  const id = rows[0].id;
+  const raced = await Promise.all([
+    albumCall(a.token, `/${id}`, { albumThumbnailAssetId: a.ids[1] }, 'PATCH'),
+    albumCall(a.token, `/${id}/assets`, { ids: [a.ids[1]] }, 'DELETE'),
+  ]);
+  assert.ok([200, 400].includes(raced[0].status));
+  assert.equal(raced[1].status, 200);
+  const info = await (await albumCall(a.token, `/${id}`)).json();
+  assert.equal(info.albumThumbnailAssetId, a.ids[0]);
+  assert.equal(info.assetCount, 1);
+});
+
+test('P4 关系修改响应丢失安全重试，相册删除不影响另一相册或资产', async () => {
+  const a = await albumSetup();
+  const first = await (await albumCall(a.token, '', { albumName: 'first' }, 'POST')).json(),
+    second = await (
+      await albumCall(a.token, '', { albumName: 'second', assetIds: a.ids }, 'POST')
+    ).json();
+  assert.equal(
+    (
+      await albumCall(a.token, `/${first.id}/assets`, { ids: a.ids }, 'PUT', {
+        'x-test-storage-fault': 'after-d1',
+      })
+    ).status,
+    503,
+  );
+  const retryAdd = await (
+    await albumCall(a.token, `/${first.id}/assets`, { ids: a.ids }, 'PUT')
+  ).json();
+  assert.ok(retryAdd.every((r) => r.error === 'duplicate'));
+  assert.equal(
+    (
+      await albumCall(a.token, `/${first.id}/assets`, { ids: [a.ids[0]] }, 'DELETE', {
+        'x-test-storage-fault': 'after-d1',
+      })
+    ).status,
+    503,
+  );
+  const retryRemove = await (
+    await albumCall(a.token, `/${first.id}/assets`, { ids: [a.ids[0]] }, 'DELETE')
+  ).json();
+  assert.equal(retryRemove[0].error, 'not_found');
+  const state = await auditSnapshot(a.id);
+  assert.equal((await albumCall(a.token, `/${first.id}`, undefined, 'DELETE')).status, 204);
+  const info = await (await albumCall(a.token, `/${second.id}`)).json();
+  assert.equal(info.assetCount, 2);
+  assert.deepEqual((await auditSnapshot(a.id)).assets, state.assets);
+  assert.deepEqual((await auditSnapshot(a.id)).objects, state.objects);
+});
+
+test('P4 相册资源上限在数据库中强制执行，重复已完成创建不受上限干扰', async () => {
+  const a = await reliabilityAccount(),
+    key = crypto.randomUUID(),
+    input = { albumName: 'limit' };
+  const initial = await (
+    await albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key })
+  ).json();
+  const when = new Date().toISOString();
+  const values = Array.from({ length: 99 }, () => ({ id: crypto.randomUUID() }));
+  await db
+    .prepare(
+      `INSERT INTO albums(id,owner_id,name,created_at,updated_at) SELECT json_extract(value,'$.id'),?,'bounded',?,? FROM json_each(?)`,
+    )
+    .bind(a.id, when, when, JSON.stringify(values))
+    .run();
+  const r = await albumCall(a.token, '', { albumName: 'over' }, 'POST');
+  assert.equal(r.status, 400);
+  assert.deepEqual((await r.json()).errors[0].path, ['albumName']);
+  assert.equal((await (await albumCall(a.token)).json()).length, 100);
+  const retried = await albumCall(a.token, '', input, 'POST', { 'Idempotency-Key': key });
+  assert.equal(retried.status, 201);
+  assert.equal((await retried.json()).id, initial.id);
+});
+
+test('P4 相册资产独立请求家族可创建并增量更新资产，不依赖AssetsV2同时请求', async () => {
+  const a = await albumSetup();
+  await albumCall(a.token, '', { albumName: 'family', assetIds: a.ids }, 'POST');
+  const types = ['UsersV1', 'AlbumAssetsV2'];
+  const initial = await syncEvents(a.token, { types });
+  assert.ok(initial.some((e) => e.type === 'AlbumAssetCreateV2'));
+  assert.ok(!initial.some((e) => e.type === 'AlbumV2'));
+  for (const e of initial.filter(
+    (e) => e.type === 'AlbumAssetCreateV2' || e.type === 'AlbumAssetUpdateV2',
+  ))
+    schema(e.data, 'SyncAssetV2');
+  await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, a.token);
+  assert.equal(
+    (await send(`/api/assets/${a.ids[0]}`, { isFavorite: true }, a.token, 'PUT')).status,
+    200,
+  );
+  const incremental = await syncEvents(a.token, { types });
+  assert.equal(incremental.find((e) => e.type === 'AlbumAssetUpdateV2').data.isFavorite, true);
+  const other = await reliabilityAccount();
+  assert.deepEqual(
+    (await syncEvents(other.token)).filter((e) => e.type.startsWith('Album')),
+    [],
+  );
+  assert.equal((await worker.fetch('/api/albums')).status, 401);
+});

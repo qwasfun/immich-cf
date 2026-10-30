@@ -1,0 +1,43 @@
+{
+  "scope": "personal-albums-local",
+  "tests": 174,
+  "passed": 174,
+  "failed": 0,
+  "skipped": 0,
+  "focusedTests": 13,
+  "format": true,
+  "lint": true,
+  "types": true,
+  "dryRunBuild": true,
+  "build": {
+    "uploadKiB": 229.57,
+    "gzipKiB": 55.78
+  },
+  "contract": {
+    "operations": 279,
+    "sources": 53,
+    "unchanged": true
+  },
+  "migration": "0021_personal_albums.sql",
+  "verified": [
+    "CRUD and filters",
+    "frozen schemas",
+    "owner and member FK order",
+    "automatic and explicit cover",
+    "empty album fallback",
+    "multi-album references",
+    "cross-owner rejection",
+    "revoked/expired/disabled at commit",
+    "atomic rollback",
+    "concurrent idempotent creation",
+    "response loss replay",
+    "100 album database cap",
+    "selective sync families",
+    "reset and ACK isolation",
+    "retired asset relation cascade",
+    "R2 originals and reservations retained"
+  ],
+  "officialAppVerified": false,
+  "cpuWorkPaused": true,
+  "p4ExitPassed": false
+}

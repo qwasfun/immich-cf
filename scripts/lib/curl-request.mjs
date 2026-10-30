@@ -44,7 +44,10 @@ export async function curlRequest(
   if (typeof direct !== 'boolean' || (direct && proxy !== undefined))
     throw new Error('Invalid direct/proxy policy');
   if (proxy !== undefined) validateLoopbackProxy(proxy);
-  if (!['POST', 'GET', 'PUT'].includes(method) || (method === 'GET' && body !== undefined))
+  if (
+    !['POST', 'GET', 'PUT', 'PATCH', 'DELETE'].includes(method) ||
+    (method === 'GET' && body !== undefined)
+  )
     throw new Error('Invalid request method or body');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 180000)
     throw new Error('Invalid timeout');
@@ -61,18 +64,19 @@ export async function curlRequest(
     if (!/^[A-Za-z0-9-]+$/.test(name)) throw new Error('Invalid header');
     return 'header = ' + quote(`${name}: ${value}`);
   });
+  const hasBody = method !== 'GET' && body !== undefined;
   const dir = await mkdtemp(join(tmpdir(), 'immich-cf-upload-'));
   const input = join(dir, 'body.bin'),
     output = join(dir, 'response.bin'),
     responseHead = join(dir, 'headers.txt');
   try {
-    if (method !== 'GET') await writeFile(input, body);
+    if (hasBody) await writeFile(input, body);
     const config =
       [
         `url = ${quote(url)}`,
         `request = ${quote(method)}`,
         ...headerLines,
-        ...(method !== 'GET' ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
+        ...(hasBody ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
         `output = ${quote(output.replaceAll('\\', '/'))}`,
         `dump-header = ${quote(responseHead.replaceAll('\\', '/'))}`,
         'write-out = "%{json}"',

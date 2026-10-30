@@ -327,7 +327,39 @@ test('curl PUT 复用受保护正文与代理配置路径，不改变方法或�
       { method: 'PUT', body: '{"isFavorite":true}', authorization: 'Bearer PRIVATE_TEST_TOKEN' },
     ]);
     assert.ok(!JSON.stringify(r.metrics).includes('PRIVATE_TEST_TOKEN'));
-    await assert.rejects(() => curlRequest('http://127.0.0.1/', { method: 'DELETE' }), /Invalid/);
+    await assert.rejects(() => curlRequest('http://127.0.0.1/', { method: 'TRACE' }), /Invalid/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('curl PATCH及有无正文DELETE保持方法、正文与凭据隔离', async () => {
+  const requests = [];
+  const server = http.createServer(async (req, res) => {
+    const parts = [];
+    for await (const c of req) parts.push(c);
+    requests.push({ method: req.method, body: Buffer.concat(parts).toString() });
+    res.writeHead(200);
+    res.end('{}');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/album`;
+    for (const [method, body] of [
+      ['PATCH', Buffer.from('{"albumName":"n"}')],
+      ['DELETE', Buffer.from('{"ids":[]}')],
+      ['DELETE', undefined],
+    ]) {
+      const r = await curlRequest(url, { method, body, direct: true });
+      assert.equal(r.metrics.status, 200);
+      assert.equal(r.metrics.errorCode, null);
+    }
+    assert.deepEqual(requests, [
+      { method: 'PATCH', body: '{"albumName":"n"}' },
+      { method: 'DELETE', body: '{"ids":[]}' },
+      { method: 'DELETE', body: '' },
+    ]);
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));

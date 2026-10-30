@@ -2,6 +2,7 @@ import type { Identity } from './auth';
 import { body, HttpError, invalid, strings, uuid7 } from './http';
 import { entityTypes, supportedTypes } from './types';
 import { onboardingEvents } from './onboarding';
+import { albumEvents, albumTypes } from './album-sync';
 import { assetEvents } from './assets';
 import { syncLines as lines } from './sync-lines';
 
@@ -20,7 +21,7 @@ async function guarded(
   statements: D1PreparedStatement[],
   acks: string[] = [],
   historyFloor = -1,
-  readState?: { assets: number; onboarding: number; user: string },
+  readState?: { assets: number; onboarding: number; user: string; albums: number },
 ) {
   const id = crypto.randomUUID();
   try {
@@ -44,7 +45,15 @@ async function guarded(
               .bind(id, session, readState.assets, readState.onboarding, readState.user),
           ]
         : []),
+      ...(readState && readState.albums >= 0
+        ? [
+            db
+              .prepare('INSERT INTO sync_album_read_guards VALUES (?,?,?)')
+              .bind(id, session, readState.albums),
+          ]
+        : []),
       ...statements,
+      db.prepare('DELETE FROM sync_album_read_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_read_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_history_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_guards WHERE id=?').bind(id),
@@ -249,7 +258,14 @@ export async function sync(
   }
   if (types.includes('UserMetadataV1'))
     events.push(...(await onboardingEvents(db, identity, checkpoints, explicitReset)));
-  events.push(...(await assetEvents(db, identity, types, checkpoints, explicitReset)));
+  const ownEvents = await assetEvents(db, identity, types, checkpoints, explicitReset);
+  const albumSnapshot = await albumEvents(db, identity, types, checkpoints, explicitReset);
+  events.push(
+    ...ownEvents.filter((event) => !event.type.startsWith('AssetMetadata')),
+    ...albumSnapshot.assets,
+    ...albumSnapshot.albums,
+    ...ownEvents.filter((event) => event.type.startsWith('AssetMetadata')),
+  );
   events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // Cursor comparisons above use the unchanged cursor prefix; wire ACKs bind to a generation.
   const deliveryEpoch = explicitReset ? crypto.randomUUID() : epoch;
@@ -316,7 +332,10 @@ export async function sync(
     historyRequested ? historyFloor : -1,
     {
       assets:
-        historyRequested || types.includes('AuthUsersV2') ? (identity.asset_revision ?? 0) : -1,
+        historyRequested || types.includes('AuthUsersV2') || types.includes('AlbumAssetsV2')
+          ? (identity.asset_revision ?? 0)
+          : -1,
+      albums: types.some((type) => albumTypes.includes(type)) ? (identity.album_revision ?? 0) : -1,
       onboarding: types.includes('UserMetadataV1') ? (identity.onboarding_revision ?? 0) : -1,
       user: types.includes('AuthUsersV2') || types.includes('UsersV1') ? identity.update_id : '',
     },
