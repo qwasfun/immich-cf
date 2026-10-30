@@ -2,8 +2,8 @@
   "scope": "isolated-local-p3-infrastructure",
   "localChecks": {
     "complete": true,
-    "tests": 149,
-    "passed": 149,
+    "tests": 161,
+    "passed": 161,
     "failed": 0,
     "skipped": 0,
     "format": true,
@@ -21,7 +21,9 @@
     "0015_history_retention.sql",
     "0016_asset_metadata_history.sql",
     "0017_r2_cleanup.sql",
-    "0018_cleanup_pending_index.sql"
+    "0018_cleanup_pending_index.sql",
+    "0019_sync_read_guards.sql",
+    "0020_asset_updated_at.sql"
   ],
   "forwardNonemptyMigrationVerified": true,
   "localQueryCost": {
@@ -32,8 +34,8 @@
     "platformBillingOrWholeRequestCostVerified": false
   },
   "build": {
-    "uploadKiB": 208.61,
-    "gzipKiB": 51.24
+    "uploadKiB": 212.11,
+    "gzipKiB": 51.98
   },
   "originalsRetained": true,
   "reservationsRetained": true,
@@ -72,6 +74,26 @@
     "readFailureClosedVerified": true,
     "snapshotConsistent": false,
     "automaticCleanupEnabled": false,
-    "publicApiEnabled": false
+    "publicApiEnabled": false,
+    "d1MissingCopyReservationObserved": true
+  },
+  "businessReadGuard": {
+    "atomicDeliveryRegistration": true,
+    "assetQuotaOnboardingAndUserVersions": true,
+    "crossOwnerAndFamilyIsolationVerified": true
+  },
+  "clientStateModel": {
+    "scope": "independent-simplified-sqlite-consumer",
+    "sessions": 2,
+    "workloadRounds": 32,
+    "officialApp": false,
+    "relationalStateConverged": true,
+    "clientRollbackAndAckLossVerified": true
+  },
+  "favoritePrototype": {
+    "singleAndBulk": true,
+    "atomicAuthorization": true,
+    "idempotentResponseLossRecovery": true,
+    "officialAppVerified": false
   }
 }

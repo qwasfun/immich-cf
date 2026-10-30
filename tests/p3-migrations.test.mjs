@@ -20,8 +20,12 @@ test('P3 非空0013数据库前向迁移保留资产、预约、源引用、会�
     const before = new Map(tables.map((name) => [name, db.prepare('SELECT * FROM ' + name).all()]));
     for (const file of files.filter((x) => x >= '0014'))
       db.exec(await readFile('migrations/' + file, 'utf8'));
-    for (const name of tables)
-      assert.deepEqual(db.prepare('SELECT * FROM ' + name).all(), before.get(name));
+    for (const name of tables) {
+      const original = before.get(name);
+      const columns = Object.keys(original[0]);
+      assert.deepEqual(db.prepare('SELECT ' + columns.join(',') + ' FROM ' + name).all(), original);
+    }
+    assert.equal(db.prepare('SELECT updated_at FROM assets').get().updated_at, 'date');
     assert.equal(
       db.prepare('SELECT revision FROM asset_owner_revisions').get().revision,
       db.prepare('SELECT sync_seq FROM assets').get().sync_seq,

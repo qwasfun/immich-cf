@@ -106,3 +106,7 @@ pnpm check
 - [P3 只读存储盘点与任务恢复](docs/p3-storage-inventory.md)：有界分页识别全部引用及摘要预约，发现对象已删除的未完成任务；本机内部验证，不自动清理。
 
 - [P3 dev 部署记录](docs/p3-dev-deployment.md)：2026-10-30 部署 54f50e4，0014～0018 迁移与公网同步/预览冒烟通过，维护入口未开放。
+
+- [开发进度与剩余任务](docs/development-progress.md)：各阶段真实完成边界与后续顺序。
+- [P3 读取一致性与双会话恢复](docs/p3-read-consistency.md)：业务变更守卫、独立关系消费模型、缺失预约引用盘点。
+- [P4 本机收藏原型](docs/p4-favorites.md)：单张/批量收藏、原子权限检查及同步；dev 发布与验证单独记录。

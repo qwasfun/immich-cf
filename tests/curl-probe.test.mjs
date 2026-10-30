@@ -299,3 +299,37 @@ test('显式本机直连绕过环境代理，上传重试与Range恢复不经过
     await Promise.all([new Promise((r) => origin.close(r)), new Promise((r) => proxy.close(r))]);
   }
 });
+
+test('curl PUT 复用受保护正文与代理配置路径，不改变方法或回显敏感值', async () => {
+  const received = [];
+  const server = http.createServer(async (req, res) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    received.push({
+      method: req.method,
+      body: Buffer.concat(chunks).toString(),
+      authorization: req.headers.authorization,
+    });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end('{"ok":true}');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const r = await curlRequest(`http://127.0.0.1:${server.address().port}/favorite`, {
+      method: 'PUT',
+      direct: true,
+      headers: { Authorization: 'Bearer PRIVATE_TEST_TOKEN', 'Content-Type': 'application/json' },
+      body: Buffer.from('{"isFavorite":true}'),
+    });
+    assert.equal(r.metrics.errorCode, null);
+    assert.equal(r.metrics.status, 200);
+    assert.deepEqual(received, [
+      { method: 'PUT', body: '{"isFavorite":true}', authorization: 'Bearer PRIVATE_TEST_TOKEN' },
+    ]);
+    assert.ok(!JSON.stringify(r.metrics).includes('PRIVATE_TEST_TOKEN'));
+    await assert.rejects(() => curlRequest('http://127.0.0.1/', { method: 'DELETE' }), /Invalid/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -2,7 +2,7 @@
 import app from '../../src/index';
 import { authenticate } from '../../src/poc/auth';
 import { retireAsset } from '../../src/poc/asset-history';
-import { HttpError } from '../../src/poc/http';
+import { body, HttpError } from '../../src/poc/http';
 import { storageInventory } from '../../src/poc/storage-inventory';
 import { cleanStorageCopy } from '../../src/poc/storage-cleanup';
 import { compactHistory } from '../../src/poc/history-cleanup';
@@ -239,6 +239,7 @@ export default {
             if (
               fault === 'inventory-db' &&
               (sql.startsWith('SELECT k.value object_key') ||
+                sql.startsWith('SELECT /* inventory references */') ||
                 sql.startsWith('SELECT object_key FROM r2_cleanup_claims'))
             )
               throw new Error('TEST_PRIVATE_INVENTORY_DB_ERROR');
@@ -276,14 +277,19 @@ export default {
     let response: Response;
     if ((retirement || cleanup || storageCleanup || inventory) && clean.method === 'POST') {
       try {
+        // Drain the bounded test JSON before early auth rejection. Otherwise
+        // workerd's test ProxyWorker can poison the next multipart connection.
+        let input: Record<string, unknown> = {};
+        if (retirement) await clean.arrayBuffer();
+        else input = await body(clean);
         const identity = await authenticate(clean, db);
         response = Response.json(
           inventory
-            ? await storageInventory(db, media, identity, await clean.json())
+            ? await storageInventory(db, media, identity, input)
             : storageCleanup
-              ? await cleanStorageCopy(db, media, identity, await clean.json())
+              ? await cleanStorageCopy(db, media, identity, input)
               : cleanup
-                ? await compactHistory(db, identity, await clean.json())
+                ? await compactHistory(db, identity, input)
                 : await retireAsset(db, identity, retirement![1]!),
         );
       } catch (error) {

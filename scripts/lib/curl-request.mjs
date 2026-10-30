@@ -44,7 +44,7 @@ export async function curlRequest(
   if (typeof direct !== 'boolean' || (direct && proxy !== undefined))
     throw new Error('Invalid direct/proxy policy');
   if (proxy !== undefined) validateLoopbackProxy(proxy);
-  if (!['POST', 'GET'].includes(method) || (method === 'GET' && body !== undefined))
+  if (!['POST', 'GET', 'PUT'].includes(method) || (method === 'GET' && body !== undefined))
     throw new Error('Invalid request method or body');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 180000)
     throw new Error('Invalid timeout');
@@ -66,13 +66,13 @@ export async function curlRequest(
     output = join(dir, 'response.bin'),
     responseHead = join(dir, 'headers.txt');
   try {
-    if (method === 'POST') await writeFile(input, body);
+    if (method !== 'GET') await writeFile(input, body);
     const config =
       [
         `url = ${quote(url)}`,
         `request = ${quote(method)}`,
         ...headerLines,
-        ...(method === 'POST' ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
+        ...(method !== 'GET' ? [`data-binary = ${quote('@' + input.replaceAll('\\', '/'))}`] : []),
         `output = ${quote(output.replaceAll('\\', '/'))}`,
         `dump-header = ${quote(responseHead.replaceAll('\\', '/'))}`,
         'write-out = "%{json}"',

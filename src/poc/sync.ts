@@ -20,6 +20,7 @@ async function guarded(
   statements: D1PreparedStatement[],
   acks: string[] = [],
   historyFloor = -1,
+  readState?: { assets: number; onboarding: number; user: string },
 ) {
   const id = crypto.randomUUID();
   try {
@@ -36,7 +37,15 @@ async function guarded(
               .bind(id, session, historyFloor),
           ]
         : []),
+      ...(readState
+        ? [
+            db
+              .prepare('INSERT INTO sync_read_guards VALUES (?,?,?,?,?)')
+              .bind(id, session, readState.assets, readState.onboarding, readState.user),
+          ]
+        : []),
       ...statements,
+      db.prepare('DELETE FROM sync_read_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_history_guards WHERE id=?').bind(id),
       db.prepare('DELETE FROM sync_guards WHERE id=?').bind(id),
     ]);
@@ -305,6 +314,12 @@ export async function sync(
     ],
     [],
     historyRequested ? historyFloor : -1,
+    {
+      assets:
+        historyRequested || types.includes('AuthUsersV2') ? (identity.asset_revision ?? 0) : -1,
+      onboarding: types.includes('UserMetadataV1') ? (identity.onboarding_revision ?? 0) : -1,
+      user: types.includes('AuthUsersV2') || types.includes('UsersV1') ? identity.update_id : '',
+    },
   );
   return lines(events);
 }

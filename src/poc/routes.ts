@@ -6,6 +6,7 @@ import { sessions } from './sessions';
 import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
 import { repairDimensions } from './repair-dimensions';
+import { updateFavorite } from './favorites';
 import { storageAudit } from './storage-audit';
 import { upgradeIntegrity } from './upgrade-integrity';
 
@@ -13,7 +14,7 @@ const methods: Record<string, string[]> = {
   '/api/immich-cf/upgrade-integrity': ['POST'],
   '/api/immich-cf/storage-audit': ['POST'],
   '/api/immich-cf/repair-dimensions': ['POST'],
-  '/api/assets': ['POST'],
+  '/api/assets': ['POST', 'PUT'],
   '/api/assets/bulk-upload-check': ['POST'],
   '/.well-known/immich': ['GET'],
   '/api/server/ping': ['GET'],
@@ -43,7 +44,9 @@ export async function route(
   const allowed =
     methods[path] ??
     (assetPath
-      ? ['GET', 'HEAD']
+      ? assetPath[2]
+        ? ['GET', 'HEAD']
+        : ['GET', 'HEAD', 'PUT']
       : /^\/api\/sessions\/[^/]+$/.test(path)
         ? ['DELETE', 'PUT']
         : undefined);
@@ -150,6 +153,13 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (request.method === 'PUT' && (path === '/api/assets' || /^\/api\/assets\/[^/]+$/.test(path)))
+    return updateFavorite(
+      request,
+      db,
+      identity,
+      path === '/api/assets' ? undefined : path.split('/').at(-1),
+    );
   if (path === '/api/immich-cf/upgrade-integrity') return upgradeIntegrity(request, env, identity);
   if (path === '/api/immich-cf/storage-audit') return storageAudit(request, env, identity);
   if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);

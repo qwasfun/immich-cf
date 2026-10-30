@@ -8,7 +8,7 @@ import { originalMatches } from './integrity';
 import { MAX_IMAGE, parseUploadForm } from './multipart';
 
 export { MAX_IMAGE } from './multipart';
-interface Asset {
+export interface Asset {
   seq: number;
   sync_seq: number;
   id: string;
@@ -21,6 +21,7 @@ interface Asset {
   width: number;
   height: number;
   created_at: string;
+  updated_at: string;
   file_created_at: string;
   file_modified_at: string;
   favorite: number;
@@ -332,6 +333,19 @@ export function assetDto(row: Asset) {
     thumbhash: null,
   };
 }
+export function assetDetailDto(row: Asset) {
+  return {
+    ...assetDto(row),
+    originalPath: '',
+    originalMimeType: row.mime,
+    updatedAt: row.updated_at || row.created_at,
+    hasMetadata: false,
+    isArchived: false,
+    isOffline: false,
+    isTrashed: false,
+  };
+}
+
 export async function readAsset(
   request: Request,
   env: Env,
@@ -344,17 +358,7 @@ export async function readAsset(
     .bind(id, identity.id)
     .first<Asset>();
   if (!row) throw new HttpError(404, '图片不存在或无权访问');
-  if (!kind)
-    return Response.json({
-      ...assetDto(row),
-      originalPath: '',
-      originalMimeType: row.mime,
-      updatedAt: row.created_at,
-      hasMetadata: false,
-      isArchived: false,
-      isOffline: false,
-      isTrashed: false,
-    });
+  if (!kind) return Response.json(assetDetailDto(row));
   const size = new URL(request.url).searchParams.get('size');
   if (size && !['thumbnail', 'preview', 'fullsize', 'original'].includes(size))
     invalid('size', '必须为 thumbnail、preview、fullsize 或 original');

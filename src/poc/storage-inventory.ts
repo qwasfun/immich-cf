@@ -1,5 +1,6 @@
 import type { Identity } from './auth';
 import { HttpError, invalid } from './http';
+import { originalMatches } from './integrity';
 import { isStorageCopyKey } from './storage-cleanup';
 
 // Internal read-only observations. Never feed these classifications directly to
@@ -14,14 +15,100 @@ export async function storageInventory(
     if (!['mode', 'after'].includes(field)) invalid(field, '仅接受 mode 和 after，请移除此字段');
   const mode = input.mode ?? 'objects',
     after = input.after ?? '';
-  if (mode !== 'objects' && mode !== 'pending') invalid('mode', '必须为 objects 或 pending');
+  if (typeof mode !== 'string' || !['objects', 'pending', 'references'].includes(mode))
+    invalid('mode', '必须为 objects、pending 或 references');
   if (
     typeof after !== 'string' ||
     after.length > 2048 ||
     (mode === 'pending' && after !== '' && !isStorageCopyKey(after, identity.id))
   )
     invalid('after', '必须使用当前账号、当前模式上一页的 nextAfter，首次请省略');
+  if (
+    mode === 'references' &&
+    after &&
+    !/^(asset|source|intent|retired|retired-source):[a-f0-9-]{36}$/i.test(after) &&
+    !after.startsWith('copy:' + identity.id + '/')
+  )
+    invalid('after', '必须使用当前 references 页的 nextAfter，首次请省略');
   try {
+    if (mode === 'references') {
+      // Six independent bounded reads avoid D1's compound-SELECT limit. Batch
+      // provides a shared D1 snapshot; never interpolate user input into SQL.
+      const sources = [
+        ['asset', 'assets', 'id', 'object_key', 'bytes', 'checksum', 'r2_sha1_verified'],
+        ['copy', 'integrity_copy_intents', 'object_key', 'object_key', 'NULL', 'NULL', '0'],
+        ['intent', 'upload_intents', 'id', 'object_key', 'NULL', 'checksum', '0'],
+        ['retired', 'retired_assets', 'id', 'object_key', 'bytes', 'checksum', 'r2_sha1_verified'],
+        [
+          'retired-source',
+          'retired_assets',
+          'id',
+          'integrity_source_key',
+          'bytes',
+          'checksum',
+          '0',
+        ],
+        ['source', 'assets', 'id', 'integrity_source_key', 'bytes', 'checksum', '0'],
+      ] as const;
+      const batches = await db.batch<{
+        cursor: string;
+        kind: string;
+        object_key: string;
+        bytes: number;
+        checksum: string;
+        required: number;
+      }>(
+        sources.map(([kind, table, id, key, bytes, checksum, required]) =>
+          db
+            .prepare(
+              `SELECT /* inventory references */ '${kind}:'||${id} cursor,'${kind}' kind,${key} object_key,${bytes} bytes,${checksum} checksum,${required} required FROM ${table} WHERE owner_id=? AND ${key} IS NOT NULL AND '${kind}:'||${id}>? ORDER BY cursor LIMIT 21`,
+            )
+            .bind(identity.id, after),
+        ),
+      );
+      const rows = {
+        results: batches
+          .flatMap((batch) => batch.results)
+          .sort((a, b) => (a.cursor < b.cursor ? -1 : a.cursor > b.cursor ? 1 : 0))
+          .slice(0, 21),
+      };
+      const page = rows.results.slice(0, 20);
+      if (page.some((row) => !row.object_key.startsWith(identity.id + '/')))
+        throw new Error('INVALID_REFERENCE_SCOPE');
+      const entries = [];
+      for (const row of page) {
+        let objectStatus: string;
+        try {
+          const object = await bucket.head(row.object_key);
+          objectStatus = !object
+            ? 'missing'
+            : row.kind === 'copy' || row.kind === 'intent'
+              ? 'present-unverified'
+              : object.size !== row.bytes
+                ? 'size-mismatch'
+                : originalMatches(object, row.bytes, row.checksum, true)
+                  ? 'verified'
+                  : object.checksums.sha1
+                    ? 'checksum-mismatch'
+                    : 'checksum-unavailable';
+        } catch {
+          objectStatus = 'unavailable';
+        }
+        entries.push({
+          key: row.object_key,
+          kind: row.kind,
+          objectStatus,
+          checksumRequired: !!row.required,
+        });
+      }
+      return {
+        mode,
+        entries,
+        nextAfter: rows.results.length > 20 ? page.at(-1)!.cursor : null,
+        observationOnly: true,
+        snapshotConsistent: false,
+      };
+    }
     if (mode === 'pending') {
       const rows = await db
         .prepare(

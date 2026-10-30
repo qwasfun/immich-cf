@@ -61,3 +61,7 @@ test/prod 当前 `ENABLE_P1_POC=false`，不会随 dev 入口启用自动开放�
 公网验证：health/discovery/ping 200，密码登录 201，Cookie users/me 200，Sync 200（AuthUserV2 + SyncCompleteV1），ACK 204，退出 200。只输出脱敏结果，随机密码和令牌不进入 Git；数据库仅保存密码哈希和会话令牌哈希。这是服务端协议冒烟，不等于官方 iOS 真机或 Free CPU 负载验收。
 
 本地 `http://127.0.0.1:8787` 通过同一 dev 测试账户完成 health/discovery/ping 200、登录 201、users/me 200、Sync 200、ACK 204、退出 200，确认本机执行代码并使用远程 dev D1。R2 仍为私有，本次没有写入照片。test/prod 保留为待晋升环境，不承诺当前地址可登录。
+
+## dev 持续调试授权（2026-10-30）
+
+用户明确指定 dev 用于随时调试：后续按 dev 分支开发、完整本机检查、部署 dev、公网验证推进，无需对常规 dev 发布重复询问。使用既有代理和 curl 有界重试；间歇网络失败先按传输不稳定处理，不据此直接判业务缺陷。部署仍记录源码/Worker版本/迁移与脱敏结果，不改变 test/生产、密码安全性、媒体限制或 reset/ACK 隔离；故障注入与破坏性演练继续优先用隔离资源。

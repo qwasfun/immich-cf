@@ -1776,7 +1776,7 @@ test('混合队列精确大小边界、格式拒绝、重复失败与截断恢�
   );
 });
 
-test('历史尺寸预检无写入，修复推进游标，旧流 ACK 不吞更新，重试不再推进', async () => {
+test('历史尺寸预检无写入，修复拒绝竞态旧流，已登记旧ACK不吞更新，重试不再推进', async () => {
   const { token, id, bytes } = await historicalExif();
   const prior = await syncEvents(token);
   await send('/api/sync/ack', { acks: prior.map((e) => e.ack) }, token);
@@ -1791,8 +1791,12 @@ test('历史尺寸预检无写入，修复推进游标，旧流 ACK 不吞更新
   try {
     assert.equal((await (await send(repairPath, { id, apply: true }, token)).json()).applied, true);
     await held.release();
-    const old = (await (await held.response).text()).trim().split('\n').map(JSON.parse);
-    assert.equal((await send('/api/sync/ack', { acks: old.map((e) => e.ack) }, token)).status, 204);
+    assert.equal((await held.response).status, 409);
+    // Already registered ACKs remain valid; the rejected snapshot creates no new ACK.
+    assert.equal(
+      (await send('/api/sync/ack', { acks: prior.map((e) => e.ack) }, token)).status,
+      204,
+    );
     const fresh = await syncEvents(token);
     const asset = fresh.find((e) => e.type === 'AssetV2' && e.data.id === id);
     assert.deepEqual([asset.data.width, asset.data.height], [240, 320]);
@@ -4939,4 +4943,500 @@ test('P3 盘点字段错误精确且不回显，未认证或撤销会话拒绝',
   assert.equal((await inventoryForTest('missing')).status, 401);
   await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
   assert.equal((await inventoryForTest(a.token, { mode: 'pending' })).status, 401);
+});
+
+test('P3 业务快照变化拒绝旧 Complete，普通流与显式reset均保留原检查点', async () => {
+  for (const reset of [false, true])
+    for (const change of ['favorite', 'metadata', 'delete', 'onboarding', 'profile']) {
+      const a = await reliabilityAccount();
+      const asset = (await (await uploadFixture(a.token)).json()).id;
+      const first = await syncEvents(a.token);
+      await send('/api/sync/ack', { acks: first.map((x) => x.ack) }, a.token);
+      const checkpoints = await checkpointRows(a.token);
+      const held = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', {
+        types: manifest.sync.requestedTypes,
+        reset,
+      });
+      try {
+        if (change === 'favorite')
+          await db.prepare('UPDATE assets SET favorite=1 WHERE id=?').bind(asset).run();
+        if (change === 'metadata')
+          await db
+            .prepare('UPDATE assets SET metadata=? WHERE id=?')
+            .bind(JSON.stringify([{ key: 'mobile-app', value: { changed: true } }]), asset)
+            .run();
+        if (change === 'delete') assert.equal((await retireForTest(a.token, asset)).status, 200);
+        if (change === 'onboarding')
+          assert.equal(
+            (await send('/api/users/me/onboarding', { isOnboarded: true }, a.token, 'PUT')).status,
+            200,
+          );
+        if (change === 'profile')
+          await db
+            .prepare("UPDATE users SET name='new synthetic name',update_id=? WHERE id=?")
+            .bind('ffffffff-ffff-7fff-8fff-ffffffffffff', a.id)
+            .run();
+        await held.release();
+        assert.equal((await held.response).status, 409, `${change}/${reset}`);
+        assert.deepEqual(await checkpointRows(a.token), checkpoints);
+        assert.equal((await db.prepare('SELECT COUNT(*) n FROM sync_read_guards').first()).n, 0);
+        const retry = await syncEvents(a.token, { reset });
+        assert.equal(retry.at(-1).type, 'SyncCompleteV1');
+        if (change === 'favorite')
+          assert.equal(retry.find((x) => x.type === 'AssetV2').data.isFavorite, true);
+        if (change === 'metadata')
+          assert.ok(retry.some((x) => x.type === 'AssetMetadataV1' && x.data.assetId === asset));
+        if (change === 'delete')
+          assert.ok(retry.some((x) => x.type === 'AssetDeleteV1' && x.data.assetId === asset));
+        if (change === 'onboarding')
+          assert.equal(retry.find((x) => x.type === 'UserMetadataV1').data.value.isOnboarded, true);
+        if (change === 'profile')
+          assert.equal(retry.find((x) => x.type === 'UserV1').data.name, 'new synthetic name');
+        assert.equal(
+          (await send('/api/sync/ack', { acks: retry.map((x) => x.ack) }, a.token)).status,
+          204,
+        );
+        assert.deepEqual(
+          (await syncEvents(a.token)).map((x) => x.type),
+          ['SyncCompleteV1'],
+        );
+      } finally {
+        await held.release();
+      }
+    }
+});
+
+test('P3 业务快照按账号和家族隔离，不用全局时钟阻塞无关同步', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const asset = (await (await uploadFixture(a.token)).json()).id;
+  for (const types of [manifest.sync.requestedTypes, ['UsersV1']]) {
+    const held = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', { types });
+    try {
+      if (types.length === 1)
+        await db.prepare('UPDATE assets SET favorite=1 WHERE id=?').bind(asset).run();
+      else assert.equal((await uploadFixture(other.token)).status, 201);
+      await held.release();
+      assert.equal((await held.response).status, 200);
+    } finally {
+      await held.release();
+    }
+  }
+});
+
+test('P3 AuthUsers 配额快照也拒绝认证之后的并发上传', async () => {
+  const a = await reliabilityAccount();
+  const held = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', {
+    types: ['AuthUsersV2'],
+  });
+  try {
+    assert.equal((await uploadFixture(a.token)).status, 201);
+    await held.release();
+    assert.equal((await held.response).status, 409);
+    const events = await syncEvents(a.token, { types: ['AuthUsersV2'] });
+    assert.ok(events.find((x) => x.type === 'AuthUserV2').data.quotaUsageInBytes > 0);
+  } finally {
+    await held.release();
+  }
+});
+
+test('P3 双会话关系模型经历写入、应用崩溃、ACK丢失与历史压缩后按ID状态收敛', async () => {
+  const { SyncClientModel } = await import('./fixtures/sync-client-model.mjs');
+  const { createHash } = await import('node:crypto');
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const secondToken = crypto.randomUUID().replaceAll('-', '').repeat(2);
+  await db
+    .prepare('INSERT INTO sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)')
+    .bind(
+      crypto.randomUUID(),
+      a.id,
+      createHash('sha256').update(secondToken).digest('hex'),
+      Date.now() + 86400000,
+    )
+    .run();
+  const clients = [new SyncClientModel(), new SyncClientModel()];
+  const tokens = [a.token, secondToken];
+  let resetControls = 0;
+  const expected = async () => {
+    const rows = (
+      await db
+        .prepare(
+          'SELECT id,owner_id,filename,favorite,width,height,metadata FROM assets WHERE owner_id=? ORDER BY id',
+        )
+        .bind(a.id)
+        .all()
+    ).results;
+    const onboarding = await db
+      .prepare('SELECT is_onboarded,deleted FROM user_onboarding WHERE user_id=?')
+      .bind(a.id)
+      .first();
+    return {
+      assets: rows.map((r) => ({
+        id: r.id,
+        ownerId: r.owner_id,
+        filename: r.filename,
+        favorite: r.favorite,
+        width: r.width,
+        height: r.height,
+      })),
+      metadata: rows
+        .flatMap((r) =>
+          JSON.parse(r.metadata).map((m) => ({
+            assetId: r.id,
+            key: m.key,
+            value: JSON.stringify(m.value),
+          })),
+        )
+        .sort((a, b) => a.assetId.localeCompare(b.assetId) || a.key.localeCompare(b.key)),
+      onboarding:
+        onboarding && !onboarding.deleted
+          ? [{ userId: a.id, value: JSON.stringify({ isOnboarded: !!onboarding.is_onboarded }) }]
+          : [],
+    };
+  };
+  const pull = async (index, { reset = false, loseAck = false, crash = false } = {}) => {
+    let events = await syncEvents(tokens[index], { reset });
+    if (events[0].type === 'SyncResetV1') {
+      resetControls++;
+      clients[index].apply(events);
+      assert.equal(
+        (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, tokens[index])).status,
+        204,
+      );
+      events = await syncEvents(tokens[index]);
+    }
+    if (crash) {
+      const before = clients[index].snapshot();
+      assert.throws(
+        () => clients[index].apply(events, { reset, failAfter: 0 }),
+        /SIMULATED_CLIENT_CRASH/,
+      );
+      assert.deepEqual(clients[index].snapshot(), before);
+      events = await syncEvents(tokens[index]);
+    }
+    clients[index].apply(events, { reset });
+    if (loseAck) {
+      const snapshot = clients[index].snapshot();
+      const replay = await syncEvents(tokens[index]);
+      clients[index].apply(replay);
+      assert.deepEqual(clients[index].snapshot(), snapshot);
+      events = replay;
+    }
+    if (loseAck) {
+      const lost = await worker.fetch('/api/sync/ack', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokens[index]}`,
+          'content-type': 'application/json',
+          'x-test-storage-fault': 'after-d1',
+        },
+        body: JSON.stringify({ acks: events.map((e) => e.ack) }),
+      });
+      assert.equal(lost.status, 503);
+    }
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, tokens[index])).status,
+      204,
+    );
+    assert.deepEqual(clients[index].snapshot(), await expected());
+  };
+  try {
+    assert.equal((await uploadFixture(other.token)).status, 201);
+    await pull(0);
+    await pull(1);
+    for (let step = 0; step < 32; step++) {
+      const file = step % 2 ? 'small.jpg' : 'small.png';
+      const uploaded = await uploadFixture(a.token, file);
+      assert.ok([200, 201].includes(uploaded.status));
+      const id = (await uploaded.json()).id;
+      await db
+        .prepare('UPDATE assets SET favorite=?,metadata=? WHERE id=?')
+        .bind(
+          step % 2,
+          step % 3 === 0
+            ? '[]'
+            : JSON.stringify([{ key: 'mobile-app', value: { cloudId: `synthetic-${step}` } }]),
+          id,
+        )
+        .run();
+      if (step % 7 === 6) assert.equal((await retireForTest(a.token, id)).status, 200);
+      if (step % 5 === 0)
+        assert.equal(
+          (await send('/api/users/me/onboarding', { isOnboarded: step % 2 === 0 }, a.token, 'PUT'))
+            .status,
+          200,
+        );
+      if (step === 23)
+        assert.equal((await send('/api/users/me/onboarding', {}, a.token, 'DELETE')).status, 204);
+      await pull(0, {
+        reset: step === 12 || step === 24,
+        loseAck: step === 10 || step === 20,
+        crash: step === 3 || step === 17,
+      });
+      // The second device deliberately remains offline throughout the workload.
+    }
+    await db
+      .prepare("UPDATE asset_tombstones SET deleted_at='2000-01-01T00:00:00.000Z' WHERE owner_id=?")
+      .bind(a.id)
+      .run();
+    await db
+      .prepare(
+        "UPDATE asset_metadata_tombstones SET deleted_at='2000-01-01T00:00:00.000Z' WHERE owner_id=?",
+      )
+      .bind(a.id)
+      .run();
+    const retained = await auditSnapshot(a.id);
+    const compact = await cleanupForTest(a.token, {
+      jobId: crypto.randomUUID(),
+      cutoff: '2001-01-01T00:00:00.000Z',
+    });
+    assert.equal(compact.status, 200);
+    await pull(1);
+    assert.equal(resetControls, 1);
+    assert.deepEqual(clients[0].snapshot(), clients[1].snapshot());
+    assert.deepEqual(await auditSnapshot(a.id), retained);
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM retired_assets WHERE owner_id=?')
+          .bind(a.id)
+          .first()
+      ).n,
+      4,
+    );
+  } finally {
+    for (const client of clients) client.close();
+  }
+});
+
+test('P3 D1引用盘点覆盖缺失摘要预约并有界分页，不回收任何引用', async () => {
+  const a = await reliabilityAccount();
+  const keys = Array.from({ length: 23 }, () => gcKey(a.id));
+  for (const key of keys)
+    await db
+      .prepare('INSERT INTO integrity_copy_intents VALUES(?,?,?)')
+      .bind(key, a.id, crypto.randomUUID())
+      .run();
+  await platform.env.IMMICH_CF_MEDIA.put(keys[0], 'synthetic');
+  const before = (
+    await db
+      .prepare('SELECT * FROM integrity_copy_intents WHERE owner_id=? ORDER BY object_key')
+      .bind(a.id)
+      .all()
+  ).results;
+  const firstResponse = await inventoryForTest(a.token, { mode: 'references' });
+  assert.equal(firstResponse.status, 200);
+  const first = await firstResponse.json();
+  assert.equal(first.entries.length, 20);
+  assert.ok(first.nextAfter);
+  const second = await (
+    await inventoryForTest(a.token, { mode: 'references', after: first.nextAfter })
+  ).json();
+  assert.equal(second.entries.length, 3);
+  assert.equal(second.nextAfter, null);
+  const entries = [...first.entries, ...second.entries];
+  assert.equal(entries.filter((e) => e.objectStatus === 'missing').length, 22);
+  assert.equal(entries.filter((e) => e.objectStatus === 'present-unverified').length, 1);
+  assert.deepEqual(entries.map((e) => e.key).sort(), keys.sort());
+  assert.ok(entries.every((e) => e.kind === 'copy'));
+  assert.equal((await gcCopy(a.token, keys[0])).status, 409);
+  assert.equal((await gcCopy(a.token, keys[1])).status, 409);
+  assert.deepEqual(
+    (
+      await db
+        .prepare('SELECT * FROM integrity_copy_intents WHERE owner_id=? ORDER BY object_key')
+        .bind(a.id)
+        .all()
+    ).results,
+    before,
+  );
+  const unavailable = await (
+    await inventoryForTest(a.token, { mode: 'references' }, 'head-r2')
+  ).json();
+  assert.ok(unavailable.entries.every((e) => e.objectStatus === 'unavailable'));
+  assert.equal(
+    (await inventoryForTest(a.token, { mode: 'references' }, 'inventory-db')).status,
+    503,
+  );
+  const other = await reliabilityAccount();
+  assert.deepEqual(
+    (await (await inventoryForTest(other.token, { mode: 'references' })).json()).entries,
+    [],
+  );
+});
+
+test('P3 引用盘点只读覆盖当前与退役原图，不把坏对象当作可删除', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const before = await auditSnapshot(a.id);
+  const data = await (await inventoryForTest(a.token, { mode: 'references' })).json();
+  assert.deepEqual(data.entries.map((e) => e.kind).sort(), ['asset', 'copy', 'intent', 'source']);
+  assert.equal(data.entries.find((e) => e.kind === 'source').objectStatus, 'checksum-unavailable');
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  assert.equal((await retireForTest(a.token, a.assetId)).status, 200);
+  const retired = await (await inventoryForTest(a.token, { mode: 'references' })).json();
+  assert.deepEqual(retired.entries.map((e) => e.kind).sort(), [
+    'copy',
+    'intent',
+    'retired',
+    'retired-source',
+  ]);
+  assert.equal((await gcCopy(a.token, a.target)).status, 409);
+});
+
+test('P4 单图收藏遵循冻结响应、增量同步与幂等时间戳，不改原图和拍摄时间', async () => {
+  const a = await reliabilityAccount();
+  const id = (await (await uploadFixture(a.token)).json()).id;
+  const original = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  const baseline = await syncEvents(a.token);
+  await send('/api/sync/ack', { acks: baseline.map((e) => e.ack) }, a.token);
+  const set = await send(`/api/assets/${id}`, { isFavorite: true }, a.token, 'PUT');
+  assert.equal(set.status, 200);
+  const detail = await set.json();
+  schema(detail, 'AssetResponseDto');
+  assert.equal(detail.isFavorite, true);
+  const changed = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  assert.ok(changed.sync_seq > original.sync_seq);
+  assert.equal(detail.updatedAt, changed.updated_at);
+  assert.equal(changed.created_at, original.created_at);
+  assert.equal(changed.file_created_at, original.file_created_at);
+  assert.equal(changed.file_modified_at, original.file_modified_at);
+  assert.equal(changed.object_key, original.object_key);
+  assert.equal(changed.bytes, original.bytes);
+  assert.equal(changed.checksum, original.checksum);
+  const events = await syncEvents(a.token);
+  assert.equal(events.find((e) => e.type === 'AssetV2').data.isFavorite, true);
+  await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token);
+  assert.equal((await send(`/api/assets/${id}`, { isFavorite: true }, a.token, 'PUT')).status, 200);
+  assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first(), changed);
+  assert.deepEqual(
+    (await syncEvents(a.token)).map((e) => e.type),
+    ['SyncCompleteV1'],
+  );
+  assert.equal(
+    (await send(`/api/assets/${id}`, { isFavorite: false }, a.token, 'PUT')).status,
+    200,
+  );
+  assert.equal(
+    (await syncEvents(a.token)).find((e) => e.type === 'AssetV2').data.isFavorite,
+    false,
+  );
+  assert.deepEqual(
+    Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(original.object_key)).arrayBuffer()),
+    await readFile('tests/fixtures/small.png'),
+  );
+});
+
+test('P4 批量收藏去重且原子拒绝缺失或他人资产，无部分修改', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const ids = [];
+  for (const f of ['small.png', 'small.jpg'])
+    ids.push((await (await uploadFixture(a.token, f)).json()).id);
+  const foreign = (await (await uploadFixture(other.token)).json()).id;
+  const before = await auditSnapshot(a.id);
+  for (const bad of [foreign, crypto.randomUUID()]) {
+    const r = await send('/api/assets', { ids: [...ids, bad], isFavorite: true }, a.token, 'PUT');
+    assert.equal(r.status, 404);
+    assert.deepEqual((await r.json()).errors[0].path, ['ids']);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+  }
+  assert.equal(
+    (await send('/api/assets', { ids: [...ids, ids[0]], isFavorite: true }, a.token, 'PUT')).status,
+    204,
+  );
+  const rows = (await db.prepare('SELECT favorite FROM assets WHERE owner_id=?').bind(a.id).all())
+    .results;
+  assert.ok(rows.every((r) => r.favorite === 1));
+  const set = await auditSnapshot(a.id);
+  assert.equal((await send('/api/assets', { ids, isFavorite: true }, a.token, 'PUT')).status, 204);
+  assert.deepEqual(await auditSnapshot(a.id), set);
+  assert.equal(
+    (await db.prepare('SELECT favorite FROM assets WHERE id=?').bind(foreign).first()).favorite,
+    0,
+  );
+});
+
+test('P4 收藏字段精确校验、不支持编辑不假成功且媒体PUT仍拒绝', async () => {
+  const a = await reliabilityAccount();
+  const id = (await (await uploadFixture(a.token)).json()).id;
+  const before = await auditSnapshot(a.id);
+  for (const [input, field] of [
+    [{}, 'isFavorite'],
+    [{ isFavorite: 'PRIVATE' }, 'isFavorite'],
+    [{ isFavorite: true, description: 'PRIVATE' }, 'description'],
+    [{ isFavorite: true, livePhotoVideoId: crypto.randomUUID() }, 'livePhotoVideoId'],
+  ]) {
+    const r = await send(`/api/assets/${id}`, input, a.token, 'PUT');
+    assert.equal(r.status, 400);
+    const d = await r.json();
+    assert.deepEqual(d.errors[0].path, [field]);
+    assert.ok(!JSON.stringify(d).includes('PRIVATE'));
+  }
+  for (const ids of [[], ['PRIVATE'], Array.from({ length: 1001 }, () => id)])
+    assert.equal(
+      (await send('/api/assets', { ids, isFavorite: true }, a.token, 'PUT')).status,
+      400,
+    );
+  assert.equal(
+    (await send(`/api/assets/${id}`, { isFavorite: true }, undefined, 'PUT')).status,
+    401,
+  );
+  assert.equal(
+    (await send(`/api/assets/${id}/original`, { isFavorite: true }, a.token, 'PUT')).status,
+    405,
+  );
+  assert.deepEqual(await auditSnapshot(a.id), before);
+});
+
+test('P4 收藏提交时重新鉴权，撤销/过期/禁用不写入；成功响应丢失可重试', async () => {
+  for (const change of ['revoked', 'expired', 'disabled']) {
+    const a = await reliabilityAccount();
+    const id = (await (await uploadFixture(a.token)).json()).id;
+    const held = await pausedSyncRequest(a.token, `/api/assets/${id}`, 'PUT', { isFavorite: true });
+    try {
+      if (change === 'revoked')
+        await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+      if (change === 'expired')
+        await db.prepare('UPDATE sessions SET expires_at=1 WHERE user_id=?').bind(a.id).run();
+      if (change === 'disabled')
+        await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(a.id).run();
+      await held.release();
+      assert.equal((await held.response).status, 404);
+      assert.equal(
+        (await db.prepare('SELECT favorite FROM assets WHERE id=?').bind(id).first()).favorite,
+        0,
+      );
+    } finally {
+      await held.release();
+    }
+  }
+  const a = await reliabilityAccount();
+  const id = (await (await uploadFixture(a.token)).json()).id;
+  const r = await worker.fetch(`/api/assets/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${a.token}`,
+      'content-type': 'application/json',
+      'x-test-storage-fault': 'after-d1',
+    },
+    body: JSON.stringify({ isFavorite: true }),
+  });
+  assert.equal(r.status, 503);
+  const committed = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  assert.equal(committed.favorite, 1);
+  assert.equal((await send(`/api/assets/${id}`, { isFavorite: true }, a.token, 'PUT')).status, 200);
+  assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first(), committed);
+});
+
+test('测试维护入口拒绝未认证JSON后下一次正常multipart连接仍完整可读', async () => {
+  const a = await reliabilityAccount();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    assert.equal((await inventoryForTest('missing-token', { mode: 'pending' })).status, 401);
+    const upload = await uploadFixture(a.token);
+    assert.equal(upload.status, attempt === 0 ? 201 : 200);
+    const data = await upload.json();
+    assert.ok(data.id);
+  }
 });
