@@ -1,0 +1,47 @@
+{
+  "environment": "dev",
+  "checkedAt": "2026-10-30T06:23:07.536Z",
+  "sourceCommit": "52e1606a30f4fdd14f9aa052ba175d692f22bb8d",
+  "workerVersion": "a08a7d60-380a-479c-8a3f-9b19097adca9",
+  "deploymentId": "e49a0687-a02e-414a-adfc-227caab6964b",
+  "trafficPercent": 100,
+  "migration": "0024_operations_admin.sql",
+  "migrationCount": 24,
+  "checks": {
+    "passed": 198,
+    "failed": 0,
+    "skipped": 0,
+    "newRegressionTests": 7,
+    "exportToolRetest": 3
+  },
+  "build": { "uploadKiB": 250.66, "gzipKiB": 60.74 },
+  "contract": { "operations": 279, "sources": 53, "unchanged": true },
+  "publicSmoke": {
+    "adminStatus": true,
+    "unauthenticatedRejected": true,
+    "downloadedSyntheticOriginalAndTrashRelations": true,
+    "bytesAndSha1Verified": true,
+    "completeMarkerVerified": true,
+    "staleVersionRejected": true,
+    "syntheticMediaOnly": true
+  },
+  "preservation": {
+    "preexistingAssets": 26,
+    "allAssetColumnsUnchanged": true,
+    "uploadAndCopyReservationsUnchanged": true,
+    "checkpointsUnchanged": true,
+    "albumsAndRelationsUnchanged": true,
+    "otherOwnerRevisionsUnchanged": true,
+    "probeAssetsAndAlbumRemoved": true,
+    "probePermanentJobsDone": 3,
+    "probeDisabled": true,
+    "probeSessions": 0,
+    "probeOperationsGrants": 0,
+    "persistentDevOperationsGrants": 1
+  },
+  "fullDatabaseBackupImplemented": false,
+  "isolatedRestoreVerified": false,
+  "officialAppDeviceVerified": false,
+  "cpuOptimizationPaused": true,
+  "testAndProductionChanged": false
+}

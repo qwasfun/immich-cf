@@ -12,6 +12,8 @@
 
 ## 需求与开发顺序
 
+- [管理员状态与导出](docs/p4-admin-export.md)：显式运维授权、状态检查、校验原图和账号清单导出；[dev验收](docs/p4-admin-export-dev-deployment.md)。
+
 - [P2 混合队列恢复](docs/p2-mixed-queue.md)：大小边界、格式拒绝、重复失败、存储对账及官方 App/Live Photo 未验证风险。
 - [P2 Live Photo 防护](docs/p2-live-photo.md)：已识别动态请求的持久拦截与无法覆盖的部分备份边界。
 - [普通静态 XMP 修复](docs/p2-static-xmp.md)：放行经验证的截图说明和创建时间，保留动态照片防护。
