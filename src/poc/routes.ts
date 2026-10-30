@@ -7,6 +7,8 @@ import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
 import { repairDimensions } from './repair-dimensions';
 import { trash, assetStatistics, purgeStatus } from './trash';
+import { recoverPurgeJobs, runPurgeJobs } from './purge';
+import { body, invalid } from './http';
 import { albums } from './albums';
 import { updateFavorite } from './favorites';
 import { storageAudit } from './storage-audit';
@@ -23,6 +25,7 @@ const methods: Record<string, string[]> = {
   '/api/trash/restore/assets': ['POST'],
   '/api/trash/empty': ['POST'],
   '/api/immich-cf/purge-status': ['GET'],
+  '/api/immich-cf/purge-run': ['POST'],
   '/api/assets/bulk-upload-check': ['POST'],
   '/.well-known/immich': ['GET'],
   '/api/server/ping': ['GET'],
@@ -172,6 +175,13 @@ async function dispatch(
     return response;
   }
   const identity = await authenticate(request, db);
+  if (ctx && (path === '/api/users/me' || path === '/api/sync/ack'))
+    ctx.waitUntil(recoverPurgeJobs(env, identity.id).catch(() => undefined));
+  if (path === '/api/immich-cf/purge-run') {
+    const input = await body(request, true);
+    for (const key of Object.keys(input)) invalid(key, '此入口仅恢复本人已授权任务，请移除此字段');
+    return Response.json(await runPurgeJobs(env, { ownerId: identity.id, ignoreDue: true }));
+  }
   if (path.startsWith('/api/trash/') || (path === '/api/assets' && request.method === 'DELETE'))
     return trash(request, env, identity, ctx);
   if (path === '/api/assets/statistics') return assetStatistics(request, db, identity);

@@ -4,15 +4,16 @@
 
 保持官方 iOS Immich 3.3.1 build 23 不修改。对齐冻结 v3.3.1 OpenAPI、手机 AssetApiRepository 和服务端 AssetService/TrashService；原279操作/53来源的冻结清单不变。额外核验的官方 [TrashService](https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/trash.service.ts) Git blob 为 `ecc7229923256a2685f34be5de66d1286ea4b953`；官方 [AssetService](https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/asset.service.ts) 使用软删除状态和异步物理清理。
 
-| 操作         | 接口                                     | 响应及状态                                               |
-| ------------ | ---------------------------------------- | -------------------------------------------------------- |
-| 移至回收站   | DELETE /api/assets，ids、force省略/false | 204；deletedAt变为时间，重复不改首次时间                 |
-| 恢复所选     | POST /api/trash/restore/assets，ids      | 200 count；去重后已恢复的本人资产仍可重放                |
-| 恢复全部     | POST /api/trash/restore，空请求体或{}    | 200 count，捕获本次事务中的回收项                        |
-| 永久删除所选 | DELETE /api/assets，ids、force:true      | 204；持久授权、删除元数据，后台清理R2                    |
-| 清空回收站   | POST /api/trash/empty，空请求体或{}      | 200 count；只捕获本次事务中的回收项                      |
-| 分类数量     | GET /api/assets/statistics               | images/videos/total；支持isTrashed、isFavorite与timeline |
-| 清理状态     | GET /api/immich-cf/purge-status          | 本人任务分页，queued/blocked/done，无对象键              |
+| 操作         | 接口                                        | 响应及状态                                               |
+| ------------ | ------------------------------------------- | -------------------------------------------------------- |
+| 移至回收站   | DELETE /api/assets，ids、force省略/false    | 204；deletedAt变为时间，重复不改首次时间                 |
+| 恢复所选     | POST /api/trash/restore/assets，ids         | 200 count；去重后已恢复的本人资产仍可重放                |
+| 恢复全部     | POST /api/trash/restore，空请求体或{}       | 200 count，捕获本次事务中的回收项                        |
+| 永久删除所选 | DELETE /api/assets，ids、force:true         | 204；持久授权、删除元数据，后台清理R2                    |
+| 清空回收站   | POST /api/trash/empty，空请求体或{}         | 200 count；只捕获本次事务中的回收项                      |
+| 分类数量     | GET /api/assets/statistics                  | images/videos/total；支持isTrashed、isFavorite与timeline |
+| 清理状态     | GET /api/immich-cf/purge-status             | 本人任务分页，queued/blocked/done，无对象键              |
+| 有界恢复     | POST /api/immich-cf/purge-run，空请求体或{} | 只恢复本人既有永久授权任务，最多3项；不接受资产ID或键    |
 
 ids最多1000项UUID v4，去重；空数组合法。批量混入他人/不存在ID整批404。永久删除重放只允许本人已授权任务；恢复已永久删除的资产404。错误包含具体字段、原因和修正要求，不回显输入值。Cookie写请求保留Origin检查。所有写入在同一D1事务重新核验会话、过期和禁用状态，失败不部分修改。
 
@@ -28,15 +29,17 @@ ids最多1000项UUID v4，去重；空数组合法。批量混入他人/不存�
 
 ## 持久清理、安全边界与崩溃恢复
 
-迁移0022新增deleted_at、回收写入守卫、asset_purge_jobs/objects/fences。用户明确永久删除时，**同一事务先持久化授权及原图、历史源、已预约摘要副本的候选键，再删除资产元数据**，沿用retired_assets快照、删除事件与相册级联。提交响应丢失时按同一资产ID重试，或由定时任务继续；不先删审计再尝试删文件。
+迁移0022新增deleted_at、回收写入守卫、asset_purge_jobs/objects/fences；0023新增本人活动恢复的持久冷却租约。用户明确永久删除时，**同一事务先持久化授权及原图、历史源、已预约摘要副本的候选键，再删除资产元数据**，沿用retired_assets快照、删除事件与相册级联。提交响应丢失时按同一资产ID重试，或通过后续活动/本人恢复入口继续；不先删审计再尝试删文件。
 
 每个对象先通过D1全局引用检查取得永久隔离，再调用R2 delete和head确认。任何活动资产、其他退役资产、上传预约或其他资产的复制预约引用该键，状态blocked，保留对象和所有预约；不猜测这些引用已无用，不自动释放预约。仅本资产的持久复制预约可被本次明确授权覆盖，预约行仍保留。缺少授权、键归属不匹配时拒绝清理。
 
 隔离键不能新增或改绑到资产、退役记录、上传预约或复制预约。永久任务及候选、隔离、对应退役/复制记录不可删；永久删除后不能再新增该资产的复制任务。R2超时、删除后响应丢失、状态写入失败可重复执行；迟到的旧R2 PUT不能重新发布，已完成任务也周期复查并清理迟到字节。done表示最近一次head确认，不是对外部无约束写入的永久物理断言。
 
-dev每5分钟cron、每次最多3个任务，每任务最多2个对象，按检查时间公平轮转；API使用waitUntil先尝试同样的有界处理。请求成功表示持久逻辑删除，不保证所有对象即时清理。后台崩溃由下次cron恢复，无无限重试、无自动放宽保护。大量历史完成任务会增加巡检成本，当前20资产实验范围内验证；大规模成本和CPU Free关口仍待评估。原有R2孤儿GC策略不变，不能据此清理未获永久授权的原图。
+首次发布实际遇到Cloudflare错误10072：账号已占满5个免费Cron名额，Worker与0022迁移已更新但Cron配置未成功。最终配置移除本项目Cron，不改其他项目、不升级付费。永久删除API的waitUntil仍先处理最多3个任务，每任务最多2个对象。已登录客户端访问users/me或sync/ack时，通过D1持久租约每账号30秒最多续跑1个到期任务；任务复查间隔5分钟。并发访问不能绕过租约。本人POST purge-run可立即有界续跑最多3个任务，不新建删除授权、不接受跨账号选择。
 
-2026-10-30核对[Cloudflare平台限制](https://developers.cloudflare.com/workers/platform/limits/)：HTTP响应后waitUntil最多继续30秒；不能仅依赖它完成物理清理。3任务/2对象是保守的调用批次上界，不表示已通过Workers Free CPU预算。定时触发本身的线上运行证据另记，不把测试钩子调用任务消费器等同于真实cron触发。
+请求成功表示持久逻辑删除，不保证所有对象即时清理。后台崩溃后由后续客户端活动或显式恢复继续；**没有客户端活动和运维调用时不承诺自动完成**。全部循环有上限，失败任务仍保留，无自动放宽保护。大量历史完成任务会增加巡检成本，当前20资产实验范围内验证；大规模成本和CPU Free关口仍待评估。原有R2孤儿GC策略不变，不能据此清理未获永久授权的原图。
+
+2026-10-30核对[Cloudflare平台限制](https://developers.cloudflare.com/workers/platform/limits/)：HTTP响应后waitUntil最多继续30秒；不能仅依赖它完成物理清理。有界批次不表示已通过Workers Free CPU预算。当前没有配置Cron，也不把测试维护入口当作真实Cron运行证据。
 
 ## 回归与真机验收
 

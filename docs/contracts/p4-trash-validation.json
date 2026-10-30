@@ -1,17 +1,24 @@
 {
   "scope": "trash-restore-permanent-delete-local",
-  "tests": 185,
-  "passed": 185,
+  "tests": 188,
+  "passed": 188,
   "failed": 0,
   "skipped": 0,
-  "newRegressionTests": 11,
+  "newRegressionTests": 14,
   "format": true,
   "lint": true,
   "types": true,
   "dryRunBuild": true,
-  "build": { "uploadKiB": 242.31, "gzipKiB": 58.78 },
+  "build": {
+    "uploadKiB": 243.45,
+    "gzipKiB": 59.09
+  },
   "migration": "0022_trash_and_purge.sql",
-  "contract": { "operations": 279, "sources": 53, "unchanged": true },
+  "contract": {
+    "operations": 279,
+    "sources": 53,
+    "unchanged": true
+  },
   "additionalSource": {
     "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
     "path": "server/src/services/trash.service.ts",
@@ -33,11 +40,17 @@
     "old ACK isolation retained",
     "trash consumes quota and permanent deletion permits new asset identity",
     "bounded job batches recover remaining durable jobs",
-    "storage reconciliation distinguishes intentional deletion from missing data"
+    "storage reconciliation distinguishes intentional deletion from missing data",
+    "owner-scoped activity lease, concurrent cooldown and real waitUntil route",
+    "owner-only explicit bounded recovery with no new deletion authority"
   ],
   "automaticTrashExpiryImplemented": false,
-  "scheduledInvocationDeviceIndependentRuntimeVerified": false,
   "officialAppVerified": false,
   "cpuWorkPaused": true,
-  "p4ExitPassed": false
+  "p4ExitPassed": false,
+  "migrations": ["0022_trash_and_purge.sql", "0023_purge_recovery.sql"],
+  "cronConfigured": false,
+  "cronUnavailableReason": "account-free-cron-limit-10072",
+  "activityRecoveryValidated": true,
+  "ownerRecoveryEndpointValidated": true
 }

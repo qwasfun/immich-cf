@@ -1,8 +1,20 @@
 // Durable, explicitly authorized permanent-deletion jobs. Normal orphan GC keeps
 // its stricter original/reservation retention policy; it cannot create these jobs.
+export async function recoverPurgeJobs(env: Env, ownerId: string) {
+  const now = Date.now();
+  const lease = await env.IMMICH_CF_DB.prepare(
+    `INSERT INTO asset_purge_recovery(owner_id,next_run_ms)
+    SELECT ?,? WHERE EXISTS(SELECT 1 FROM asset_purge_jobs WHERE owner_id=? AND next_check_ms<=?)
+    ON CONFLICT(owner_id) DO UPDATE SET next_run_ms=excluded.next_run_ms WHERE next_run_ms<=?`,
+  )
+    .bind(ownerId, now + 30000, ownerId, now, now)
+    .run();
+  if (!lease.meta.changes) return { processed: 0, completed: 0 };
+  return runPurgeJobs(env, { ownerId, limit: 1 });
+}
 export async function runPurgeJobs(
   env: Env,
-  options: { ownerId?: string; assetIds?: string[]; limit?: number } = {},
+  options: { ownerId?: string; assetIds?: string[]; limit?: number; ignoreDue?: boolean } = {},
 ) {
   const db = env.IMMICH_CF_DB,
     limit = Math.min(3, Math.max(1, options.limit ?? 3));
@@ -10,11 +22,11 @@ export async function runPurgeJobs(
   const specific = options.assetIds?.length
     ? ' AND asset_id IN(SELECT value FROM json_each(?))'
     : '';
-  const due = specific ? '' : ' AND next_check_ms<=?';
+  const due = specific || options.ignoreDue ? '' : ' AND next_check_ms<=?';
   const args: (string | number)[] = [
     ...(options.ownerId ? [options.ownerId] : []),
     ...(specific ? [JSON.stringify(options.assetIds)] : []),
-    ...(!specific ? [Date.now()] : []),
+    ...(due ? [Date.now()] : []),
     limit,
   ];
   const jobs = await db

@@ -6484,3 +6484,57 @@ test('P4 批量清空分批恢复任务，3个任务上界不丢失后续永久�
   assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
   assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
 });
+
+test('P4 免费Cron不可用时本人恢复入口隔离任务，拒绝额外字段且不重新授权删除', async () => {
+  const a = await albumSetup(),
+    other = await reliabilityAccount();
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.ids[0]).first();
+  assert.equal((await deletePhotos(a, [row.id], true, 'purge-before-delete')).status, 204);
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(row.object_key));
+  assert.equal((await trashCall(other.token, '/api/immich-cf/purge-run')).status, 200);
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(row.object_key));
+  const bad = await send('/api/immich-cf/purge-run', { ids: [row.id] }, a.token);
+  assert.equal(bad.status, 400);
+  assert.equal((await bad.json()).errors[0].path[0], 'ids');
+  assert.equal((await trashCall(a.token, '/api/immich-cf/purge-run')).status, 200);
+  assert.equal((await purgeJobs(a))[0].status, 'done');
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(row.object_key), null);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    1,
+  );
+});
+
+test('P4 活动恢复持久租约隔离并发和重放，每30秒最多消费本人一个已授权任务', async () => {
+  const a = await reliabilityAccount();
+  a.ids = [];
+  for (let n = 0; n < 4; n++)
+    a.ids.push((await (await uploadBytes(a.token, await quotaVariant(n))).json()).id);
+  assert.equal((await deletePhotos(a, a.ids, true, 'after-d1')).status, 503);
+  const responses = await Promise.all([
+    send('/__test/purge-recover', {}, a.token),
+    send('/__test/purge-recover', {}, a.token),
+  ]);
+  assert.ok(responses.every((r) => r.status === 200));
+  assert.equal((await purgeJobs(a)).filter((j) => j.status === 'done').length, 1);
+  assert.deepEqual(await (await send('/__test/purge-recover', {}, a.token)).json(), {
+    processed: 0,
+    completed: 0,
+  });
+  assert.equal((await trashCall(a.token, '/api/immich-cf/purge-run')).status, 200);
+  assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
+});
+
+test('P4 真实路由的waitUntil活动恢复消费已提交的永久任务，不依赖测试维护入口', async () => {
+  const a = await albumSetup();
+  assert.equal((await deletePhotos(a, [a.ids[0]], true, 'after-d1')).status, 503);
+  const response = await worker.fetch('/api/users/me', {
+    headers: { Authorization: `Bearer ${a.token}`, 'x-test-background': 'true' },
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await purgeJobs(a))[0].status, 'done');
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(a.id).first()).n,
+    1,
+  );
+});

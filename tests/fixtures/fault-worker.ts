@@ -3,7 +3,7 @@ import app from '../../src/index';
 import { authenticate } from '../../src/poc/auth';
 import { retireAsset } from '../../src/poc/asset-history';
 import { body, HttpError } from '../../src/poc/http';
-import { runPurgeJobs } from '../../src/poc/purge';
+import { runPurgeJobs, recoverPurgeJobs } from '../../src/poc/purge';
 import { storageInventory } from '../../src/poc/storage-inventory';
 import { cleanStorageCopy } from '../../src/poc/storage-cleanup';
 import { compactHistory } from '../../src/poc/history-cleanup';
@@ -12,6 +12,16 @@ const gates = new Map<string, { released: boolean }>();
 
 export default {
   async fetch(request: Request, env: Env) {
+    if (request.headers.has('x-test-background')) {
+      const work: Promise<unknown>[] = [];
+      const response = await app.fetch(request, env, {
+        waitUntil(promise: Promise<unknown>) {
+          work.push(promise);
+        },
+      } as ExecutionContext);
+      await Promise.all(work);
+      return response;
+    }
     const gatePath = new URL(request.url).pathname.match(/^\/__test\/gates\/([a-z0-9-]+)$/);
     if (gatePath) {
       const gate = gates.get(gatePath[1]!);
@@ -30,7 +40,9 @@ export default {
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     const retirement = new URL(request.url).pathname.match(/^\/__test\/retire\/([a-f0-9-]{36})$/i);
-    const purgeRun = new URL(request.url).pathname === '/__test/purge-run';
+    const purgeRun = ['/__test/purge-run', '/__test/purge-recover'].includes(
+      new URL(request.url).pathname,
+    );
     const inventory = new URL(request.url).pathname === '/__test/storage-inventory';
     const storageCleanup = new URL(request.url).pathname === '/__test/storage-cleanup';
     const cleanup = new URL(request.url).pathname === '/__test/history-cleanup';
@@ -299,13 +311,18 @@ export default {
         const identity = await authenticate(clean, db);
         response = Response.json(
           purgeRun
-            ? await runPurgeJobs(
-                { ...env, IMMICH_CF_DB: db, IMMICH_CF_MEDIA: media },
-                {
-                  ownerId: identity.id,
-                  assetIds: Array.isArray(input.ids) ? (input.ids as string[]) : undefined,
-                },
-              )
+            ? new URL(clean.url).pathname === '/__test/purge-recover'
+              ? await recoverPurgeJobs(
+                  { ...env, IMMICH_CF_DB: db, IMMICH_CF_MEDIA: media },
+                  identity.id,
+                )
+              : await runPurgeJobs(
+                  { ...env, IMMICH_CF_DB: db, IMMICH_CF_MEDIA: media },
+                  {
+                    ownerId: identity.id,
+                    assetIds: Array.isArray(input.ids) ? (input.ids as string[]) : undefined,
+                  },
+                )
             : inventory
               ? await storageInventory(db, media, identity, input)
               : storageCleanup
