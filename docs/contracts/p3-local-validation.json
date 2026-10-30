@@ -2,8 +2,8 @@
   "scope": "isolated-local-p3-infrastructure",
   "localChecks": {
     "complete": true,
-    "tests": 136,
-    "passed": 136,
+    "tests": 143,
+    "passed": 143,
     "failed": 0,
     "skipped": 0,
     "format": true,
@@ -19,7 +19,8 @@
   "migrations": [
     "0014_asset_history.sql",
     "0015_history_retention.sql",
-    "0016_asset_metadata_history.sql"
+    "0016_asset_metadata_history.sql",
+    "0017_r2_cleanup.sql"
   ],
   "forwardNonemptyMigrationVerified": true,
   "localQueryCost": {
@@ -30,14 +31,14 @@
     "platformBillingOrWholeRequestCostVerified": false
   },
   "build": {
-    "uploadKiB": 208.13,
-    "gzipKiB": 51.12
+    "uploadKiB": 208.61,
+    "gzipKiB": 51.24
   },
   "originalsRetained": true,
   "reservationsRetained": true,
   "publicDeleteApiEnabled": false,
   "publicMaintenanceApiEnabled": false,
-  "r2PhysicalGarbageCollectionImplemented": false,
+  "r2PhysicalGarbageCollectionImplemented": true,
   "real1000AssetsVerified": false,
   "officialAppDeletionAndRecoveryVerified": false,
   "allSyncFamiliesScaleVerified": false,
@@ -47,5 +48,16 @@
   "deploymentPerformed": false,
   "remoteMigrationPerformed": false,
   "privatePhotosExported": false,
-  "legacySixColumnGuardVerified": true
+  "legacySixColumnGuardVerified": true,
+  "r2Cleanup": {
+    "scope": "internal-explicit-unreferenced-integrity-copy-only",
+    "publicApiEnabled": false,
+    "automaticEnumerationEnabled": false,
+    "permanentReferenceFence": true,
+    "originalKeysRejected": true,
+    "copyWriteReservationRetained": true,
+    "crashReplayVerified": true,
+    "newGenerationAfterFenceVerified": true,
+    "allUnreferencedObjectKindsSupported": false
+  }
 }

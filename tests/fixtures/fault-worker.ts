@@ -3,6 +3,7 @@ import app from '../../src/index';
 import { authenticate } from '../../src/poc/auth';
 import { retireAsset } from '../../src/poc/asset-history';
 import { HttpError } from '../../src/poc/http';
+import { cleanStorageCopy } from '../../src/poc/storage-cleanup';
 import { compactHistory } from '../../src/poc/history-cleanup';
 
 const gates = new Map<string, { released: boolean }>();
@@ -27,8 +28,10 @@ export default {
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     const retirement = new URL(request.url).pathname.match(/^\/__test\/retire\/([a-f0-9-]{36})$/i);
+    const storageCleanup = new URL(request.url).pathname === '/__test/storage-cleanup';
     const cleanup = new URL(request.url).pathname === '/__test/history-cleanup';
-    if (!fault && !gateId && !countReads && !retirement && !cleanup) return app.fetch(request, env);
+    if (!fault && !gateId && !countReads && !retirement && !cleanup && !storageCleanup)
+      return app.fetch(request, env);
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
     if (fault === 'multipart-20mib' || fault === 'multipart-20mib-declared') {
@@ -136,6 +139,12 @@ export default {
     }
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {
+        if (key === 'delete')
+          return async (...args: Parameters<R2Bucket['delete']>) => {
+            if (fault === 'gc-before-delete') throw new Error('TEST_GC_DELETE');
+            await target.delete(...args);
+            if (fault === 'gc-after-delete') throw new Error('TEST_GC_RESPONSE_LOST');
+          };
         if (key === 'get')
           return async (...args: Parameters<R2Bucket['get']>) => {
             if (fault === 'get-r2') throw new Error('TEST_R2_GET_UNAVAILABLE');
@@ -209,6 +218,8 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (fault === 'gc-complete-db' && sql.startsWith('UPDATE r2_cleanup_claims'))
+              throw new Error('TEST_GC_COMPLETE_UNAVAILABLE');
             if (
               fault === 'integrity-upgrade-db' &&
               sql.startsWith('UPDATE assets SET r2_sha1_verified')
@@ -239,13 +250,15 @@ export default {
       },
     });
     let response: Response;
-    if ((retirement || cleanup) && clean.method === 'POST') {
+    if ((retirement || cleanup || storageCleanup) && clean.method === 'POST') {
       try {
         const identity = await authenticate(clean, db);
         response = Response.json(
-          cleanup
-            ? await compactHistory(db, identity, await clean.json())
-            : await retireAsset(db, identity, retirement![1]!),
+          storageCleanup
+            ? await cleanStorageCopy(db, media, identity, await clean.json())
+            : cleanup
+              ? await compactHistory(db, identity, await clean.json())
+              : await retireAsset(db, identity, retirement![1]!),
         );
       } catch (error) {
         response = Response.json(
@@ -254,6 +267,8 @@ export default {
         );
       }
     } else response = await app.fetch(clean, { ...env, IMMICH_CF_MEDIA: media, IMMICH_CF_DB: db });
+    if (storageCleanup && fault === 'gc-response-lost' && response.ok)
+      return Response.json({ message: 'TEST_RESPONSE_LOST' }, { status: 503 });
     if (fault === 'upload-read' || fault === 'upload-cancel')
       response.headers.set('x-test-body-locked', String(clean.body?.locked));
     if (fault?.startsWith('multipart-')) {

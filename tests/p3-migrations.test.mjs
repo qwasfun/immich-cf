@@ -46,3 +46,52 @@ test('P3 非空0013数据库前向迁移保留资产、预约、源引用、会�
     db.close();
   }
 });
+
+test('R2 清理持久隔离覆盖所有引用表 INSERT/UPDATE，跨账号引用也不能认领', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    for (const file of (await readdir('migrations')).filter((x) => x.endsWith('.sql')).sort())
+      db.exec(await readFile('migrations/' + file, 'utf8'));
+    db.exec(`INSERT INTO users(id,email,name,password_hash,created_at,update_id) VALUES('owner','owner@example.invalid','local','not-a-login-hash','date','version');
+      INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES('asset','owner','sum','live','file.png','image/png',32,1,1,'date','date','date',0);
+      INSERT INTO retired_assets VALUES('retired','owner','retired-key',NULL,32,'sum',0,'date');
+      INSERT INTO upload_intents VALUES('owner','pending','intent','pending-key','date');
+      INSERT INTO integrity_copy_intents VALUES('staging-key','owner','asset');`);
+    for (const key of ['live', 'retired-key', 'pending-key', 'staging-key'])
+      assert.throws(
+        () =>
+          db.prepare("INSERT INTO r2_cleanup_claims VALUES(?,'other-owner','claimed')").run(key),
+        /R2_REFERENCED/,
+      );
+    db.exec("INSERT INTO r2_cleanup_claims VALUES('fenced','owner','claimed')");
+    for (const table of ['assets', 'retired_assets', 'upload_intents', 'integrity_copy_intents']) {
+      assert.throws(() => db.exec(`UPDATE ${table} SET object_key='fenced'`), /R2_CLEANUP_CLAIMED/);
+      const columns = db
+        .prepare(`PRAGMA table_info(${table})`)
+        .all()
+        .map((x) => x.name);
+      const values = columns.map((x) => (x === 'object_key' ? "'fenced'" : x));
+      assert.throws(
+        () =>
+          db.exec(
+            `INSERT INTO ${table}(${columns.join(',')}) SELECT ${values.join(',')} FROM ${table}`,
+          ),
+        /R2_CLEANUP_CLAIMED/,
+      );
+    }
+    for (const table of ['assets', 'retired_assets']) {
+      assert.throws(
+        () => db.exec(`UPDATE ${table} SET integrity_source_key='fenced'`),
+        /R2_CLEANUP_CLAIMED/,
+      );
+    }
+    assert.throws(
+      () => db.exec("UPDATE r2_cleanup_claims SET object_key='released'"),
+      /R2_FENCE_PERMANENT/,
+    );
+    db.exec("UPDATE r2_cleanup_claims SET status='done'");
+    assert.throws(() => db.exec('DELETE FROM r2_cleanup_claims'), /R2_FENCE_PERMANENT/);
+  } finally {
+    db.close();
+  }
+});

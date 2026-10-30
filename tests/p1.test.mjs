@@ -4526,3 +4526,216 @@ test('P3 元数据历史压缩可独立触发reset，独立家族基线不掩盖
   await send('/api/sync/ack', { acks: all.map((e) => e.ack) }, a.token);
   assert.ok((await syncEvents(a.token)).every((e) => e.type === 'SyncCompleteV1'));
 });
+
+const gcKey = (owner) => `${owner}/${crypto.randomUUID()}/verified-sha1-${'a'.repeat(40)}`;
+const gcCopy = (token, key, fault = '') =>
+  worker.fetch('/__test/storage-cleanup', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      'x-test-storage-fault': fault,
+    },
+    body: JSON.stringify({ key }),
+  });
+
+test('R2 GC 仅删除无引用摘要副本，原图、未知键和跨账号拒绝', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  for (const key of [
+    `${a.id}/${crypto.randomUUID()}/original`,
+    `${a.id}/unknown`,
+    gcKey(other.id),
+  ]) {
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'retain');
+    assert.equal((await gcCopy(a.token, key)).status, 400);
+    assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+  }
+  const key = gcKey(a.id);
+  await platform.env.IMMICH_CF_MEDIA.put(key, 'orphan');
+  assert.equal((await gcCopy(a.token, key)).status, 200);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(key), null);
+  assert.equal((await gcCopy(a.token, key)).status, 200);
+  assert.equal(
+    (await db.prepare('SELECT status FROM r2_cleanup_claims WHERE object_key=?').bind(key).first())
+      .status,
+    'done',
+  );
+  await assert.rejects(
+    db.prepare('DELETE FROM r2_cleanup_claims WHERE object_key=?').bind(key).run(),
+    /R2_FENCE_PERMANENT/,
+  );
+});
+
+test('R2 GC 全局引用检查保留活动、退役、源、上传预约与摘要预约', async () => {
+  const a = await legacyIntegrity();
+  const key = gcKey(a.id);
+  await platform.env.IMMICH_CF_MEDIA.put(key, 'retain');
+  const checks = [
+    [
+      () => db.prepare('UPDATE assets SET object_key=? WHERE id=?').bind(key, a.assetId).run(),
+      () =>
+        db
+          .prepare('UPDATE assets SET object_key=? WHERE id=?')
+          .bind(a.row.object_key, a.assetId)
+          .run(),
+    ],
+    [
+      () =>
+        db
+          .prepare('UPDATE assets SET integrity_source_key=? WHERE id=?')
+          .bind(key, a.assetId)
+          .run(),
+      () =>
+        db.prepare('UPDATE assets SET integrity_source_key=NULL WHERE id=?').bind(a.assetId).run(),
+    ],
+    [
+      () =>
+        db
+          .prepare('INSERT INTO retired_assets VALUES(?,?,?,?,?,?,?,?)')
+          .bind(crypto.randomUUID(), a.id, key, null, 1, 'checksum', 0, 'date')
+          .run(),
+      () => db.prepare('DELETE FROM retired_assets WHERE object_key=?').bind(key).run(),
+    ],
+    [
+      () =>
+        db
+          .prepare('INSERT INTO retired_assets VALUES(?,?,?,?,?,?,?,?)')
+          .bind(crypto.randomUUID(), a.id, 'original', key, 1, 'checksum', 0, 'date')
+          .run(),
+      () => db.prepare('DELETE FROM retired_assets WHERE integrity_source_key=?').bind(key).run(),
+    ],
+    [
+      () =>
+        db
+          .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+          .bind(a.id, crypto.randomUUID(), crypto.randomUUID(), key, 'date')
+          .run(),
+      () => db.prepare('DELETE FROM upload_intents WHERE object_key=?').bind(key).run(),
+    ],
+    [
+      () =>
+        db
+          .prepare('INSERT INTO integrity_copy_intents VALUES(?,?,?)')
+          .bind(key, a.id, a.assetId)
+          .run(),
+      () => db.prepare('DELETE FROM integrity_copy_intents WHERE object_key=?').bind(key).run(),
+    ],
+  ];
+  for (const [install, remove] of checks) {
+    await install();
+    assert.equal((await gcCopy(a.token, key)).status, 409);
+    assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+    assert.equal(
+      await db.prepare('SELECT * FROM r2_cleanup_claims WHERE object_key=?').bind(key).first(),
+      null,
+    );
+    await remove(); // Isolated synthetic references only; production primitive never removes these.
+  }
+});
+
+test('R2 GC 认领后禁止重新发布，摘要写入先预约且失败仍保留', async () => {
+  const a = await legacyIntegrity();
+  const key = gcKey(a.id);
+  assert.equal((await gcCopy(a.token, key, 'gc-before-delete')).status, 503);
+  for (const sql of [
+    'UPDATE assets SET object_key=? WHERE id=?',
+    'UPDATE assets SET integrity_source_key=? WHERE id=?',
+  ])
+    await assert.rejects(db.prepare(sql).bind(key, a.assetId).run(), /R2_CLEANUP_CLAIMED/);
+  await assert.rejects(
+    db.prepare('INSERT INTO integrity_copy_intents VALUES(?,?,?)').bind(key, a.id, a.assetId).run(),
+    /R2_CLEANUP_CLAIMED/,
+  );
+  await assert.rejects(
+    db
+      .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+      .bind(a.id, 'new-checksum', crypto.randomUUID(), key, 'date')
+      .run(),
+    /R2_CLEANUP_CLAIMED/,
+  );
+  assert.equal((await integrityFault(a, 'before-r2')).status, 503);
+  assert.ok(
+    await db
+      .prepare('SELECT * FROM integrity_copy_intents WHERE object_key=?')
+      .bind(a.target)
+      .first(),
+  );
+  assert.equal((await gcCopy(a.token, a.target)).status, 409);
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+});
+
+test('R2 GC 认领、删除、确认故障与响应丢失均可重放恢复', async () => {
+  const a = await reliabilityAccount();
+  for (const fault of [
+    'after-d1',
+    'gc-before-delete',
+    'gc-after-delete',
+    'head-r2',
+    'gc-response-lost',
+    'gc-complete-db',
+  ]) {
+    const key = gcKey(a.id);
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'orphan');
+    assert.equal((await gcCopy(a.token, key, fault)).status, 503, fault);
+    const claim = await db
+      .prepare('SELECT * FROM r2_cleanup_claims WHERE object_key=?')
+      .bind(key)
+      .first();
+    assert.ok(claim, fault);
+    assert.equal(claim.status, fault === 'gc-response-lost' ? 'done' : 'claimed', fault);
+    assert.equal((await gcCopy(a.token, key)).status, 200, fault);
+    assert.equal(await platform.env.IMMICH_CF_MEDIA.head(key), null);
+    // A stale out-of-band writer cannot publish; replay also removes its orphan bytes.
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'late unreferenced bytes');
+    assert.equal((await gcCopy(a.token, key)).status, 200);
+    assert.equal(await platform.env.IMMICH_CF_MEDIA.head(key), null);
+  }
+});
+
+test('R2 GC 认领前并发新增引用或撤销会话时不删除', async () => {
+  for (const scenario of ['reference', 'revoke']) {
+    const a = await legacyIntegrity(),
+      key = gcKey(a.id);
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'retain');
+    const held = await pausedSyncRequest(a.token, '/__test/storage-cleanup', 'POST', { key });
+    try {
+      if (scenario === 'reference')
+        await db
+          .prepare('UPDATE assets SET integrity_source_key=? WHERE id=?')
+          .bind(key, a.assetId)
+          .run();
+      else await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+      await held.release();
+      assert.equal((await held.response).status, 409);
+      assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+      assert.equal(
+        await db.prepare('SELECT * FROM r2_cleanup_claims WHERE object_key=?').bind(key).first(),
+        null,
+      );
+    } finally {
+      await held.release();
+    }
+  }
+});
+
+test('R2 GC 旧副本被认领后摘要升级用新预约恢复，不释放旧隔离标记', async () => {
+  const a = await legacyIntegrity();
+  await platform.env.IMMICH_CF_MEDIA.put(a.target, 'stale orphan');
+  assert.equal((await gcCopy(a.token, a.target)).status, 200);
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first();
+  assert.notEqual(row.object_key, a.target);
+  assert.equal(row.integrity_source_key, a.row.object_key);
+  assert.equal(row.r2_sha1_verified, 1);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(a.target), null);
+  assert.deepEqual(
+    Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(row.object_key)).arrayBuffer()),
+    a.bytes,
+  );
+  assert.deepEqual(
+    Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(a.row.object_key)).arrayBuffer()),
+    a.bytes,
+  );
+  assert.equal((await gcCopy(a.token, row.object_key)).status, 409);
+});

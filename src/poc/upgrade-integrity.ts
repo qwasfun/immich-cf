@@ -105,7 +105,24 @@ async function upgrade(request: Request, env: Env, identity: Identity) {
   if (input.apply !== true)
     return Response.json({ ...result, applied: false, sourceBytesVerified: true });
   const hex = [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  const target = recovering ? row.object_key : `${identity.id}/${row.id}/verified-sha1-${hex}`;
+  let target = recovering ? row.object_key : `${identity.id}/${row.id}/verified-sha1-${hex}`;
+  // Reserve before any R2 write. Retain even after failure/publication; GC must
+  // never mistake an in-flight or uncertain copy for an unreferenced object.
+  const reserve = (key: string) =>
+    env.IMMICH_CF_DB.prepare(
+      'INSERT INTO integrity_copy_intents(object_key,owner_id,asset_id) VALUES(?,?,?) ON CONFLICT(object_key) DO NOTHING',
+    )
+      .bind(key, identity.id, row.id)
+      .run();
+  try {
+    await reserve(target);
+  } catch (error) {
+    if (recovering || !String(error).includes('R2_CLEANUP_CLAIMED')) throw error;
+    // A previous orphan generation was fenced. Use a fresh private generation,
+    // never release its fence or retry a PUT to the claimed key.
+    target = `${identity.id}/${crypto.randomUUID()}/verified-sha1-${hex}`;
+    await reserve(target);
+  }
   // Initial staging is create-only. Recovery may conditionally replace a bad copy,
   // using fully rehashed retained source bytes, never overwriting the retained source.
   let copy = await env.IMMICH_CF_MEDIA.head(target);
