@@ -22,6 +22,7 @@ export interface Asset {
   height: number;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
   file_created_at: string;
   file_modified_at: string;
   favorite: number;
@@ -165,6 +166,15 @@ export async function upload(request: Request, env: Env, identity: Identity) {
         )
         .bind(existing.id, identity.id)
         .run();
+    const current = await db
+      .prepare(
+        `SELECT a.id FROM assets a WHERE a.id=? AND a.owner_id=? AND a.object_key=?
+      AND EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND s.user_id=a.owner_id AND s.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)) AND u.disabled=0)`,
+      )
+      .bind(existing.id, identity.id, existing.object_key, identity.session_id, Date.now())
+      .first();
+    if (!current)
+      throw new HttpError(409, 'assetData：资产已删除或会话已改变，请刷新后重新备份', 'assetData');
     return Response.json({ id: existing.id, status: 'duplicate' });
   };
   try {
@@ -200,6 +210,12 @@ export async function upload(request: Request, env: Env, identity: Identity) {
       if (committed) return await duplicate(committed);
       throw new HttpError(503, 'assetData：上传状态暂不可确认，请重试同一图片', 'assetData');
     }
+    if (await db.prepare('SELECT id FROM retired_assets WHERE id=?').bind(intent.id).first())
+      throw new HttpError(
+        409,
+        'assetData：保留预约对应已删除资产，请先核对预约后重试，避免重新发布旧资产',
+        'assetData',
+      );
     const stored = await env.IMMICH_CF_MEDIA.put(intent.object_key, bytes, {
       httpMetadata: { contentType: info.mime },
       sha1,
@@ -270,7 +286,7 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     return { id: item.id as string, checksum: checksum(item.checksum, `assets.${i}.checksum`) };
   });
   const rows = await env.IMMICH_CF_DB.prepare(
-    'SELECT id,checksum,object_key,bytes,r2_sha1_verified FROM assets WHERE owner_id = ?',
+    'SELECT id,checksum,object_key,bytes,r2_sha1_verified,deleted_at FROM assets WHERE owner_id = ?',
   )
     .bind(identity.id)
     .all<{
@@ -279,17 +295,18 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
       object_key: string;
       bytes: number;
       r2_sha1_verified: number;
+      deleted_at: string | null;
     }>();
   // Only inspect this owner's requested matches, once per checksum (at most 20 assets).
   // An unavailable store is not evidence of either a duplicate or a missing original.
   const requested = new Set(entries.map((entry) => entry.checksum));
-  const available = new Map<string, string>();
+  const available = new Map<string, { id: string; isTrashed: boolean }>();
   try {
     for (const row of rows.results) {
       if (!requested.has(row.checksum)) continue;
       const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
       if (originalMatches(object, row.bytes, row.checksum, !!row.r2_sha1_verified))
-        available.set(row.checksum, row.id);
+        available.set(row.checksum, { id: row.id, isTrashed: row.deleted_at !== null });
     }
   } catch {
     throw new HttpError(503, 'assets：暂时无法确认原图是否已保存，请稍后重试备份预检查', 'assets');
@@ -302,8 +319,8 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
             id: item.id,
             action: 'reject',
             reason: 'duplicate',
-            assetId: existing,
-            isTrashed: false,
+            assetId: existing.id,
+            isTrashed: existing.isTrashed,
           }
         : { id: item.id, action: 'accept' };
     }),
@@ -326,7 +343,7 @@ export function assetDto(row: Asset) {
     isEdited: false,
     visibility: 'timeline',
     duration: null,
-    deletedAt: null,
+    deletedAt: row.deleted_at ?? null,
     libraryId: null,
     livePhotoVideoId: null,
     stackId: null,
@@ -342,7 +359,7 @@ export function assetDetailDto(row: Asset) {
     hasMetadata: false,
     isArchived: false,
     isOffline: false,
-    isTrashed: false,
+    isTrashed: !!row.deleted_at,
   };
 }
 

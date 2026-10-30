@@ -8,6 +8,7 @@ export class SyncClientModel {
     this.db.exec(`PRAGMA foreign_keys=ON;
       CREATE TABLE users(id TEXT PRIMARY KEY);
       CREATE TABLE assets(id TEXT PRIMARY KEY,ownerId TEXT NOT NULL REFERENCES users(id),filename TEXT NOT NULL,favorite INTEGER NOT NULL,width INTEGER,height INTEGER);
+      CREATE TABLE trash_state(assetId TEXT PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,deletedAt TEXT NOT NULL);
       CREATE TABLE metadata(assetId TEXT REFERENCES assets(id) ON DELETE CASCADE,key TEXT,value TEXT,PRIMARY KEY(assetId,key));
       CREATE TABLE onboarding(userId TEXT PRIMARY KEY REFERENCES users(id),value TEXT);
       CREATE TABLE albums(id TEXT PRIMARY KEY,name TEXT,description TEXT,thumbnailAssetId TEXT REFERENCES assets(id) ON DELETE SET NULL,sortOrder TEXT);
@@ -29,6 +30,15 @@ export class SyncClientModel {
               `INSERT INTO assets VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET ownerId=excluded.ownerId,filename=excluded.filename,favorite=excluded.favorite,width=excluded.width,height=excluded.height`,
             )
             .run(d.id, d.ownerId, d.originalFileName, d.isFavorite ? 1 : 0, d.width, d.height);
+        if (['AssetV2', 'AlbumAssetCreateV2', 'AlbumAssetUpdateV2'].includes(event.type)) {
+          if (d.deletedAt)
+            this.db
+              .prepare(
+                'INSERT INTO trash_state VALUES(?,?) ON CONFLICT(assetId) DO UPDATE SET deletedAt=excluded.deletedAt',
+              )
+              .run(d.id, d.deletedAt);
+          else this.db.prepare('DELETE FROM trash_state WHERE assetId=?').run(d.id);
+        }
         if (event.type === 'AssetDeleteV1')
           this.db.prepare('DELETE FROM assets WHERE id=?').run(d.assetId);
         if (event.type === 'AssetMetadataV1')
@@ -83,7 +93,7 @@ export class SyncClientModel {
   }
   clear() {
     this.db.exec(
-      'DELETE FROM album_assets; DELETE FROM album_users; DELETE FROM albums; DELETE FROM metadata; DELETE FROM assets; DELETE FROM onboarding; DELETE FROM users;',
+      'DELETE FROM album_assets; DELETE FROM album_users; DELETE FROM albums; DELETE FROM metadata; DELETE FROM trash_state; DELETE FROM assets; DELETE FROM onboarding; DELETE FROM users;',
     );
   }
   snapshot() {
@@ -96,6 +106,19 @@ export class SyncClientModel {
           .map((row) => ({ ...row })),
       ]),
     );
+  }
+  trashSnapshot() {
+    return this.db
+      .prepare('SELECT * FROM trash_state ORDER BY assetId')
+      .all()
+      .map((row) => ({ ...row }));
+  }
+  activeAlbumCount(id) {
+    return this.db
+      .prepare(
+        'SELECT COUNT(*) n FROM album_assets l WHERE l.albumId=? AND NOT EXISTS(SELECT 1 FROM trash_state t WHERE t.assetId=l.assetId)',
+      )
+      .get(id).n;
   }
   albumSnapshot() {
     return Object.fromEntries(

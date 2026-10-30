@@ -6,6 +6,7 @@ import { sessions } from './sessions';
 import { onboarding } from './onboarding';
 import { upload, bulkCheck, readAsset } from './assets';
 import { repairDimensions } from './repair-dimensions';
+import { trash, assetStatistics, purgeStatus } from './trash';
 import { albums } from './albums';
 import { updateFavorite } from './favorites';
 import { storageAudit } from './storage-audit';
@@ -15,8 +16,13 @@ const methods: Record<string, string[]> = {
   '/api/immich-cf/upgrade-integrity': ['POST'],
   '/api/immich-cf/storage-audit': ['POST'],
   '/api/immich-cf/repair-dimensions': ['POST'],
-  '/api/assets': ['POST', 'PUT'],
+  '/api/assets': ['POST', 'PUT', 'DELETE'],
   '/api/albums': ['GET', 'POST'],
+  '/api/assets/statistics': ['GET'],
+  '/api/trash/restore': ['POST'],
+  '/api/trash/restore/assets': ['POST'],
+  '/api/trash/empty': ['POST'],
+  '/api/immich-cf/purge-status': ['GET'],
   '/api/assets/bulk-upload-check': ['POST'],
   '/.well-known/immich': ['GET'],
   '/api/server/ping': ['GET'],
@@ -40,6 +46,7 @@ export async function route(
   request: Request,
   env: Env,
   requestId: string,
+  ctx?: ExecutionContext,
 ): Promise<Response | null> {
   const path = new URL(request.url).pathname;
   const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
@@ -66,7 +73,7 @@ export async function route(
         { status: 405, headers: { Allow: allowed.join(', ') } },
       );
     } else {
-      response = await dispatch(request, env, path);
+      response = await dispatch(request, env, path, ctx);
     }
   } catch (error) {
     if (error instanceof HttpError) {
@@ -90,7 +97,12 @@ export async function route(
   return response;
 }
 
-async function dispatch(request: Request, env: Env, path: string): Promise<Response> {
+async function dispatch(
+  request: Request,
+  env: Env,
+  path: string,
+  ctx?: ExecutionContext,
+): Promise<Response> {
   const db = env.IMMICH_CF_DB;
   if (path === '/.well-known/immich') return Response.json({ api: { endpoint: '/api' } });
   if (path === '/api/server/ping') return Response.json({ res: 'pong' });
@@ -116,7 +128,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
       search: false,
       sidecar: false,
       smartSearch: false,
-      trash: false,
+      trash: true,
     });
   if (path === '/api/server/config') {
     const initialized = !!(await db
@@ -134,7 +146,7 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
       oauthAccountManagementUrl: '',
       oauthButtonText: '',
       publicUsers: false,
-      trashDays: 0,
+      trashDays: 30,
       userDeleteDelay: 0,
     });
   }
@@ -160,6 +172,10 @@ async function dispatch(request: Request, env: Env, path: string): Promise<Respo
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path.startsWith('/api/trash/') || (path === '/api/assets' && request.method === 'DELETE'))
+    return trash(request, env, identity, ctx);
+  if (path === '/api/assets/statistics') return assetStatistics(request, db, identity);
+  if (path === '/api/immich-cf/purge-status') return purgeStatus(request, db, identity);
   const albumMatch = path.match(/^\/api\/albums\/([^/]+)(\/assets)?$/);
   if (path === '/api/albums' || albumMatch)
     return albums(request, db, identity, albumMatch?.[1], !!albumMatch?.[2]);

@@ -38,9 +38,9 @@ function text(value: unknown, field: string, max: number, nullable = false) {
     invalid(field, '不能为空或包含控制字符，请填写相册名称');
   return field === 'albumName' ? value.trim() : value;
 }
-const selectAlbum = `SELECT b.*,(SELECT COUNT(*) FROM album_assets l WHERE l.album_id=b.id) asset_count,
- (SELECT MIN(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id) start_date,
- (SELECT MAX(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id) end_date FROM albums b`;
+const selectAlbum = `SELECT b.*,(SELECT COUNT(*) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) asset_count,
+ (SELECT MIN(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) start_date,
+ (SELECT MAX(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) end_date FROM albums b`;
 export function albumDto(row: Album, identity: Identity) {
   return {
     id: row.id,
@@ -82,7 +82,8 @@ export async function albums(
       where += ' AND b.id=?';
       values.push(id);
     } else if (query.has('assetId')) {
-      where += ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=b.id AND l.asset_id=?)';
+      where +=
+        ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=b.id AND l.asset_id=? AND EXISTS(SELECT 1 FROM assets a WHERE a.id=l.asset_id AND a.deleted_at IS NULL))';
       values.push(uuid(query.get('assetId'), 'assetId'));
     } else {
       if (query.has('id')) {

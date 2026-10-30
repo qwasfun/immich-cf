@@ -77,11 +77,21 @@ export async function storageInventory(
         throw new Error('INVALID_REFERENCE_SCOPE');
       const entries = [];
       for (const row of page) {
+        const purge = ['retired', 'retired-source', 'copy'].includes(row.kind)
+          ? await db
+              .prepare(
+                'SELECT j.status FROM asset_purge_jobs j JOIN asset_purge_objects o ON o.asset_id=j.asset_id AND o.owner_id=j.owner_id WHERE j.owner_id=? AND o.object_key=? LIMIT 1',
+              )
+              .bind(identity.id, row.object_key)
+              .first<{ status: string }>()
+          : null;
         let objectStatus: string;
         try {
           const object = await bucket.head(row.object_key);
           objectStatus = !object
-            ? 'missing'
+            ? purge?.status === 'done'
+              ? 'deleted'
+              : 'missing'
             : row.kind === 'copy' || row.kind === 'intent'
               ? 'present-unverified'
               : object.size !== row.bytes
@@ -99,6 +109,7 @@ export async function storageInventory(
           kind: row.kind,
           objectStatus,
           checksumRequired: !!row.required,
+          ...(purge ? { permanentDeleteRequested: true, purgeStatus: purge.status } : {}),
         });
       }
       return {

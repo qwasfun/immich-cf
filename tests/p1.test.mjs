@@ -5451,6 +5451,27 @@ const albumCall = (token, path = '', data, method = 'GET', extra = {}) =>
     },
     ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
   });
+const trashCall = (token, path, data, method = 'POST', fault = '') =>
+  worker.fetch(path, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      'x-test-storage-fault': fault,
+    },
+    ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+  });
+const deletePhotos = (a, ids = a.ids, force = false, fault = '') =>
+  trashCall(a.token, '/api/assets', { ids, force }, 'DELETE', fault);
+const runPurge = (a, fault = '') =>
+  trashCall(a.token, '/__test/purge-run', { ids: a.ids }, 'POST', fault);
+const purgeJobs = async (a) =>
+  (
+    await db
+      .prepare('SELECT * FROM asset_purge_jobs WHERE owner_id=? ORDER BY asset_id')
+      .bind(a.id)
+      .all()
+  ).results;
 async function albumSetup() {
   const a = await reliabilityAccount(),
     ids = [];
@@ -6012,4 +6033,454 @@ test('P4 相册资产独立请求家族可创建并增量更新资产，不依�
     [],
   );
   assert.equal((await worker.fetch('/api/albums')).status, 401);
+});
+
+test('P4 回收站保留原图与关系，封面和计数排除回收项，恢复不重建用户移除的关系', async () => {
+  const a = await albumSetup();
+  const album = await (
+    await albumCall(a.token, '', { albumName: 'trash', assetIds: a.ids }, 'POST')
+  ).json();
+  const rows = (
+    await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(a.id).all()
+  ).results;
+  assert.equal((await deletePhotos(a, [a.ids[0]])).status, 204);
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.ids[0]).first();
+  assert.ok(row.deleted_at);
+  assert.equal(
+    (
+      await (
+        await worker.fetch(`/api/assets/${row.id}`, {
+          headers: { Authorization: `Bearer ${a.token}` },
+        })
+      ).json()
+    ).isTrashed,
+    true,
+  );
+  const readAlbum = async () => (await albumCall(a.token, `/${album.id}`)).json();
+  assert.equal((await readAlbum()).assetCount, 1);
+  assert.equal((await readAlbum()).albumThumbnailAssetId, a.ids[1]);
+  assert.equal((await albumState(a.id)).links.length, 2);
+  for (const r of rows) assert.ok(await platform.env.IMMICH_CF_MEDIA.head(r.object_key));
+  assert.equal((await deletePhotos(a, [a.ids[0]])).status, 204);
+  assert.equal(
+    (await db.prepare('SELECT deleted_at FROM assets WHERE id=?').bind(row.id).first()).deleted_at,
+    row.deleted_at,
+  );
+  for (const [query, n] of [
+    ['', 1],
+    ['?isTrashed=true', 1],
+    ['?isTrashed=false', 1],
+  ]) {
+    const r = await trashCall(a.token, '/api/assets/statistics' + query, undefined, 'GET');
+    assert.deepEqual(await r.json(), { images: n, videos: 0, total: n });
+  }
+  const check = await send(
+    '/api/assets/bulk-upload-check',
+    { assets: [{ id: 'local', checksum: row.checksum }] },
+    a.token,
+  );
+  assert.equal(check.status, 200);
+  assert.equal((await check.json()).results[0].isTrashed, true);
+  assert.equal(
+    (await albumCall(a.token, '', { albumName: 'invalid', assetIds: [row.id] }, 'POST')).status,
+    404,
+  );
+  const restored = await send('/api/trash/restore/assets', { ids: [row.id, row.id] }, a.token);
+  assert.deepEqual(await restored.json(), { count: 1 });
+  assert.equal((await readAlbum()).assetCount, 2);
+  assert.equal((await readAlbum()).albumThumbnailAssetId, a.ids[1]);
+  await deletePhotos(a);
+  assert.equal((await readAlbum()).assetCount, 0);
+  assert.equal((await readAlbum()).albumThumbnailAssetId, null);
+  await albumCall(a.token, `/${album.id}/assets`, { ids: [row.id] }, 'DELETE');
+  assert.deepEqual(await (await trashCall(a.token, '/api/trash/restore')).json(), { count: 2 });
+  assert.equal((await readAlbum()).assetCount, 1);
+  assert.equal((await albumState(a.id)).links.length, 1);
+  await deletePhotos(a);
+  await albumCall(a.token, `/${album.id}`, undefined, 'DELETE');
+  await trashCall(a.token, '/api/trash/restore');
+  assert.equal((await albumState(a.id)).albums.length, 0);
+  assert.equal((await purgeJobs(a)).length, 0);
+});
+
+test('P4 永久删除持久授权后清理原图，幂等重放不误删重新上传的新资产', async () => {
+  const a = await albumSetup();
+  const album = await (
+    await albumCall(a.token, '', { albumName: 'permanent', assetIds: a.ids }, 'POST')
+  ).json();
+  const rows = (await db.prepare('SELECT * FROM assets WHERE owner_id=?').bind(a.id).all()).results;
+  await deletePhotos(a, [a.ids[0]]);
+  assert.equal((await deletePhotos(a, [a.ids[0]], true)).status, 204);
+  assert.equal((await deletePhotos(a, [a.ids[0]], true)).status, 204);
+  assert.equal((await send('/api/trash/restore/assets', { ids: [a.ids[0]] }, a.token)).status, 404);
+  assert.equal((await (await albumCall(a.token, `/${album.id}`)).json()).assetCount, 1);
+  assert.equal((await albumState(a.id)).links.length, 1);
+  assert.equal((await purgeJobs(a))[0].status, 'done');
+  const old = rows.find((r) => r.id === a.ids[0]);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(old.object_key), null);
+  assert.equal(
+    (
+      await worker.fetch(`/api/assets/${old.id}/original`, {
+        headers: { Authorization: `Bearer ${a.token}` },
+      })
+    ).status,
+    404,
+  );
+  const newAsset = await (await uploadFixture(a.token)).json();
+  assert.notEqual(newAsset.id, old.id);
+  await runPurge(a);
+  const current = await db
+    .prepare('SELECT object_key FROM assets WHERE id=?')
+    .bind(newAsset.id)
+    .first();
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(current.object_key));
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(rows.find((r) => r.id !== old.id).object_key));
+  const diagnostics = await (
+    await trashCall(a.token, '/api/immich-cf/purge-status', undefined, 'GET')
+  ).json();
+  assert.equal(diagnostics.entries[0].status, 'done');
+  assert.ok(!JSON.stringify(diagnostics).includes(old.object_key));
+  const audit = await (await send('/api/immich-cf/storage-audit', {}, a.token)).json();
+  assert.equal(audit.entries.find((e) => e.id === old.id).objectStatus, 'deleted');
+  for (const sql of [
+    'DELETE FROM asset_purge_jobs WHERE asset_id=?',
+    'DELETE FROM asset_purge_objects WHERE asset_id=?',
+    'DELETE FROM asset_purge_fences WHERE asset_id=?',
+    'DELETE FROM retired_assets WHERE id=?',
+  ])
+    await assert.rejects(db.prepare(sql).bind(old.id).run(), /PURGE_IMMUTABLE/);
+  await assert.rejects(
+    db
+      .prepare('UPDATE assets SET integrity_source_key=? WHERE id=?')
+      .bind(old.object_key, newAsset.id)
+      .run(),
+    /PURGE_FENCED/,
+  );
+  await assert.rejects(
+    db
+      .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+      .bind(a.id, old.checksum, crypto.randomUUID(), old.object_key, old.created_at)
+      .run(),
+    /PURGE_FENCED/,
+  );
+});
+
+test('P4 restore-all/empty 无请求体兼容官方调用，空列表与字段错误、跨用户均安全', async () => {
+  const a = await albumSetup(),
+    other = await albumSetup();
+  for (const [path, data, field, method] of [
+    ['/api/assets', { ids: 'bad' }, 'ids', 'DELETE'],
+    ['/api/assets', { ids: [a.ids[0]], force: 'true' }, 'force', 'DELETE'],
+    ['/api/assets', { ids: ['private-submitted-value'] }, 'ids', 'DELETE'],
+    ['/api/trash/restore/assets', { ids: a.ids, force: true }, 'force', 'POST'],
+    ['/api/trash/empty', { ids: a.ids }, 'ids', 'POST'],
+  ]) {
+    const r = await trashCall(a.token, path, data, method);
+    assert.equal(r.status, 400);
+    const json = await r.json();
+    assert.equal(json.errors[0].path[0], field);
+    assert.ok(!JSON.stringify(json).includes('private-submitted-value'));
+  }
+  assert.equal((await deletePhotos(a, [a.ids[0], other.ids[0]], true)).status, 404);
+  assert.equal((await purgeJobs(a)).length, 0);
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=? AND deleted_at IS NULL')
+        .bind(a.id)
+        .first()
+    ).n,
+    2,
+  );
+  assert.deepEqual(await (await send('/api/trash/restore/assets', { ids: [] }, a.token)).json(), {
+    count: 0,
+  });
+  assert.equal((await deletePhotos(a, [])).status, 204);
+  await deletePhotos(a);
+  assert.deepEqual(await (await trashCall(a.token, '/api/trash/empty')).json(), { count: 2 });
+  assert.deepEqual(await (await trashCall(a.token, '/api/trash/empty')).json(), { count: 0 });
+  assert.deepEqual(await (await trashCall(a.token, '/api/trash/restore')).json(), { count: 0 });
+  assert.equal((await purgeJobs(a)).length, 2);
+  assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
+  assert.equal(
+    (await (await trashCall(other.token, '/api/immich-cf/purge-status', undefined, 'GET')).json())
+      .entries.length,
+    0,
+  );
+  assert.equal((await worker.fetch('/api/trash/empty', { method: 'POST' })).status, 401);
+});
+
+test('P4 永久删除各故障断点可恢复，晚到R2写入被重放清理，业务引用仍被永久隔离', async () => {
+  for (const fault of [
+    'after-d1',
+    'purge-before-fence',
+    'purge-before-delete',
+    'purge-after-delete',
+    'purge-status-db',
+    'purge-recreate',
+  ]) {
+    const a = await albumSetup();
+    a.ids = [a.ids[0]];
+    const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.ids[0]).first();
+    const r = await deletePhotos(a, a.ids, true, fault);
+    assert.equal(r.status, fault === 'after-d1' ? 503 : 204, fault);
+    assert.equal(await db.prepare('SELECT id FROM assets WHERE id=?').bind(row.id).first(), null);
+    assert.notEqual((await purgeJobs(a))[0].status, 'done', fault);
+    assert.equal((await runPurge(a)).status, 200);
+    assert.equal((await purgeJobs(a))[0].status, 'done', fault);
+    assert.equal(await platform.env.IMMICH_CF_MEDIA.head(row.object_key), null, fault);
+    // A PUT already in flight before authorization may arrive after the first delete.
+    await platform.env.IMMICH_CF_MEDIA.put(row.object_key, 'late stale bytes');
+    await runPurge(a);
+    assert.equal(await platform.env.IMMICH_CF_MEDIA.head(row.object_key), null, fault);
+    await assert.rejects(
+      db
+        .prepare('INSERT INTO integrity_copy_intents(asset_id,owner_id,object_key) VALUES(?,?,?)')
+        .bind(row.id, a.id, `${a.id}/${row.id}/late-copy`)
+        .run(),
+      /PURGE_FENCED/,
+    );
+  }
+});
+
+test('P4 永久删除保留上传预约、其他活动/退役/副本引用，未获安全隔离时不删R2', async () => {
+  for (const kind of ['upload', 'active', 'retired', 'copy']) {
+    const a = await albumSetup();
+    const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.ids[0]).first();
+    if (kind === 'upload')
+      await db
+        .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+        .bind(a.id, row.checksum, crypto.randomUUID(), row.object_key, row.created_at)
+        .run();
+    if (kind === 'active')
+      await db
+        .prepare('UPDATE assets SET integrity_source_key=? WHERE id=?')
+        .bind(row.object_key, a.ids[1])
+        .run();
+    if (kind === 'retired')
+      await db
+        .prepare('INSERT INTO retired_assets VALUES(?,?,?,?,?,?,?,?)')
+        .bind(
+          crypto.randomUUID(),
+          a.id,
+          row.object_key,
+          null,
+          row.bytes,
+          row.checksum,
+          1,
+          row.created_at,
+        )
+        .run();
+    if (kind === 'copy')
+      await db
+        .prepare('INSERT INTO integrity_copy_intents(asset_id,owner_id,object_key) VALUES(?,?,?)')
+        .bind(a.ids[1], a.id, row.object_key)
+        .run();
+    assert.equal((await deletePhotos(a, [row.id], true)).status, 204);
+    assert.equal((await purgeJobs(a))[0].status, 'blocked', kind);
+    await runPurge(a);
+    assert.ok(await platform.env.IMMICH_CF_MEDIA.head(row.object_key), kind);
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) n FROM asset_purge_fences WHERE asset_id=?')
+          .bind(row.id)
+          .first()
+      ).n,
+      0,
+    );
+    if (kind === 'upload')
+      assert.equal(
+        (
+          await db
+            .prepare('SELECT COUNT(*) n FROM upload_intents WHERE owner_id=?')
+            .bind(a.id)
+            .first()
+        ).n,
+        1,
+      );
+  }
+});
+
+test('P4 永久删除覆盖历史原图与已验证副本，保留持久复制预约，禁止新增迟到复制任务', async () => {
+  const a = await reliabilityAccount();
+  const { id } = await (await uploadFixture(a.token)).json();
+  a.ids = [id];
+  const old = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  await platform.env.IMMICH_CF_MEDIA.put(
+    old.object_key,
+    await readFile('tests/fixtures/small.png'),
+  );
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
+  assert.equal((await send(upgradePath, { id, apply: true }, a.token)).status, 200);
+  const upgraded = await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first();
+  assert.notEqual(upgraded.object_key, old.object_key);
+  assert.equal((await deletePhotos(a, [id], true)).status, 204);
+  await runPurge(a);
+  assert.equal((await purgeJobs(a))[0].status, 'done');
+  for (const key of [old.object_key, upgraded.object_key])
+    assert.equal(await platform.env.IMMICH_CF_MEDIA.head(key), null);
+  const inventory = await (await inventoryForTest(a.token, { mode: 'references' })).json();
+  assert.ok(inventory.entries.some((e) => e.kind === 'copy'));
+  assert.ok(
+    inventory.entries.every((e) => e.objectStatus === 'deleted' && e.purgeStatus === 'done'),
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM integrity_copy_intents WHERE asset_id=?')
+        .bind(id)
+        .first()
+    ).n,
+    1,
+  );
+  await assert.rejects(
+    db.prepare('DELETE FROM integrity_copy_intents WHERE asset_id=?').bind(id).run(),
+    /PURGE_IMMUTABLE/,
+  );
+});
+
+test('P4 回收/恢复/永久删除提交时重新校验撤销、过期、禁用，整批无副作用', async () => {
+  for (const state of ['revoked', 'expired', 'disabled'])
+    for (const operation of ['trash', 'restore', 'purge', 'empty']) {
+      const a = await albumSetup();
+      if (operation === 'restore' || operation === 'empty') await deletePhotos(a);
+      const before = await auditSnapshot(a.id);
+      const path =
+        operation === 'restore'
+          ? '/api/trash/restore/assets'
+          : operation === 'empty'
+            ? '/api/trash/empty'
+            : '/api/assets';
+      const data =
+        operation === 'empty'
+          ? {}
+          : { ids: a.ids, ...(operation === 'purge' ? { force: true } : {}) };
+      const held = await pausedSyncRequest(
+        a.token,
+        path,
+        path === '/api/assets' ? 'DELETE' : 'POST',
+        data,
+      );
+      try {
+        if (state === 'revoked')
+          await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+        if (state === 'expired')
+          await db.prepare('UPDATE sessions SET expires_at=1 WHERE user_id=?').bind(a.id).run();
+        if (state === 'disabled')
+          await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(a.id).run();
+        await held.release();
+        assert.equal((await held.response).status, 401, state + operation);
+        assert.deepEqual(await auditSnapshot(a.id), before);
+        assert.equal((await purgeJobs(a)).length, 0);
+      } finally {
+        await held.release();
+      }
+    }
+});
+
+test('P4 回收站Sync全量/增量/reset/重放与永久删除保持客户端外键及相册状态', async () => {
+  const { SyncClientModel } = await import('./fixtures/sync-client-model.mjs');
+  const a = await albumSetup();
+  const album = await (
+    await albumCall(a.token, '', { albumName: 'sync trash', assetIds: a.ids }, 'POST')
+  ).json();
+  const client = new SyncClientModel();
+  const apply = async (reset = false) => {
+    const events = await syncEvents(a.token, { reset });
+    client.apply(events, { reset });
+    client.apply(events);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+      204,
+    );
+    return events;
+  };
+  try {
+    await apply();
+    await deletePhotos(a, [a.ids[0]]);
+    const events = await apply();
+    assert.ok(events.some((e) => e.type === 'AssetV2' && e.data.deletedAt));
+    assert.equal(client.trashSnapshot().length, 1);
+    assert.equal(client.activeAlbumCount(album.id), 1);
+    assert.equal(client.albumSnapshot().album_assets.length, 2);
+    const oldAck = events.map((e) => e.ack);
+    await apply(true);
+    assert.equal(client.trashSnapshot().length, 1);
+    assert.equal((await send('/api/sync/ack', { acks: oldAck }, a.token)).status, 400);
+    await send('/api/trash/restore/assets', { ids: [a.ids[0]] }, a.token);
+    await apply();
+    assert.equal(client.trashSnapshot().length, 0);
+    assert.equal(client.activeAlbumCount(album.id), 2);
+    await deletePhotos(a, [a.ids[0]], true);
+    assert.ok((await apply()).some((e) => e.type === 'AssetDeleteV1'));
+    assert.equal(client.snapshot().assets.length, 1);
+    assert.equal(client.albumSnapshot().album_assets.length, 1);
+    await apply(true);
+    assert.equal(client.snapshot().assets.length, 1);
+  } finally {
+    client.close();
+  }
+});
+
+test('P4 回收站写入与普通/reset快照竞态拒绝旧Complete，不推进检查点', async () => {
+  for (const reset of [false, true])
+    for (const operation of ['trash', 'restore', 'purge']) {
+      const a = await albumSetup();
+      await albumCall(a.token, '', { albumName: 'race', assetIds: a.ids }, 'POST');
+      if (operation === 'restore') await deletePhotos(a, [a.ids[0]]);
+      const prior = await syncEvents(a.token);
+      await send('/api/sync/ack', { acks: prior.map((e) => e.ack) }, a.token);
+      const checkpoints = await checkpointRows(a.token);
+      const held = await pausedSyncRequest(a.token, '/api/sync/stream', 'POST', {
+        types: manifest.sync.requestedTypes,
+        reset,
+      });
+      try {
+        const r =
+          operation === 'restore'
+            ? await send('/api/trash/restore/assets', { ids: [a.ids[0]] }, a.token)
+            : await deletePhotos(a, [a.ids[0]], operation === 'purge');
+        assert.equal(r.status, operation === 'restore' ? 200 : 204);
+        await held.release();
+        assert.equal((await held.response).status, 409);
+        assert.deepEqual(await checkpointRows(a.token), checkpoints);
+      } finally {
+        await held.release();
+      }
+      const fresh = await syncEvents(a.token, { reset });
+      assert.equal(fresh.at(-1).type, 'SyncCompleteV1');
+    }
+});
+
+test('P4 回收站仍占20资产名额，永久删除只释放已移除资产名额，恢复不重复计费', async () => {
+  const a = await reliabilityAccount();
+  a.ids = [];
+  for (let i = 0; i < 20; i++)
+    a.ids.push((await (await uploadBytes(a.token, await quotaVariant(i))).json()).id);
+  assert.equal(a.ids.filter(Boolean).length, 20);
+  await deletePhotos(a);
+  assert.equal((await uploadFixture(a.token)).status, 409);
+  await send('/api/trash/restore/assets', { ids: [a.ids[0]] }, a.token);
+  assert.equal((await uploadFixture(a.token)).status, 409);
+  await deletePhotos(a, [a.ids[0]], true);
+  assert.equal((await uploadFixture(a.token)).status, 201);
+  assert.equal((await uploadFixture(a.token, 'small.jpg')).status, 409);
+});
+
+test('P4 批量清空分批恢复任务，3个任务上界不丢失后续永久删除授权', async () => {
+  const a = await reliabilityAccount();
+  a.ids = [];
+  for (let i = 0; i < 5; i++)
+    a.ids.push((await (await uploadBytes(a.token, await quotaVariant(i))).json()).id);
+  await deletePhotos(a);
+  const response = await trashCall(a.token, '/api/trash/empty');
+  assert.deepEqual(await response.json(), { count: 5 });
+  assert.equal((await purgeJobs(a)).filter((j) => j.status === 'done').length, 3);
+  const next = await (await runPurge(a)).json();
+  assert.ok(next.processed <= 3);
+  // Due times rotate the deterministic page; a bounded replay drains the rest.
+  for (let n = 0; n < 4; n++) await runPurge(a);
+  assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
+  assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
 });

@@ -9,9 +9,11 @@ export async function upgradeIntegrity(request: Request, env: Env, identity: Ide
     return await upgrade(request, env, identity);
   } catch (error) {
     if (error instanceof HttpError) throw error;
+    if (String(error).includes('PURGE_FENCED'))
+      throw new HttpError(409, 'id：资产已永久删除，请刷新状态后重新操作', 'id');
     throw new HttpError(
       503,
-      'id：原图校验或升级结果暂不可确认，请稍后对同一资产重新预检并重试；原图和预约均保留',
+      'id：原图校验或升级结果暂不可确认，请刷新资产状态后对同一资产重新预检并重试',
       'id',
     );
   }
@@ -160,10 +162,6 @@ async function upgrade(request: Request, env: Env, identity: Identity) {
     ),
   ]);
   if (!write?.meta.changes)
-    throw new HttpError(
-      409,
-      'id：资产或会话已改变，请重新登录或重新预检后重试；原图和校验副本均已保留',
-      'id',
-    );
+    throw new HttpError(409, 'id：资产或会话已改变，请刷新状态并重新登录或重新预检后重试', 'id');
   return Response.json({ ...result, applied: true, sourceBytesVerified: true });
 }

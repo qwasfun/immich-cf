@@ -49,10 +49,18 @@ export async function storageAudit(request: Request, env: Env, identity: Identit
   const page = rows.results.slice(0, 20);
   const entries = [];
   for (const row of page) {
+    const purge =
+      row.kind === 'retired' || row.kind === 'retired-source'
+        ? await env.IMMICH_CF_DB.prepare(
+            'SELECT status FROM asset_purge_jobs WHERE asset_id=? AND owner_id=?',
+          )
+            .bind(row.id, identity.id)
+            .first<{ status: string }>()
+        : null;
     let objectStatus: string;
     try {
       const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
-      if (!object) objectStatus = 'missing';
+      if (!object) objectStatus = purge?.status === 'done' ? 'deleted' : 'missing';
       else if (row.kind === 'intent') objectStatus = 'present-unverified';
       else if (object.size !== row.bytes) objectStatus = 'size-mismatch';
       else if (!originalMatches(object, row.bytes, row.checksum, true))
@@ -65,11 +73,15 @@ export async function storageAudit(request: Request, env: Env, identity: Identit
       kind: row.kind,
       id: row.id,
       objectStatus,
+      ...(purge ? { permanentDeleteRequested: true, purgeStatus: purge.status } : {}),
       ...(row.kind === 'retired' || row.kind === 'retired-source'
         ? {
             checksumRequired: row.kind === 'retired' && !!row.r2_sha1_verified,
-            relation:
-              row.kind === 'retired' ? 'retained-deleted-original' : 'retained-deleted-source',
+            relation: purge
+              ? 'permanent-delete-requested'
+              : row.kind === 'retired'
+                ? 'retained-deleted-original'
+                : 'retained-deleted-source',
           }
         : row.kind === 'asset'
           ? { checksumRequired: !!row.r2_sha1_verified }

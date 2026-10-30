@@ -1,0 +1,43 @@
+{
+  "scope": "trash-restore-permanent-delete-local",
+  "tests": 185,
+  "passed": 185,
+  "failed": 0,
+  "skipped": 0,
+  "newRegressionTests": 11,
+  "format": true,
+  "lint": true,
+  "types": true,
+  "dryRunBuild": true,
+  "build": { "uploadKiB": 242.31, "gzipKiB": 58.78 },
+  "migration": "0022_trash_and_purge.sql",
+  "contract": { "operations": 279, "sources": 53, "unchanged": true },
+  "additionalSource": {
+    "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+    "path": "server/src/services/trash.service.ts",
+    "gitBlob": "ecc7229923256a2685f34be5de66d1286ea4b953"
+  },
+  "verified": [
+    "soft trash idempotency and original retention",
+    "restore selected and all, empty HTTP request bodies",
+    "album edges retained, covers and active counts repaired",
+    "removed album edges are not resurrected",
+    "explicit permanent authorization and durable R2 purge jobs",
+    "all active/retired/foreign-copy/upload references block physical deletion",
+    "same-asset verified copies and retained original cleanup",
+    "irreversible reference fences and retired asset identity",
+    "transaction response loss, fence/delete/status faults and late PUT recovery",
+    "revoked/expired/disabled session checks at commit",
+    "cross-owner atomic rejection and private status pagination",
+    "Sync full/incremental/reset/replay and final snapshot guard conflicts",
+    "old ACK isolation retained",
+    "trash consumes quota and permanent deletion permits new asset identity",
+    "bounded job batches recover remaining durable jobs",
+    "storage reconciliation distinguishes intentional deletion from missing data"
+  ],
+  "automaticTrashExpiryImplemented": false,
+  "scheduledInvocationDeviceIndependentRuntimeVerified": false,
+  "officialAppVerified": false,
+  "cpuWorkPaused": true,
+  "p4ExitPassed": false
+}

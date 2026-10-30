@@ -3,6 +3,7 @@ import app from '../../src/index';
 import { authenticate } from '../../src/poc/auth';
 import { retireAsset } from '../../src/poc/asset-history';
 import { body, HttpError } from '../../src/poc/http';
+import { runPurgeJobs } from '../../src/poc/purge';
 import { storageInventory } from '../../src/poc/storage-inventory';
 import { cleanStorageCopy } from '../../src/poc/storage-cleanup';
 import { compactHistory } from '../../src/poc/history-cleanup';
@@ -29,6 +30,7 @@ export default {
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     const retirement = new URL(request.url).pathname.match(/^\/__test\/retire\/([a-f0-9-]{36})$/i);
+    const purgeRun = new URL(request.url).pathname === '/__test/purge-run';
     const inventory = new URL(request.url).pathname === '/__test/storage-inventory';
     const storageCleanup = new URL(request.url).pathname === '/__test/storage-cleanup';
     const cleanup = new URL(request.url).pathname === '/__test/history-cleanup';
@@ -39,7 +41,8 @@ export default {
       !retirement &&
       !cleanup &&
       !storageCleanup &&
-      !inventory
+      !inventory &&
+      !purgeRun
     )
       return app.fetch(request, env);
     let clean = new Request(request);
@@ -159,9 +162,13 @@ export default {
           };
         if (key === 'delete')
           return async (...args: Parameters<R2Bucket['delete']>) => {
-            if (fault === 'gc-before-delete') throw new Error('TEST_GC_DELETE');
+            if (fault === 'gc-before-delete' || fault === 'purge-before-delete')
+              throw new Error('TEST_GC_DELETE');
             await target.delete(...args);
-            if (fault === 'gc-after-delete') throw new Error('TEST_GC_RESPONSE_LOST');
+            if (fault === 'purge-recreate')
+              await target.put(args[0] as string, 'late synthetic bytes');
+            if (fault === 'gc-after-delete' || fault === 'purge-after-delete')
+              throw new Error('TEST_GC_RESPONSE_LOST');
           };
         if (key === 'get')
           return async (...args: Parameters<R2Bucket['get']>) => {
@@ -236,6 +243,10 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (fault === 'purge-status-db' && sql.startsWith('UPDATE asset_purge_objects'))
+              throw new Error('TEST_PURGE_STATUS_LOST');
+            if (fault === 'purge-before-fence' && sql.startsWith('INSERT INTO asset_purge_fences'))
+              throw new Error('TEST_PURGE_CLAIM_LOST');
             if (
               fault === 'inventory-db' &&
               (sql.startsWith('SELECT k.value object_key') ||
@@ -275,7 +286,10 @@ export default {
       },
     });
     let response: Response;
-    if ((retirement || cleanup || storageCleanup || inventory) && clean.method === 'POST') {
+    if (
+      (retirement || cleanup || storageCleanup || inventory || purgeRun) &&
+      clean.method === 'POST'
+    ) {
       try {
         // Drain the bounded test JSON before early auth rejection. Otherwise
         // workerd's test ProxyWorker can poison the next multipart connection.
@@ -284,13 +298,21 @@ export default {
         else input = await body(clean);
         const identity = await authenticate(clean, db);
         response = Response.json(
-          inventory
-            ? await storageInventory(db, media, identity, input)
-            : storageCleanup
-              ? await cleanStorageCopy(db, media, identity, input)
-              : cleanup
-                ? await compactHistory(db, identity, input)
-                : await retireAsset(db, identity, retirement![1]!),
+          purgeRun
+            ? await runPurgeJobs(
+                { ...env, IMMICH_CF_DB: db, IMMICH_CF_MEDIA: media },
+                {
+                  ownerId: identity.id,
+                  assetIds: Array.isArray(input.ids) ? (input.ids as string[]) : undefined,
+                },
+              )
+            : inventory
+              ? await storageInventory(db, media, identity, input)
+              : storageCleanup
+                ? await cleanStorageCopy(db, media, identity, input)
+                : cleanup
+                  ? await compactHistory(db, identity, input)
+                  : await retireAsset(db, identity, retirement![1]!),
         );
       } catch (error) {
         response = Response.json(

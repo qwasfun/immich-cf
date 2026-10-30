@@ -12,12 +12,13 @@ export function invalid(field: string, reason: string): never {
   throw new HttpError(400, `${field}：${reason}`, field);
 }
 
-export async function body(request: Request): Promise<Record<string, unknown>> {
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+export async function body(request: Request, allowEmpty = false): Promise<Record<string, unknown>> {
+  const json = request.headers.get('content-type')?.toLowerCase().startsWith('application/json');
+  if (!allowEmpty && !json) {
     throw new HttpError(415, 'Content-Type：请使用 application/json');
   }
   const reader = request.body?.getReader();
-  if (!reader) return invalid('请求体', '不能为空，请提供 JSON 对象');
+  if (!reader) return allowEmpty ? {} : invalid('请求体', '不能为空，请提供 JSON 对象');
   const chunks: Uint8Array[] = [];
   let length = 0;
   while (true) {
@@ -30,6 +31,8 @@ export async function body(request: Request): Promise<Record<string, unknown>> {
     }
     chunks.push(value);
   }
+  if (!length && allowEmpty) return {};
+  if (!json) throw new HttpError(415, 'Content-Type：请使用 application/json');
   const bytes = new Uint8Array(length);
   let offset = 0;
   for (const chunk of chunks) {

@@ -1,8 +1,17 @@
 import { errorResponse, jsonResponse } from './http/responses';
+import { runPurgeJobs } from './poc/purge';
 import { route } from './poc/routes';
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async scheduled(controller, env, ctx) {
+    if (controller.cron && String(env.ENABLE_P1_POC) === 'true')
+      ctx.waitUntil(
+        runPurgeJobs(env).catch(() =>
+          console.error(JSON.stringify({ code: 'PURGE_RUN_UNAVAILABLE' })),
+        ),
+      );
+  },
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const requestId = crypto.randomUUID();
     const { pathname } = new URL(request.url);
 
@@ -28,7 +37,7 @@ export default {
     }
 
     if (String(env.ENABLE_P1_POC) === 'true') {
-      const response = await route(request, env, requestId);
+      const response = await route(request, env, requestId, ctx);
       if (response) return response;
     }
 
