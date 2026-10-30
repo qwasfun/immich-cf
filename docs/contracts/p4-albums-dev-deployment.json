@@ -1,0 +1,465 @@
+{
+  "environment": "dev",
+  "sourceCommit": "b36a3d6fdb12776980d26ff256d2c7d6ecc4a52d",
+  "workerVersion": "ee3a8cfa-b5d2-4b9d-8c64-01bca0ccf617",
+  "deploymentId": "0cdfa1b1-9c99-4f02-b5e0-c3e9a2528fa1",
+  "url": "https://immich-cf-api-dev.fun.workers.dev",
+  "migration": "0021_personal_albums.sql",
+  "remoteMigrationCount": 21,
+  "localTests": {
+    "total": 174,
+    "passed": 174,
+    "failed": 0,
+    "skipped": 0
+  },
+  "migrationPreservation": {
+    "assetCount": 26,
+    "comparedAssetFieldsPreserved": true,
+    "uploadIntentsPreserved": true,
+    "preexistingCheckpointsPreserved": true,
+    "assetSyncClockPreserved": true,
+    "assetOwnerRevisionsPreserved": true
+  },
+  "afterSmoke": {
+    "comparedAssetFieldsUnchanged": true,
+    "uploadIntentsUnchanged": true,
+    "preexistingCheckpointsUnchanged": true,
+    "assetOwnerRevisionsUnchanged": true,
+    "liveAlbums": 0,
+    "liveAlbumLinks": 0,
+    "temporaryWriteGuards": 0,
+    "temporaryReadGuards": 0,
+    "newSessionsRemaining": 0,
+    "r2CleanupClaims": 0,
+    "deletionAndIdempotencyHistoryRetained": true
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T02:57:48.907Z",
+    "checks": {
+      "health": true,
+      "initialAssetCount": 20,
+      "create": true,
+      "idempotentCreate": true,
+      "edit": true,
+      "invalidCoverAtomic": true,
+      "addAndAutomaticCover": true,
+      "listFilters": true,
+      "duplicateRelationIdempotent": true,
+      "secondSessionOwnerAndRelations": true,
+      "explicitCover": true,
+      "coverFallback": true,
+      "removeReaddRecovery": true,
+      "emptyCover": true,
+      "resetAndAckIsolation": true,
+      "deleteMetadataOnly": true,
+      "deletedRequestDoesNotResurrect": true,
+      "originalAndPreviewUnchanged": true,
+      "maintenanceClosed": true,
+      "temporaryAlbumRemoved": true,
+      "knownSessionsLoggedOut": true
+    },
+    "attempts": [
+      {
+        "operation": "/healthz",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/login",
+        "method": "POST",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/login",
+        "method": "POST",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums",
+        "method": "POST",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums",
+        "method": "POST",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "PATCH",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "PATCH",
+        "attempt": 1,
+        "status": 400,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums?{query}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "PATCH",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 0,
+        "errorCode": "CURL_35"
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 2,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 400,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums",
+        "method": "POST",
+        "attempt": 1,
+        "status": 409,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/original",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/thumbnail?{query}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/__test/storage-cleanup",
+        "method": "POST",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "DELETE",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/albums",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/logout",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/logout",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      }
+    ],
+    "complete": true,
+    "officialAppVerified": false,
+    "mediaWritesPerformed": false
+  },
+  "publicMaintenanceEnabled": false,
+  "mediaUploadOrDeletionPerformed": false,
+  "testAndProductionChanged": false,
+  "cpuWorkPaused": true,
+  "officialAppDeviceVerified": false,
+  "p4ExitPassed": false
+}

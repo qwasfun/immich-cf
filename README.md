@@ -114,3 +114,5 @@ pnpm check
 - [收藏与同步保护 dev 验证](docs/p4-favorites-dev-deployment.md)：161项本机回归后发布，双会话收藏/reset/ACK及原图保护通过。
 
 - [P4 个人相册、关系与封面](docs/p4-personal-albums.md)：CRUD、私有关系、自动/手动封面、独立Sync家族与恢复语义。
+
+- [个人相册 dev 验收](docs/p4-albums-dev-deployment.md)：174项回归后发布，双会话关系/封面/reset与原图保留验证通过。
