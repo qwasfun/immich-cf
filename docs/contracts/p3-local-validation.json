@@ -2,8 +2,8 @@
   "scope": "isolated-local-p3-infrastructure",
   "localChecks": {
     "complete": true,
-    "tests": 143,
-    "passed": 143,
+    "tests": 149,
+    "passed": 149,
     "failed": 0,
     "skipped": 0,
     "format": true,
@@ -20,7 +20,8 @@
     "0014_asset_history.sql",
     "0015_history_retention.sql",
     "0016_asset_metadata_history.sql",
-    "0017_r2_cleanup.sql"
+    "0017_r2_cleanup.sql",
+    "0018_cleanup_pending_index.sql"
   ],
   "forwardNonemptyMigrationVerified": true,
   "localQueryCost": {
@@ -59,5 +60,18 @@
     "crashReplayVerified": true,
     "newGenerationAfterFenceVerified": true,
     "allUnreferencedObjectKindsSupported": false
+  },
+  "storageInventory": {
+    "scope": "internal-read-only-local",
+    "pageLimit": 20,
+    "allCurrentReferenceKindsObserved": true,
+    "crossOwnerReferencesProtected": true,
+    "staticObjectPaginationVerified": 45,
+    "pendingJobPaginationVerified": 23,
+    "deletedObjectPendingRecoveryVerified": true,
+    "readFailureClosedVerified": true,
+    "snapshotConsistent": false,
+    "automaticCleanupEnabled": false,
+    "publicApiEnabled": false
   }
 }

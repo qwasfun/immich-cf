@@ -4739,3 +4739,204 @@ test('R2 GC 旧副本被认领后摘要升级用新预约恢复，不释放旧�
   );
   assert.equal((await gcCopy(a.token, row.object_key)).status, 409);
 });
+
+const inventoryForTest = (token, input = {}, fault = '') =>
+  worker.fetch('/__test/storage-inventory', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      'x-test-storage-fault': fault,
+    },
+    body: JSON.stringify(input),
+  });
+
+test('P3 存储盘点覆盖全部引用与摘要预约，只观察不删除或认领', async () => {
+  const a = await legacyIntegrity();
+  assert.equal((await send(upgradePath, { id: a.assetId, apply: true }, a.token)).status, 200);
+  const live = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.assetId).first();
+  const retiredKey = gcKey(a.id),
+    retiredSource = gcKey(a.id);
+  await db
+    .prepare('INSERT INTO retired_assets VALUES(?,?,?,?,?,?,?,?)')
+    .bind(crypto.randomUUID(), a.id, retiredKey, retiredSource, 1, 'sum', 0, 'date')
+    .run();
+  const intent = await db
+    .prepare('SELECT object_key FROM upload_intents WHERE owner_id=?')
+    .bind(a.id)
+    .first();
+  const orphan = gcKey(a.id),
+    unknown = `${a.id}/unknown`,
+    original = `${a.id}/${crypto.randomUUID()}/original`;
+  for (const key of [retiredKey, retiredSource, orphan, unknown, original])
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'synthetic');
+  const before = await auditSnapshot(a.id);
+  const response = await inventoryForTest(a.token);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.observationOnly, true);
+  assert.equal(data.snapshotConsistent, false);
+  assert.equal(data.nextAfter, null);
+  const entry = (key) => data.entries.find((x) => x.key === key);
+  assert.deepEqual(entry(live.object_key).references, ['asset', 'integrity-copy-intent']);
+  assert.deepEqual(entry(a.row.object_key).references, ['source', 'upload-intent']);
+  assert.deepEqual(entry(retiredKey).references, ['retired']);
+  assert.deepEqual(entry(retiredSource).references, ['retired-source']);
+  assert.deepEqual(entry(intent.object_key).references, ['source', 'upload-intent']);
+  assert.equal(entry(orphan).classification, 'unreferenced-copy-observed');
+  assert.equal(entry(unknown).classification, 'retained-unknown');
+  assert.equal(entry(original).classification, 'retained-original');
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM r2_cleanup_claims WHERE owner_id=?')
+        .bind(a.id)
+        .first()
+    ).n,
+    0,
+  );
+});
+
+test('P3 存储盘点按账号有界分页且重放稳定，不泄漏另一账号对象', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const keys = Array.from({ length: 45 }, () => gcKey(a.id));
+  for (const key of [...keys, gcKey(other.id)])
+    await platform.env.IMMICH_CF_MEDIA.put(key, 'synthetic');
+  const first = await (await inventoryForTest(a.token)).json();
+  assert.equal(first.entries.length, 20);
+  assert.deepEqual(await (await inventoryForTest(a.token)).json(), first);
+  const all = [...first.entries],
+    sizes = [20];
+  let after = first.nextAfter;
+  while (after) {
+    const page = await (await inventoryForTest(a.token, { after })).json();
+    sizes.push(page.entries.length);
+    all.push(...page.entries);
+    after = page.nextAfter;
+  }
+  assert.deepEqual(sizes, [20, 20, 5]);
+  assert.deepEqual(all.map((x) => x.key).sort(), keys.sort());
+  assert.equal(new Set(all.map((x) => x.key)).size, 45);
+  assert.ok(all.every((x) => x.classification === 'unreferenced-copy-observed'));
+});
+
+test('P3 清理恢复分页可发现已删除但未确认的任务，done 重现对象可再观察', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const missing = gcKey(a.id);
+  await platform.env.IMMICH_CF_MEDIA.put(missing, 'synthetic');
+  assert.equal((await gcCopy(a.token, missing, 'gc-after-delete')).status, 503);
+  assert.equal(await platform.env.IMMICH_CF_MEDIA.head(missing), null);
+  const keys = [missing, ...Array.from({ length: 22 }, () => gcKey(a.id))];
+  await platform.env.IMMICH_CF_MEDIA.put(keys[1], 'pending synthetic');
+  for (const key of keys.slice(1))
+    await db.prepare("INSERT INTO r2_cleanup_claims VALUES(?,?,'claimed')").bind(key, a.id).run();
+  await db
+    .prepare("INSERT INTO r2_cleanup_claims VALUES(?,?,'claimed')")
+    .bind(gcKey(other.id), other.id)
+    .run();
+  const first = await (await inventoryForTest(a.token, { mode: 'pending' })).json();
+  assert.equal(first.entries.length, 20);
+  assert.ok(first.nextAfter);
+  assert.equal(
+    (await inventoryForTest(a.token, { mode: 'pending' }, 'inventory-list')).status,
+    200,
+  );
+  assert.equal(
+    (await (await inventoryForTest(a.token)).json()).entries[0].classification,
+    'cleanup-pending',
+  );
+  const last = await (
+    await inventoryForTest(a.token, { mode: 'pending', after: first.nextAfter })
+  ).json();
+  assert.equal(last.entries.length, 3);
+  assert.equal(last.nextAfter, null);
+  assert.deepEqual([...first.entries, ...last.entries].map((x) => x.key).sort(), keys.sort());
+  assert.equal((await gcCopy(a.token, missing)).status, 200);
+  const rebuilt = [];
+  let after = '';
+  do {
+    const page = await (await inventoryForTest(a.token, { mode: 'pending', after })).json();
+    rebuilt.push(...page.entries);
+    after = page.nextAfter;
+  } while (after);
+  assert.equal(rebuilt.length, 22);
+  assert.ok(!rebuilt.some((x) => x.key === missing));
+  await platform.env.IMMICH_CF_MEDIA.put(missing, 'late orphan');
+  const objects = await (await inventoryForTest(a.token)).json();
+  assert.equal(
+    objects.entries.find((x) => x.key === missing).classification,
+    'cleanup-object-reappeared',
+  );
+  assert.equal((await gcCopy(a.token, missing)).status, 200);
+  assert.ok(
+    !(await (await inventoryForTest(a.token)).json()).entries.some((x) => x.key === missing),
+  );
+});
+
+test('P3 存储检查失败关闭，不返回部分页面、私密后端错误或认领对象', async () => {
+  const a = await reliabilityAccount(),
+    key = gcKey(a.id);
+  await platform.env.IMMICH_CF_MEDIA.put(key, 'synthetic');
+  for (const fault of ['inventory-list', 'inventory-db', 'inventory-scope']) {
+    const r = await inventoryForTest(a.token, {}, fault);
+    assert.equal(r.status, 503);
+    const text = await r.text();
+    assert.ok(!text.includes('PRIVATE'));
+    assert.ok(!text.includes(key));
+    assert.ok(!text.includes('nextAfter'));
+    assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+  }
+  assert.equal((await inventoryForTest(a.token)).status, 200);
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM r2_cleanup_claims WHERE owner_id=?')
+        .bind(a.id)
+        .first()
+    ).n,
+    0,
+  );
+  assert.equal((await inventoryForTest(a.token, { mode: 'pending' }, 'inventory-db')).status, 503);
+});
+
+test('P3 盘点后新增跨账号引用仍拒绝删除，观察不替代原子认领', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount(),
+    key = gcKey(a.id);
+  await platform.env.IMMICH_CF_MEDIA.put(key, 'synthetic');
+  const entry = (await (await inventoryForTest(a.token)).json()).entries[0];
+  assert.equal(entry.classification, 'unreferenced-copy-observed');
+  await db
+    .prepare('INSERT INTO integrity_copy_intents VALUES(?,?,?)')
+    .bind(key, other.id, crypto.randomUUID())
+    .run();
+  assert.equal((await gcCopy(a.token, key)).status, 409);
+  const updated = (await (await inventoryForTest(a.token)).json()).entries[0];
+  assert.equal(updated.classification, 'referenced');
+  assert.deepEqual(updated.references, ['integrity-copy-intent']);
+  assert.ok(!JSON.stringify(updated).includes(other.id));
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(key));
+});
+
+test('P3 盘点字段错误精确且不回显，未认证或撤销会话拒绝', async () => {
+  const a = await reliabilityAccount(),
+    secret = 'PRIVATE_SUBMITTED_VALUE';
+  for (const [input, field] of [
+    [{ mode: secret }, 'mode'],
+    [{ after: 42 }, 'after'],
+    [{ mode: 'pending', after: secret }, 'after'],
+    [{ prefix: secret }, 'prefix'],
+  ]) {
+    const r = await inventoryForTest(a.token, input);
+    assert.equal(r.status, 400);
+    const data = await r.json();
+    assert.deepEqual(data.errors[0].path, [field]);
+    assert.ok(!JSON.stringify(data).includes(secret));
+  }
+  assert.equal((await inventoryForTest('missing')).status, 401);
+  await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+  assert.equal((await inventoryForTest(a.token, { mode: 'pending' })).status, 401);
+});

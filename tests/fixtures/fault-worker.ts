@@ -3,6 +3,7 @@ import app from '../../src/index';
 import { authenticate } from '../../src/poc/auth';
 import { retireAsset } from '../../src/poc/asset-history';
 import { HttpError } from '../../src/poc/http';
+import { storageInventory } from '../../src/poc/storage-inventory';
 import { cleanStorageCopy } from '../../src/poc/storage-cleanup';
 import { compactHistory } from '../../src/poc/history-cleanup';
 
@@ -28,9 +29,18 @@ export default {
     const gateId = request.headers.get('x-test-sync-gate');
     const fault = request.headers.get('x-test-storage-fault');
     const retirement = new URL(request.url).pathname.match(/^\/__test\/retire\/([a-f0-9-]{36})$/i);
+    const inventory = new URL(request.url).pathname === '/__test/storage-inventory';
     const storageCleanup = new URL(request.url).pathname === '/__test/storage-cleanup';
     const cleanup = new URL(request.url).pathname === '/__test/history-cleanup';
-    if (!fault && !gateId && !countReads && !retirement && !cleanup && !storageCleanup)
+    if (
+      !fault &&
+      !gateId &&
+      !countReads &&
+      !retirement &&
+      !cleanup &&
+      !storageCleanup &&
+      !inventory
+    )
       return app.fetch(request, env);
     let clean = new Request(request);
     clean.headers.delete('x-test-storage-fault');
@@ -139,6 +149,14 @@ export default {
     }
     const media = new Proxy(env.IMMICH_CF_MEDIA, {
       get(target, key) {
+        if (key === 'list')
+          return async (...args: Parameters<R2Bucket['list']>) => {
+            if (fault === 'inventory-list') throw new Error('TEST_PRIVATE_LIST_ERROR');
+            const result = await target.list(...args);
+            if (fault === 'inventory-scope' && result.objects[0])
+              result.objects[0].key = 'OTHER_ACCOUNT_PRIVATE_KEY';
+            return result;
+          };
         if (key === 'delete')
           return async (...args: Parameters<R2Bucket['delete']>) => {
             if (fault === 'gc-before-delete') throw new Error('TEST_GC_DELETE');
@@ -218,6 +236,12 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (
+              fault === 'inventory-db' &&
+              (sql.startsWith('SELECT k.value object_key') ||
+                sql.startsWith('SELECT object_key FROM r2_cleanup_claims'))
+            )
+              throw new Error('TEST_PRIVATE_INVENTORY_DB_ERROR');
             if (fault === 'gc-complete-db' && sql.startsWith('UPDATE r2_cleanup_claims'))
               throw new Error('TEST_GC_COMPLETE_UNAVAILABLE');
             if (
@@ -250,19 +274,26 @@ export default {
       },
     });
     let response: Response;
-    if ((retirement || cleanup || storageCleanup) && clean.method === 'POST') {
+    if ((retirement || cleanup || storageCleanup || inventory) && clean.method === 'POST') {
       try {
         const identity = await authenticate(clean, db);
         response = Response.json(
-          storageCleanup
-            ? await cleanStorageCopy(db, media, identity, await clean.json())
-            : cleanup
-              ? await compactHistory(db, identity, await clean.json())
-              : await retireAsset(db, identity, retirement![1]!),
+          inventory
+            ? await storageInventory(db, media, identity, await clean.json())
+            : storageCleanup
+              ? await cleanStorageCopy(db, media, identity, await clean.json())
+              : cleanup
+                ? await compactHistory(db, identity, await clean.json())
+                : await retireAsset(db, identity, retirement![1]!),
         );
       } catch (error) {
         response = Response.json(
-          { message: error instanceof HttpError ? error.message : 'Test retirement failed' },
+          {
+            message: error instanceof HttpError ? error.message : 'Test maintenance failed',
+            ...(error instanceof HttpError && error.field
+              ? { errors: [{ path: [error.field], message: error.message }] }
+              : {}),
+          },
           { status: error instanceof HttpError ? error.status : 503 },
         );
       }

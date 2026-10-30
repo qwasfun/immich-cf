@@ -32,6 +32,13 @@ test('P3 非空0013数据库前向迁移保留资产、预约、源引用、会�
     );
     assert.equal(db.prepare('SELECT COUNT(*) n FROM retired_assets').get().n, 0);
     assert.equal(db.prepare('PRAGMA table_info(sync_guards)').all().length, 6);
+    const pendingPlan = db
+      .prepare(
+        "EXPLAIN QUERY PLAN SELECT object_key FROM r2_cleanup_claims WHERE owner_id=? AND status='claimed' AND object_key>? ORDER BY object_key LIMIT 21",
+      )
+      .all('owner', '');
+    assert.ok(pendingPlan.some((row) => row.detail.includes('r2_cleanup_owner_status_key')));
+
     db.exec(
       "INSERT INTO sync_guards VALUES('legacy-guard','session','epoch','stream','[]',0); DELETE FROM sync_guards WHERE id='legacy-guard'",
     );

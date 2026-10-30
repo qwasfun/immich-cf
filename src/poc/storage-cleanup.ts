@@ -1,6 +1,13 @@
 import type { Identity } from './auth';
 import { HttpError, invalid } from './http';
 
+export function isStorageCopyKey(key: string, owner: string) {
+  return (
+    /^[a-f0-9-]{36}\/[a-f0-9-]{36}\/verified-sha1-[a-f0-9]{40}$/.test(key) &&
+    key.startsWith(owner + '/')
+  );
+}
+
 // Internal maintenance primitive. No enumeration and no original-key deletion.
 // A durable fence must precede R2 delete: HEAD alone cannot prevent publication races.
 export async function cleanStorageCopy(
@@ -12,11 +19,7 @@ export async function cleanStorageCopy(
   for (const field of Object.keys(input))
     if (field !== 'key') invalid(field, '仅接受 key，请移除此字段');
   const key = input.key;
-  if (
-    typeof key !== 'string' ||
-    !/^[a-f0-9-]{36}\/[a-f0-9-]{36}\/verified-sha1-[a-f0-9]{40}$/.test(key) ||
-    !key.startsWith(identity.id + '/')
-  )
+  if (typeof key !== 'string' || !isStorageCopyKey(key, identity.id))
     invalid('key', '仅可指定当前账号的摘要副本键；原图及未知对象不可清理');
   const live = `EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id
     WHERE s.id=? AND s.user_id=? AND s.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)) AND u.disabled=0)`;
