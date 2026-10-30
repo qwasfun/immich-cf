@@ -1,0 +1,41 @@
+{
+  "environment": "dev",
+  "date": "2026-10-30",
+  "sourceCommit": "c4874ad1a8014c73aaece2b80b28d16917819570",
+  "workerVersion": "0a17246d-3a1d-4073-920f-14b178066ea6",
+  "deploymentId": "ca9a6208-87ba-416e-9a50-77af88a8d6cd",
+  "trafficPercent": 100,
+  "cron": "*/5 * * * *",
+  "cronRegisteredAt": "2026-10-30T05:59:41.121436Z",
+  "cronRegistrationVerified": true,
+  "realScheduledRecoveryVerified": true,
+  "localChecks": { "passed": 191, "failed": 0, "skipped": 0, "newTests": 3 },
+  "build": { "uploadKiB": 243.59, "gzipKiB": 59.13 },
+  "contract": { "operations": 279, "sources": 53, "unchanged": true },
+  "newMigration": false,
+  "probe": {
+    "previouslyAuthorizedSyntheticJobOnly": true,
+    "queuedAndPendingBeforeScheduledRun": true,
+    "disabledAccount": true,
+    "sessions": 0,
+    "clientOrManualRecoveryUsed": false,
+    "jobAndObjectStatusAfterRun": "done",
+    "completedObjectChecksUtc": ["2026-10-30T06:05:35.117Z", "2026-10-30T06:05:36.877Z"],
+    "readOnlyControlPlaneObservation": true
+  },
+  "preservation": {
+    "assets": 26,
+    "allAssetColumnsUnchanged": true,
+    "uploadReservationsUnchanged": true,
+    "copyReservationsUnchanged": true,
+    "checkpointsUnchanged": true,
+    "albumsAndRelationsUnchanged": true,
+    "ownerRevisionsUnchanged": true,
+    "syncClockUnchanged": true
+  },
+  "publicChecks": { "health": 200, "features": 200, "unauthenticatedPurgeRun": 401 },
+  "automaticTrashExpiryEnabled": false,
+  "officialAppDeviceVerified": false,
+  "cpuOptimizationPaused": true,
+  "testAndProductionChanged": false
+}

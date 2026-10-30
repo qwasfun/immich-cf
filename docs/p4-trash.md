@@ -1,5 +1,7 @@
 # P4：回收站、恢复与永久删除
 
+2026-10-30更新：Paid dev已恢复每5分钟Cron注册，同时保留活动/手动有界恢复；当前实现见[Paid定时续跑](p4-paid-cron.md)。下文免费Cron名额满的描述记录此前降级原因。
+
 ## 范围与契约
 
 保持官方 iOS Immich 3.3.1 build 23 不修改。对齐冻结 v3.3.1 OpenAPI、手机 AssetApiRepository 和服务端 AssetService/TrashService；原279操作/53来源的冻结清单不变。额外核验的官方 [TrashService](https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/trash.service.ts) Git blob 为 `ecc7229923256a2685f34be5de66d1286ea4b953`；官方 [AssetService](https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/asset.service.ts) 使用软删除状态和异步物理清理。

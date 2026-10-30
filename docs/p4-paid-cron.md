@@ -17,3 +17,11 @@
 线上需分别记录Cron注册成功与真实scheduled执行成功。用之前已永久删除的合成资产任务验证：将其中一项标记queued/pending，账号保持禁用、无会话；等待平台定时消费，期间只通过Cloudflare控制面读D1，不调用客户端活动或手动恢复入口。检查任务与对象回到done，并比较原有资产、预约、相册、检查点、owner版本和同步时钟。
 
 [Cloudflare说明](https://developers.cloudflare.com/workers/configuration/cron-triggers/)指出触发器变更传播最多可能需要15分钟；配置成功本身不算运行验证通过。套餐由用户确认，本轮账户API可读到default_usage_model=standard，不据此推断全部计费和资源上限。
+
+## 本轮完成结果
+
+完整检查191通过、0失败、0跳过，构建243.59KiB/gzip59.13KiB，冻结279操作/53来源不变。源码提交c4874ad，dev Worker版本0a17246d-3a1d-4073-920f-14b178066ea6，Deployment ca9a6208-87ba-416e-9a50-77af88a8d6cd，流量100%，无新迁移。
+
+Cron于北京时间2026-10-30 13:59:41注册成功，合成任务在14:05:35由真实定时运行恢复为done；账号保持禁用、会话为0，未使用客户端/手动恢复。原有26张资产全部列、上传/复制预约、相册/关系、检查点、owner版本和全局同步时钟逐项比较均不变。公网健康与能力200、未登录清理入口401。
+
+详见[结构化部署记录](contracts/p4-paid-cron-dev-deployment.json)和[运维恢复手册](purge-operations.md)。官方iOS真机、按天过期删除、真实规模/成本与完整项目退出仍待验收。
