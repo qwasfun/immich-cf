@@ -1,0 +1,188 @@
+{
+  "environment": "dev",
+  "sourceCommit": "54f50e4d5b13d51f7e6c7c55f30d05d96d625386",
+  "workerVersion": "79fe950a-f0b2-4bee-bbae-4c2e3dad8441",
+  "deploymentId": "8be3ba37-76f9-46be-9a75-e6cfed24a6ac",
+  "previousVersion": "0f8aeb00-1c8b-4a93-8db6-5f4a3bdfb86e",
+  "url": "https://immich-cf-api-dev.fun.workers.dev",
+  "migrationsApplied": [
+    "0014_asset_history.sql",
+    "0015_history_retention.sql",
+    "0016_asset_metadata_history.sql",
+    "0017_r2_cleanup.sql",
+    "0018_cleanup_pending_index.sql"
+  ],
+  "remoteMigrationCount": 18,
+  "migrationPreservation": {
+    "assetRows": 26,
+    "assetAndSourceReferences": true,
+    "uploadIntents": true,
+    "existingCheckpoints": true,
+    "syncClock": true
+  },
+  "newMaintenanceStateAfterDeployment": {
+    "integrityCopyIntents": 0,
+    "cleanupClaims": 0,
+    "retiredAssets": 0
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T02:09:38.605Z",
+    "sourceCommit": "54f50e4",
+    "workerVersion": "79fe950a-f0b2-4bee-bbae-4c2e3dad8441",
+    "checks": {
+      "/healthz": true,
+      "/.well-known/immich": true,
+      "/api/server/ping": true,
+      "/api/server/version": true,
+      "login": true,
+      "userInfo": true,
+      "sync": {
+        "assets": 20,
+        "complete": true
+      },
+      "ack": true,
+      "emptyIncremental": true,
+      "resetAndOldAckIsolation": true,
+      "postResetIncremental": true,
+      "existingImage": {
+        "original": true,
+        "preview": true,
+        "checksumVerified": true
+      },
+      "internalMaintenanceRoutesClosed": true,
+      "logout": true
+    },
+    "attempts": [
+      {
+        "operation": "/healthz",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/.well-known/immich",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/server/ping",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/server/version",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/login",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/users/me",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "attempt": 1,
+        "status": 400,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/original",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/thumbnail?size=preview",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/__test/storage-inventory",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/__test/storage-cleanup",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/immich-cf/storage-inventory",
+        "attempt": 1,
+        "status": 501,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/immich-cf/storage-cleanup",
+        "attempt": 1,
+        "status": 501,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/logout",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      }
+    ],
+    "complete": true,
+    "officialAppVerified": false,
+    "mediaWritesPerformed": false
+  },
+  "publicMaintenanceApiEnabled": false,
+  "automaticCleanupEnabled": false,
+  "mediaUploadOrCleanupPerformed": false,
+  "testOrProductionChanged": false,
+  "cpuWorkPaused": true,
+  "officialAppVerifiedThisDeployment": false,
+  "p3ExitPassed": false
+}
