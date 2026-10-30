@@ -255,6 +255,11 @@ export default {
       get(target, key) {
         if (key === 'prepare')
           return (sql: string) => {
+            if (
+              fault === 'purge-list-db' &&
+              sql.startsWith('SELECT asset_id,owner_id FROM asset_purge_jobs')
+            )
+              throw new Error('PRIVATE_TEST_DATABASE_FAILURE');
             if (fault === 'purge-status-db' && sql.startsWith('UPDATE asset_purge_objects'))
               throw new Error('TEST_PURGE_STATUS_LOST');
             if (fault === 'purge-before-fence' && sql.startsWith('INSERT INTO asset_purge_fences'))
@@ -309,6 +314,25 @@ export default {
         if (retirement) await clean.arrayBuffer();
         else input = await body(clean);
         const identity = await authenticate(clean, db);
+        if (purgeRun && input.scheduled === true) {
+          const work: Promise<unknown>[] = [];
+          await app.scheduled(
+            { cron: '*/5 * * * *' } as ScheduledController,
+            {
+              ...env,
+              ENABLE_P1_POC: input.disabled ? 'false' : 'true',
+              IMMICH_CF_DB: db,
+              IMMICH_CF_MEDIA: media,
+            },
+            {
+              waitUntil(promise: Promise<unknown>) {
+                work.push(promise);
+              },
+            } as ExecutionContext,
+          );
+          await Promise.all(work);
+          return Response.json({ scheduled: true });
+        }
         response = Response.json(
           purgeRun
             ? new URL(clean.url).pathname === '/__test/purge-recover'

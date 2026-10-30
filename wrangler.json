@@ -28,6 +28,7 @@
   "env": {
     "dev": {
       "name": "immich-cf-api-dev",
+      "triggers": { "crons": ["*/5 * * * *"] },
       "account_id": "f94fe289bd879e05e4a9faac06dfdf40",
       "vars": {
         "APP_ENV": "development",

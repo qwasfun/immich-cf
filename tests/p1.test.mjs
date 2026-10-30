@@ -6538,3 +6538,76 @@ test('P4 真实路由的waitUntil活动恢复消费已提交的永久任务，�
     1,
   );
 });
+
+test('Paid Cron跨账号有界续跑，无客户端会话仍恢复已授权任务，未授权原图保持', async () => {
+  const a = await albumSetup(),
+    b = await albumSetup(),
+    runner = await reliabilityAccount();
+  const keep = await db.prepare('SELECT object_key FROM assets WHERE id=?').bind(a.ids[1]).first();
+  assert.equal((await deletePhotos(a, [a.ids[0]], true, 'after-d1')).status, 503);
+  assert.equal((await deletePhotos(b, b.ids, true, 'after-d1')).status, 503);
+  await db.prepare('DELETE FROM sessions WHERE user_id IN(?,?)').bind(a.id, b.id).run();
+  await db.prepare('UPDATE users SET disabled=1 WHERE id IN(?,?)').bind(a.id, b.id).run();
+  const response = await send('/__test/purge-run', { scheduled: true }, runner.token);
+  assert.equal(response.status, 200);
+  assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
+  assert.ok((await purgeJobs(b)).every((j) => j.status === 'done'));
+  assert.ok(await platform.env.IMMICH_CF_MEDIA.head(keep.object_key));
+});
+
+test('Paid Cron受实验开关控制，存储故障后保留任务并在下轮恢复，查询失败标记失败且脱敏', async () => {
+  const a = await albumSetup();
+  await deletePhotos(a, [a.ids[0]], true, 'after-d1');
+  assert.equal(
+    (await send('/__test/purge-run', { scheduled: true, disabled: true }, a.token)).status,
+    200,
+  );
+  assert.equal((await purgeJobs(a))[0].status, 'queued');
+  const failed = await trashCall(
+    a.token,
+    '/__test/purge-run',
+    { scheduled: true },
+    'POST',
+    'purge-list-db',
+  );
+  assert.equal(failed.status, 503);
+  assert.ok(!(await failed.text()).includes('PRIVATE_TEST_DATABASE_FAILURE'));
+  assert.equal(
+    (
+      await trashCall(
+        a.token,
+        '/__test/purge-run',
+        { scheduled: true },
+        'POST',
+        'purge-before-delete',
+      )
+    ).status,
+    200,
+  );
+  assert.equal((await purgeJobs(a))[0].status, 'queued');
+  await db.prepare('UPDATE asset_purge_jobs SET next_check_ms=0 WHERE owner_id=?').bind(a.id).run();
+  assert.equal((await send('/__test/purge-run', { scheduled: true }, a.token)).status, 200);
+  assert.equal((await purgeJobs(a))[0].status, 'done');
+});
+
+test('Paid Cron每次最多3项且不提前消费未到期任务，后续轮次不丢失授权', async () => {
+  const a = await reliabilityAccount();
+  a.ids = [];
+  for (let n = 0; n < 5; n++)
+    a.ids.push((await (await uploadBytes(a.token, await quotaVariant(n))).json()).id);
+  await deletePhotos(a, a.ids, true, 'after-d1');
+  await db
+    .prepare('UPDATE asset_purge_jobs SET next_check_ms=? WHERE owner_id=? AND asset_id=?')
+    .bind(Date.now() + 86400000, a.id, a.ids[0])
+    .run();
+  await send('/__test/purge-run', { scheduled: true }, a.token);
+  assert.equal((await purgeJobs(a)).filter((j) => j.status === 'done').length, 3);
+  await send('/__test/purge-run', { scheduled: true }, a.token);
+  assert.equal((await purgeJobs(a)).filter((j) => j.status === 'done').length, 4);
+  await db
+    .prepare('UPDATE asset_purge_jobs SET next_check_ms=0 WHERE owner_id=? AND asset_id=?')
+    .bind(a.id, a.ids[0])
+    .run();
+  await send('/__test/purge-run', { scheduled: true }, a.token);
+  assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
+});

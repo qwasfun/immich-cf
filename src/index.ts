@@ -6,9 +6,12 @@ export default {
   async scheduled(controller, env, ctx) {
     if (controller.cron && String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(
-        runPurgeJobs(env).catch(() =>
-          console.error(JSON.stringify({ code: 'PURGE_RUN_UNAVAILABLE' })),
-        ),
+        runPurgeJobs(env)
+          .then((result) => console.log(JSON.stringify({ code: 'PURGE_RUN_COMPLETE', ...result })))
+          .catch(() => {
+            console.error(JSON.stringify({ code: 'PURGE_RUN_UNAVAILABLE' }));
+            throw new Error('PURGE_RUN_UNAVAILABLE');
+          }),
       );
   },
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
