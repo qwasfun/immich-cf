@@ -12,9 +12,13 @@ import { body, invalid } from './http';
 import { albums } from './albums';
 import { updateFavorite } from './favorites';
 import { storageAudit } from './storage-audit';
+import { admin } from './admin';
 import { upgradeIntegrity } from './upgrade-integrity';
 
 const methods: Record<string, string[]> = {
+  '/api/immich-cf/admin/status': ['GET'],
+  '/api/immich-cf/admin/export': ['GET'],
+  '/api/immich-cf/admin/export/original': ['GET'],
   '/api/immich-cf/upgrade-integrity': ['POST'],
   '/api/immich-cf/storage-audit': ['POST'],
   '/api/immich-cf/repair-dimensions': ['POST'],
@@ -175,6 +179,7 @@ async function dispatch(
     return response;
   }
   const identity = await authenticate(request, db);
+  if (path.startsWith('/api/immich-cf/admin/')) return admin(request, env, identity);
   if (ctx && (path === '/api/users/me' || path === '/api/sync/ack'))
     ctx.waitUntil(recoverPurgeJobs(env, identity.id).catch(() => undefined));
   if (path === '/api/immich-cf/purge-run') {

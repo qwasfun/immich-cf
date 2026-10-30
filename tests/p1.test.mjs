@@ -6611,3 +6611,105 @@ test('Paid Cron每次最多3项且不提前消费未到期任务，后续轮次�
   await send('/__test/purge-run', { scheduled: true }, a.token);
   assert.ok((await purgeJobs(a)).every((j) => j.status === 'done'));
 });
+
+const adminCall = (a, path = '/status') =>
+  trashCall(a.token, '/api/immich-cf/admin' + path, undefined, 'GET');
+async function operator() {
+  const a = await albumSetup();
+  await db.prepare('INSERT INTO operations_admins VALUES(?)').bind(a.id).run();
+  return a;
+}
+test('管理员状态和导出必须显式授权，普通用户、伪造查询和撤销会话不升级权限', async () => {
+  const a = await albumSetup();
+  for (const path of [
+    '/status',
+    '/export?userId=' + a.id,
+    '/export/original?userId=' + a.id + '&id=' + a.ids[0] + '&revision=1',
+  ])
+    assert.equal((await adminCall(a, path)).status, 403);
+  assert.equal((await worker.fetch('/api/immich-cf/admin/status')).status, 401);
+  await db.prepare('INSERT INTO operations_admins VALUES(?)').bind(a.id).run();
+  const status = await adminCall(a);
+  assert.equal(status.status, 200);
+  const data = await status.json();
+  assert.equal(data.limits.uploadBytes, 4194304);
+  assert.equal(data.accounting.physicalR2UsageMeasured, false);
+  assert.ok(!JSON.stringify(data).includes('password_hash'));
+  assert.ok(!JSON.stringify(data).includes('object_key'));
+  assert.equal((await adminCall(a, '/status?isAdmin=true')).status, 400);
+  await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+  assert.equal((await adminCall(a)).status, 401);
+});
+test('管理员导出包含回收照片、元数据、相册和关系，跨账号下载校验字节且不泄露凭据与存储键', async () => {
+  const a = await operator(),
+    b = await albumSetup();
+  await albumCall(b.token, '', { albumName: 'export', assetIds: b.ids }, 'POST');
+  await deletePhotos(b, [b.ids[0]]);
+  const before = await auditSnapshot(b.id),
+    response = await adminCall(a, '/export?userId=' + b.id);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-disposition'), /attachment/);
+  const manifest = await response.json();
+  assert.equal(manifest.assets.length, 2);
+  assert.equal(manifest.albums.length, 1);
+  assert.equal(manifest.relations.length, 2);
+  assert.ok(manifest.assets.some((x) => x.deleted_at));
+  const raw = JSON.stringify(manifest);
+  for (const s of [
+    'password_hash',
+    'token_hash',
+    'object_key',
+    'integrity_source_key',
+    a.token,
+    b.token,
+  ])
+    assert.ok(!raw.includes(s));
+  for (const item of manifest.assets) {
+    const r = await trashCall(a.token, item.downloadPath, undefined, 'GET');
+    assert.equal(r.status, 200);
+    const row = await db.prepare('SELECT object_key FROM assets WHERE id=?').bind(item.id).first();
+    assert.deepEqual(
+      Buffer.from(await r.arrayBuffer()),
+      Buffer.from(await (await platform.env.IMMICH_CF_MEDIA.get(row.object_key)).arrayBuffer()),
+    );
+  }
+  assert.deepEqual(await auditSnapshot(b.id), before);
+  assert.equal((await adminCall(a, '/export?userId=private-input')).status, 400);
+  assert.equal((await adminCall(a, '/export?userId=' + crypto.randomUUID())).status, 404);
+});
+test('管理员导出拒绝损坏、缺失和陈旧版本，不将失败原图标记为成功', async () => {
+  const a = await operator();
+  let manifest = await (await adminCall(a, '/export?userId=' + a.id)).json();
+  const asset = manifest.assets[0];
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(asset.id).first();
+  await platform.env.IMMICH_CF_MEDIA.put(row.object_key, Buffer.alloc(row.bytes, 1));
+  assert.equal((await trashCall(a.token, asset.downloadPath, undefined, 'GET')).status, 409);
+  await platform.env.IMMICH_CF_MEDIA.delete(row.object_key);
+  assert.equal((await trashCall(a.token, asset.downloadPath, undefined, 'GET')).status, 409);
+  await deletePhotos(a, [asset.id]);
+  assert.equal((await trashCall(a.token, asset.downloadPath, undefined, 'GET')).status, 409);
+});
+test('管理员状态/导出读取期间撤销角色、会话或禁用账号不能返回已捕获数据', async () => {
+  for (const change of ['grant', 'session', 'disabled'])
+    for (const path of ['/status', '/export']) {
+      const a = await operator();
+      const held = await pausedSyncRequest(
+        a.token,
+        '/api/immich-cf/admin' + path + (path === '/export' ? '?userId=' + a.id : ''),
+        'GET',
+        undefined,
+      );
+      try {
+        if (change === 'grant')
+          await db.prepare('DELETE FROM operations_admins WHERE user_id=?').bind(a.id).run();
+        if (change === 'session')
+          await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+        if (change === 'disabled')
+          await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(a.id).run();
+        await held.release();
+        assert.equal((await held.response).status, 403);
+      } finally {
+        await held.release();
+      }
+    }
+});
