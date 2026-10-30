@@ -1,0 +1,289 @@
+{
+  "environment": "dev",
+  "sourceCommit": "dacf1866d44db786c40f3648c5214e78bc590700",
+  "workerVersion": "1bae2a2e-1eef-4727-a7b7-b647169d9118",
+  "deploymentId": "25861915-87b8-486f-9f16-a0031fa833d6",
+  "url": "https://immich-cf-api-dev.fun.workers.dev",
+  "migrationsApplied": ["0019_sync_read_guards.sql", "0020_asset_updated_at.sql"],
+  "remoteMigrationCount": 20,
+  "localTests": {
+    "total": 161,
+    "passed": 161,
+    "failed": 0,
+    "skipped": 0
+  },
+  "contract": {
+    "operations": 279,
+    "sources": 53,
+    "unchanged": true
+  },
+  "migrationPreservation": {
+    "assetRows": 26,
+    "allOldAssetFieldsPreserved": true,
+    "uploadIntentsPreserved": true,
+    "existingCheckpointsPreserved": true,
+    "syncClockPreserved": true,
+    "emptyUpdatedAtRowsAfterMigration": 0
+  },
+  "postSmoke": {
+    "assetReferencesAndFavoriteFlagsPreserved": true,
+    "uploadIntentsPreserved": true,
+    "preexistingCheckpointsPreserved": true,
+    "newSessionsRemaining": 0,
+    "temporaryReadGuardsRemaining": 0,
+    "cleanupClaims": 0
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T02:35:42.866Z",
+    "checks": {
+      "discovery": true,
+      "initialAssetCount": 20,
+      "singleFavorite": true,
+      "secondSessionReceivesFavorite": true,
+      "favoriteIdempotent": true,
+      "bulkMissingAtomic": true,
+      "bulkFavorite": true,
+      "resetAndAckSessionIsolation": true,
+      "existingImageUnchanged": true,
+      "unsupportedEditExplicit": true,
+      "internalMaintenanceClosed": true,
+      "originalFavoritesRestored": true,
+      "sessionsLoggedOut": true
+    },
+    "attempts": [
+      {
+        "operation": "/healthz",
+        "method": "GET",
+        "attempt": 1,
+        "status": 0,
+        "errorCode": "CURL_35"
+      },
+      {
+        "operation": "/healthz",
+        "method": "GET",
+        "attempt": 2,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/.well-known/immich",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/server/version",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/login",
+        "method": "POST",
+        "attempt": 1,
+        "status": 0,
+        "errorCode": "CURL_28"
+      },
+      {
+        "operation": "/api/auth/login",
+        "method": "POST",
+        "attempt": 2,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/login",
+        "method": "POST",
+        "attempt": 1,
+        "status": 201,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/stream",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 400,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/sync/ack",
+        "method": "POST",
+        "attempt": 1,
+        "status": 204,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/original",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}/thumbnail?size=preview",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 400,
+        "errorCode": null
+      },
+      {
+        "operation": "/__test/storage-cleanup",
+        "method": "POST",
+        "attempt": 1,
+        "status": 404,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/immich-cf/storage-inventory",
+        "method": "POST",
+        "attempt": 1,
+        "status": 501,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/assets/{id}",
+        "method": "PUT",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/logout",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      },
+      {
+        "operation": "/api/auth/logout",
+        "method": "POST",
+        "attempt": 1,
+        "status": 200,
+        "errorCode": null
+      }
+    ],
+    "complete": true,
+    "officialAppVerified": false,
+    "mediaWritesPerformed": false
+  },
+  "publicMaintenanceEnabled": false,
+  "mediaUploadOrDeletionPerformed": false,
+  "testAndProductionChanged": false,
+  "cpuWorkPaused": true,
+  "officialDeviceTestPerformed": false,
+  "allRemainingTasksComplete": false
+}

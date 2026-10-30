@@ -110,3 +110,5 @@ pnpm check
 - [开发进度与剩余任务](docs/development-progress.md)：各阶段真实完成边界与后续顺序。
 - [P3 读取一致性与双会话恢复](docs/p3-read-consistency.md)：业务变更守卫、独立关系消费模型、缺失预约引用盘点。
 - [P4 本机收藏原型](docs/p4-favorites.md)：单张/批量收藏、原子权限检查及同步；dev 发布与验证单独记录。
+
+- [收藏与同步保护 dev 验证](docs/p4-favorites-dev-deployment.md)：161项本机回归后发布，双会话收藏/reset/ACK及原图保护通过。
