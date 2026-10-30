@@ -1,0 +1,63 @@
+{
+  "environment": "dev",
+  "sourceCommit": "ede421c23642823a1563ae9f0ee3dce76643f675",
+  "workerVersion": "df936db3-23d6-4a60-8c14-9c4e7f37e9f5",
+  "deploymentId": "a4ca3760-7979-45cb-8ed2-b82808caa239",
+  "trafficPercent": 100,
+  "url": "https://immich-cf-api-dev.fun.workers.dev",
+  "remoteMigrationCount": 23,
+  "newMigrations": ["0022_trash_and_purge.sql", "0023_purge_recovery.sql"],
+  "localTests": { "passed": 188, "failed": 0, "skipped": 0 },
+  "build": { "uploadKiB": 243.45, "gzipKiB": 59.09 },
+  "migrationPreservation": {
+    "assetCount": 26,
+    "comparedAssetFieldsUnchanged": true,
+    "reservationsUnchanged": true,
+    "checkpointsUnchanged": true,
+    "albumsAndLinksUnchanged": true,
+    "ownerRevisionsAndGlobalClockUnchanged": true
+  },
+  "smoke": {
+    "checkedAt": "2026-10-30T03:54:34.963Z",
+    "isolatedSyntheticAccount": true,
+    "syntheticImages": 2,
+    "curlRequests": 64,
+    "retries": 1,
+    "tls12WithCertificateValidation": true,
+    "loopbackProxy": true,
+    "softTrashCoverPreviewAndTwoSessions": true,
+    "restoreDoesNotRecreateRemovedRelation": true,
+    "restoreAllAndResetAckIsolation": true,
+    "permanentObjectsConfirmedGoneAndNoResurrection": true,
+    "temporaryAlbumRemoved": true
+  },
+  "activityRecovery": {
+    "checkedAt": "2026-10-30T03:55:29.756Z",
+    "queuedSyntheticJobResumedByUsersMe": true,
+    "persistentOwnerLeaseCount": 1,
+    "ownerOnlyBoundedEndpointVerified": true,
+    "cronConfigured": false,
+    "cronUnavailableReason": "account-free-cron-limit-10072",
+    "noActivityCompletionGuaranteed": false
+  },
+  "afterSmoke": {
+    "preexistingAssetCount": 26,
+    "comparedAssetFieldsUnchanged": true,
+    "preexistingOwnerRevisionsUnchanged": true,
+    "reservationsUnchanged": true,
+    "checkpointsUnchanged": true,
+    "albumsAndLinksUnchanged": true,
+    "temporaryGuards": 0,
+    "probeAccountDisabled": true,
+    "probeSessionsRemaining": 0,
+    "permanentJobsDone": 2,
+    "permanentObjectsDone": 2,
+    "permanentFencesRetained": 2,
+    "deletionHistoryRetained": true
+  },
+  "automaticTrashExpiryImplemented": false,
+  "officialAppDeviceVerified": false,
+  "testAndProductionChanged": false,
+  "cpuWorkPaused": true,
+  "p4ExitPassed": false
+}
