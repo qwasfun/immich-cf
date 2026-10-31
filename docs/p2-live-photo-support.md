@@ -2,6 +2,8 @@
 
 日期：2026-11-01（Asia/Shanghai）。本轮目标为现有官方 iOS 3.3.1，不修改 App；真实 iPhone 播放和恢复尚未验收，不能标为完整支持。
 
+实现已部署 dev，完整检查与公网结果见[dev 验证记录](p2-live-photo-support-dev-deployment.md)。test/生产保持不变。
+
 ## 接口与存储
 
 沿用 POST /api/assets。先上传 visibility=hidden 的 MOV，取得 id；再上传 JPEG/HEIC，livePhotoVideoId 填入该 id。两份文件独立保留原始字节和 R2 原生 SHA-1；按照片 MakerNote ContentIdentifier 与 MOV content.identifier 校验同一所有者内的配对，不接受替换配对、缺少动态原件或已删除视频。MOV 限 H.264/HEVC 与有效 Live Photo 元数据，不开放普通视频备份。

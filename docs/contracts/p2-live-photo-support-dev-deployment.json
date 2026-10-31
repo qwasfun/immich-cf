@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-11-01",
+  "timezone": "Asia/Shanghai",
+  "environment": "dev",
+  "sourceCommit": "db201ff4dac1db05f0aece20505f91d7c5dc5d36",
+  "workerVersion": "7b18c1c5-f627-4d70-94f5-9f277de8e2fc",
+  "migrations": 28,
+  "newMigrations": [25, 26, 27, 28],
+  "localChecks": {
+    "passed": 214,
+    "failed": 0,
+    "skipped": 0,
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "frozenContractOperations": 279,
+    "frozenContractSources": 53,
+    "bundleKiB": 311.26,
+    "gzipKiB": 75.3
+  },
+  "devProbe": {
+    "startedAt": "2026-10-31T18:32:48.552Z",
+    "completed": true,
+    "httpChecks": 30,
+    "logicalAssets": 2,
+    "components": 4,
+    "photoAboveOldFourMiBLimit": true,
+    "realPublicHeicMovPair": true,
+    "privateImagesBinding": true,
+    "jpegPreviewSizes": [256, 2048],
+    "originalSha1VerifiedCount": 4,
+    "videoRangeStatus": 206,
+    "malformedMultipartRejectedCount": 3,
+    "unpairedStillRejected": true,
+    "pairedTrashAndRestore": true,
+    "twoSessionSyncAndAck": true,
+    "accountExportV2Verified": true,
+    "exportCompleteMarker": true,
+    "temporarySessionsLoggedOut": true,
+    "officialAppVerified": false,
+    "motionDecodeVerified": false,
+    "systemPhotosRestoreVerified": false
+  },
+  "preservation": {
+    "existingAssets": 26,
+    "comparedAssetFields": [
+      "id",
+      "owner_id",
+      "checksum",
+      "object_key",
+      "bytes",
+      "sync_seq",
+      "deleted_at"
+    ],
+    "existingAssetFieldsUnchanged": true,
+    "existingCheckpoints": 9,
+    "existingCheckpointsUnchanged": true,
+    "existingOwnerRevisionsUnchanged": true,
+    "pendingUploadIntents": 0,
+    "pendingStaging": 0,
+    "operatorGrants": 1,
+    "operatorGrantChanged": false
+  },
+  "adminObservation": {
+    "checkedAt": "2026-10-31T18:39:01.283Z",
+    "pendingPairs": 0,
+    "pendingPreviews": 0,
+    "quotaErrors": 0,
+    "readyPreviews": 2,
+    "originalHealth": {
+      "checkedAssets": 30,
+      "anomalies": 0,
+      "unavailable": 0,
+      "sampled": false
+    }
+  },
+  "boundaries": {
+    "paidPlanChanged": false,
+    "imagesHostedStorageEnabled": false,
+    "testChanged": false,
+    "productionChanged": false,
+    "fullLivePhotoSupportAccepted": false,
+    "wholeLibraryRecoveryVerified": false
+  }
+}
