@@ -510,7 +510,8 @@ export async function inspectMedia(
           if (['hvc1', 'hev1', 'avc1'].includes(sample.name)) codec = true;
       }
       if (box.name === 'meta') {
-        const meta = boxes(d, 4),
+        // QuickTime omits the ISO FullBox version/flags word; iPhone MOV uses both layouts.
+        const meta = boxes(d, u32(d, 0) === 0 ? 4 : 0),
           keys = meta.find((x) => x.name === 'keys')?.data,
           ilst = meta.find((x) => x.name === 'ilst');
         if (keys && ilst) {

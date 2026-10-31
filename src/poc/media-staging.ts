@@ -193,6 +193,12 @@ export async function stageUpload(
         const upload = await env.IMMICH_CF_MEDIA.createMultipartUpload(key),
           parts: R2UploadedPart[] = [];
         try {
+          await db
+            .prepare(
+              "UPDATE media_upload_staging SET multipart_id=? WHERE id=? AND status='receiving'",
+            )
+            .bind(upload.uploadId, id)
+            .run();
           const buffer = new Uint8Array(5 * 1024 * 1024);
           let fill = 0;
           for await (const chunk of chunks) {
@@ -285,10 +291,10 @@ export async function cleanStaging(env: Env, onlyId?: string) {
   const db = env.IMMICH_CF_DB;
   const rows = await db
     .prepare(
-      `SELECT id,owner_id,object_key FROM media_upload_staging WHERE status<>'deleted' AND expires_ms<=? ${onlyId ? 'AND id=?' : ''} LIMIT 3`,
+      `SELECT id,owner_id,object_key,multipart_id FROM media_upload_staging WHERE status<>'deleted' AND expires_ms<=? ${onlyId ? 'AND id=?' : ''} LIMIT 3`,
     )
     .bind(Date.now(), ...(onlyId ? [onlyId] : []))
-    .all<{ id: string; owner_id: string; object_key: string }>();
+    .all<{ id: string; owner_id: string; object_key: string; multipart_id: string | null }>();
   for (const row of rows.results) {
     if (row.object_key !== `${row.owner_id}/staging/${row.id}`) continue;
     const referenced = await db
@@ -311,6 +317,13 @@ export async function cleanStaging(env: Env, onlyId?: string) {
       .bind(row.id, Date.now())
       .run();
     if (!claim.meta.changes) continue;
+    if (row.multipart_id && !(await env.IMMICH_CF_MEDIA.head(row.object_key))) {
+      try {
+        await env.IMMICH_CF_MEDIA.resumeMultipartUpload(row.object_key, row.multipart_id).abort();
+      } catch (error) {
+        if (!/NoSuchUpload|does not exist|not found|10024/i.test(String(error))) throw error;
+      }
+    }
     await env.IMMICH_CF_MEDIA.delete(row.object_key);
     await db
       .prepare("UPDATE media_upload_staging SET status='deleted' WHERE id=?")

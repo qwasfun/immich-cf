@@ -26,7 +26,7 @@ IMAGES_FREE_CONFIRMED 未确认时不调用转换。只使用转换功能，不�
 
 ## 运维与导出
 
-前向迁移 0025–0027 保留历史图片、预约、拦截记录与 Sync 检查点。ENABLE_LIVE_PHOTO 只控制新增上传；关闭后已有 Live Photo 仍可读取和导出，不回退到不认识这些数据的旧 Worker。
+前向迁移 0025–0028 保留历史图片、预约、拦截记录与 Sync 检查点，并在写入任何 multipart 分片前保存上传编号，供重启后主动中止过期分片。ENABLE_LIVE_PHOTO 只控制新增上传；关闭后已有 Live Photo 仍可读取和导出，不回退到不认识这些数据的旧 Worker。
 
 管理员状态新增待配对、待预览、额度异常及有界原件健康观察；超过 40 个组件时标记为抽样，存储故障与确认异常分别计数。完整逐页原件检查仍使用既有只读存储对账入口。
 
@@ -36,6 +36,8 @@ IMAGES_FREE_CONFIRMED 未确认时不调用转换。只使用转换功能，不�
 
 本机自动化覆盖合成 JPEG/HEIC/MOV 配对、20 MB/64 MiB 边界、坏表单/容器、越权、重复与并发名额、原件修复、Images 额度与故障恢复、双会话 Sync/ACK/reset、相册限制、整组回收和永久删除以及 v1/v2 导出。合成 HEIC/MOV 只证明协议和容器逻辑，不是实际编码播放证据。
 
-另使用 Immich 官方公开 HEIC 样本 IMG_2682.heic（test-assets 提交 ec56cc6c1d76c45bc9615dc6ea232470a2b0a3a1，Git blob 85cdc07c925bbcd9b35001046d8f5a4c5c72870d）本机检查，并以临时远程 Images 绑定验证 4032×3024 识别及两种 JPEG 预览。样本与图片结果仅留在忽略目录 work，不上传个人照片或提交素材。
+另使用 Immich 官方公开 HEIC 样本 IMG_2682.heic（test-assets 提交 ec56cc6c1d76c45bc9615dc6ea232470a2b0a3a1，Git blob 85cdc07c925bbcd9b35001046d8f5a4c5c72870d）本机检查，并以临时远程 Images 绑定验证 4032×3024 识别及两种 JPEG 预览。该样本有动态标记但缺配对标识，直接上传会明确拒绝，不能把转换成功算作完整备份。
+
+完整公开配对补充采用 [thun888/LivePhoto](https://github.com/thun888/LivePhoto/tree/d64b838b4ed31214ce450e6aeb19436d410c461c/images) 的 IMG_E1887 与 [Hiwoniu/live-photos](https://github.com/Hiwoniu/live-photos/tree/af905a3a62c81a925dbee3aef971379cb1f7a720/iOSSpike/LivePhotoSpike/Resources) 的 Control。用 Git blob 摘要冻结样本，覆盖 QuickTime 不含 FullBox 标志字的 meta 布局，同时保留 ISO 布局用例。样本与图片结果仅留在忽略目录 work，不上传个人照片或提交素材。这些公开样本的备份和转换结果也不能替代用户的 iPhone 播放、系统相册恢复验收。
 
 上线后仍须用真实 iPhone 的 JPEG、HEIC Live Photo 验证前台和后台备份、第二设备同步、动态播放，以及下载保存到系统相册后仍可播放；记录 App build/iOS 版本和实际结果。通过后才能标记“Live Photo 完整支持”。

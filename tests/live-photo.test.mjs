@@ -481,3 +481,63 @@ test('同一配对不同字节并发不能产生额外原件/预约，配对标�
   );
   assert.equal((await bucket.list({ prefix: u.id + '/' })).objects.length, 2);
 });
+test('真实公开 HEIC/MOV 配对兼容 QuickTime 非 FullBox 元数据（不替代真机验收）', async (t) => {
+  const groups = [
+    ['55283ed0a638cd0088a6ae88e842163573ea4a59', '41ff48524ff39280dafd871cded1c8b5a9b106b9'],
+    ['3072131423bd8bb078319db364954ead817ebb84', '436f6e70400ab276bc57b8544be5c19836435a93'],
+  ];
+  for (let i = 0; i < groups.length; i++) {
+    let photo, motion;
+    try {
+      [photo, motion] = await Promise.all(
+        ['heic', 'mov'].map((ext) => readFile(`work/public-live-${i + 1}.${ext}`)),
+      );
+    } catch {
+      t.skip('未下载公开完整配对');
+      return;
+    }
+    for (const [j, bytes] of [photo, motion].entries())
+      assert.equal(
+        createHash('sha1')
+          .update(Buffer.from(`blob ${bytes.length}\0`))
+          .update(bytes)
+          .digest('hex'),
+        groups[i][j],
+      );
+    const u = await user();
+    let r = await upload(u, motion, { visibility: 'hidden' }, 'PUBLIC.MOV');
+    assert.equal(r.status, 201, await r.clone().text());
+    const video = (await r.json()).id;
+    r = await upload(u, photo, { livePhotoVideoId: video }, 'PUBLIC.HEIC');
+    assert.equal(r.status, 201, await r.clone().text());
+  }
+});
+test('重启遗留 multipart 有持久编号可中止，清理不能越过原件引用隔离', async () => {
+  const u = await user(),
+    id = crypto.randomUUID(),
+    key = `${u.id}/staging/${id}`,
+    mpu = await bucket.createMultipartUpload(key);
+  await mpu.uploadPart(1, new Uint8Array(5 * 1024 * 1024));
+  await db
+    .prepare(
+      'INSERT INTO media_upload_staging(id,owner_id,object_key,expires_ms,multipart_id) VALUES(?,?,?,?,?)',
+    )
+    .bind(id, u.id, key, 0, mpu.uploadId)
+    .run();
+  assert.equal((await worker.fetch('/__test/clean-staging')).status, 200);
+  assert.equal(
+    (await db.prepare('SELECT status FROM media_upload_staging WHERE id=?').bind(id).first())
+      .status,
+    'deleted',
+  );
+  await assert.rejects(mpu.uploadPart(2, new Uint8Array(1)));
+  await assert.rejects(
+    db
+      .prepare(
+        'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES(?,?,?,?,?)',
+      )
+      .bind(u.id, 'fenced', crypto.randomUUID(), key, 'date')
+      .run(),
+    /STAGING_FENCED/,
+  );
+});

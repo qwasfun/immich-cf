@@ -1,6 +1,7 @@
 import app from '../../src/index';
 import { runPreviews } from '../../src/poc/previews';
 import { inspectMedia } from '../../src/poc/media-format';
+import { cleanStaging } from '../../src/poc/media-staging';
 export default {
   async fetch(request: Request, env: Env) {
     // The dev proxy cannot forward a malformed multipart after an upstream cancel.
@@ -60,6 +61,10 @@ export default {
         (await env.IMMICH_CF_MEDIA.head(key))!.size,
       );
       return Response.json({ ...info, pair: !!info.pair });
+    }
+    if (new URL(request.url).pathname === '/__test/clean-staging') {
+      await cleanStaging(env);
+      return Response.json({ ok: true });
     }
     return app.fetch(request, configured);
   },
