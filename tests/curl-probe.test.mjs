@@ -3,7 +3,43 @@ import { test } from 'node:test';
 import http from 'node:http';
 import https from 'node:https';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { curlRequest } from '../scripts/lib/curl-request.mjs';
+
+test('导出下载支持超过旧8MiB的原件，同时保留64MiB硬上限和调用方的小响应限制', async () => {
+  const payload = Buffer.alloc(16 * 1024 * 1024, 173),
+    server = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Length': String(payload.length) });
+      res.end(payload);
+    });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const result = await curlRequest(base, {
+      method: 'GET',
+      maxResponseBytes: 64 * 1024 * 1024,
+      direct: true,
+    });
+    assert.equal(result.metrics.errorCode, null);
+    assert.equal(result.bytes.length, payload.length);
+    assert.equal(
+      createHash('sha1').update(result.bytes).digest('hex'),
+      createHash('sha1').update(payload).digest('hex'),
+    );
+    assert.equal(
+      (await curlRequest(base, { method: 'GET', maxResponseBytes: 8 * 1024 * 1024, direct: true }))
+        .metrics.errorCode,
+      'RESPONSE_LIMIT',
+    );
+    await assert.rejects(
+      curlRequest(base, { method: 'GET', maxResponseBytes: 64 * 1024 * 1024 + 1 }),
+      /Invalid response limit/,
+    );
+  } finally {
+    server.closeAllConnections();
+    await new Promise((r) => server.close(r));
+  }
+});
 test('curl 上传保持字节与凭据隔离，区分413、超时、截断和响应上限', async () => {
   const payload = Buffer.alloc(128 * 1024, 173);
   const server = http.createServer((req, res) => {

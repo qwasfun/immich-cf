@@ -54,7 +54,7 @@ export async function curlRequest(
   if (
     !Number.isSafeInteger(maxResponseBytes) ||
     maxResponseBytes < 1 ||
-    maxResponseBytes > 8 * 1024 * 1024
+    maxResponseBytes > 64 * 1024 * 1024
   )
     throw new Error('Invalid response limit');
   const target = new URL(url);

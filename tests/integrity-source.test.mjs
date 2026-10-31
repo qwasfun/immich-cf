@@ -19,7 +19,7 @@ test('非空摘要源迁移仅新增空源引用，保留历史资产、原图�
       db.exec(await readFile('migrations/' + name, 'utf8'));
     db.exec(`INSERT INTO assets (id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite)
       VALUES ('asset','owner','checksum','retained-original','fixture.png','image/png',32,1,1,'date','date','date',0);
-      INSERT INTO upload_intents VALUES ('owner','checksum','intent','retained-intent','date')`);
+      INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES ('owner','checksum','intent','retained-intent','date')`);
     const assets = db.prepare('SELECT * FROM assets').all();
     const intents = db.prepare('SELECT * FROM upload_intents').all();
     const clock = db.prepare('SELECT * FROM asset_sync_clock').all();

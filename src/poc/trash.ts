@@ -62,7 +62,14 @@ export async function trash(
           );
   const scope =
     'id IN(SELECT value FROM json_each((SELECT ids FROM trash_write_guards WHERE id=?))) AND owner_id=?';
-  const statements = [statement];
+  const statements = [
+    statement,
+    db
+      .prepare(
+        `SELECT COUNT(DISTINCT COALESCE(NULLIF(logical_key,''),'sha1:'||checksum)) n FROM assets WHERE ${scope}`,
+      )
+      .bind(guard, identity.id),
+  ];
   if (operation === 'trash')
     statements.push(
       db
@@ -82,6 +89,15 @@ export async function trash(
           `INSERT INTO asset_purge_jobs(asset_id,owner_id,created_at) SELECT id,owner_id,? FROM assets WHERE ${scope} ON CONFLICT(asset_id) DO NOTHING`,
         )
         .bind(new Date().toISOString(), guard, identity.id),
+    );
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO asset_purge_objects(asset_id,owner_id,object_key,kind)
+    SELECT p.asset_id,p.owner_id,p.object_key,'preview' FROM media_previews p JOIN assets a ON a.id=p.asset_id
+    WHERE a.${scope.replace(' AND owner_id', ' AND a.owner_id')} ON CONFLICT(asset_id,object_key) DO NOTHING`,
+        )
+        .bind(guard, identity.id),
     );
     statements.push(
       db
@@ -109,8 +125,10 @@ export async function trash(
   statements.push(db.prepare('SELECT ids FROM trash_write_guards WHERE id=?').bind(guard));
   statements.push(db.prepare('DELETE FROM trash_write_guards WHERE id=?').bind(guard));
   let selectedIds: string[];
+  let logicalCount = 0;
   try {
     const result = await db.batch(statements);
+    logicalCount = Number((result[1]!.results[0] as { n: number } | undefined)?.n ?? 0);
     selectedIds = JSON.parse((result.at(-2)!.results[0] as { ids: string }).ids);
   } catch (error) {
     const message = String(error);
@@ -127,13 +145,11 @@ export async function trash(
     if (ctx) ctx.waitUntil(work);
     else await work;
   }
-  return deletion
-    ? new Response(null, { status: 204 })
-    : Response.json({ count: all ? selectedIds.length : new Set(selectedIds).size });
+  return deletion ? new Response(null, { status: 204 }) : Response.json({ count: logicalCount });
 }
 export async function assetStatistics(request: Request, db: D1Database, identity: Identity) {
   const params = new URL(request.url).searchParams;
-  let where = 'owner_id=?';
+  let where = "owner_id=? AND visibility='timeline'";
   const args: (string | number)[] = [identity.id];
   for (const key of params.keys())
     if (!['isTrashed', 'isFavorite', 'visibility'].includes(key))

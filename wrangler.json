@@ -9,7 +9,9 @@
   "vars": {
     "APP_ENV": "production",
     "APP_VERSION": "0.1.0",
-    "ENABLE_P1_POC": "false"
+    "ENABLE_P1_POC": "false",
+    "ENABLE_LIVE_PHOTO": "false",
+    "IMAGES_FREE_CONFIRMED": "false"
   },
   "d1_databases": [
     {
@@ -28,12 +30,15 @@
   "env": {
     "dev": {
       "name": "immich-cf-api-dev",
+      "images": { "binding": "IMAGES" },
       "triggers": { "crons": ["*/5 * * * *"] },
       "account_id": "f94fe289bd879e05e4a9faac06dfdf40",
       "vars": {
         "APP_ENV": "development",
         "APP_VERSION": "0.1.0",
-        "ENABLE_P1_POC": "true"
+        "ENABLE_P1_POC": "true",
+        "ENABLE_LIVE_PHOTO": "true",
+        "IMAGES_FREE_CONFIRMED": "true"
       },
       "d1_databases": [
         {

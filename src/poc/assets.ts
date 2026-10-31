@@ -1,9 +1,11 @@
-import type { Identity } from './auth';
+import { authenticate, type Identity } from './auth';
 import { body, HttpError, invalid } from './http';
 import { imageHeader } from './image-header';
 import { media } from './media';
 import { guardLivePhoto } from './live-photo';
 import { originalMatches } from './integrity';
+import { completeOriginals, uploadLive } from './live-upload';
+import { readPreview, runPreviews } from './previews';
 
 import { MAX_IMAGE, parseUploadForm } from './multipart';
 
@@ -28,6 +30,12 @@ export interface Asset {
   favorite: number;
   metadata: string;
   r2_sha1_verified: number;
+  media_type: 'IMAGE' | 'VIDEO';
+  visibility: 'timeline' | 'hidden';
+  duration: string | null;
+  pair_id: string | null;
+  live_photo_video_id: string | null;
+  logical_key: string;
 }
 function checksum(value: unknown, field: string) {
   if (typeof value !== 'string') invalid(field, '必须填写 SHA-1 的十六进制或 Base64 字符串');
@@ -37,6 +45,7 @@ function checksum(value: unknown, field: string) {
   return value;
 }
 export async function upload(request: Request, env: Env, identity: Identity) {
+  if (String(env.ENABLE_LIVE_PHOTO) === 'true') return uploadLive(request, env, identity);
   const form = await parseUploadForm(request);
   const encoder = new TextEncoder();
   const seen = new Set<string>();
@@ -286,7 +295,7 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     return { id: item.id as string, checksum: checksum(item.checksum, `assets.${i}.checksum`) };
   });
   const rows = await env.IMMICH_CF_DB.prepare(
-    'SELECT id,checksum,object_key,bytes,r2_sha1_verified,deleted_at FROM assets WHERE owner_id = ?',
+    "SELECT * FROM assets WHERE owner_id = ? AND visibility='timeline'",
   )
     .bind(identity.id)
     .all<{
@@ -296,6 +305,7 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
       bytes: number;
       r2_sha1_verified: number;
       deleted_at: string | null;
+      live_photo_video_id: string | null;
     }>();
   // Only inspect this owner's requested matches, once per checksum (at most 20 assets).
   // An unavailable store is not evidence of either a duplicate or a missing original.
@@ -305,7 +315,10 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     for (const row of rows.results) {
       if (!requested.has(row.checksum)) continue;
       const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
-      if (originalMatches(object, row.bytes, row.checksum, !!row.r2_sha1_verified))
+      if (
+        originalMatches(object, row.bytes, row.checksum, !!row.r2_sha1_verified) &&
+        (!row.live_photo_video_id || (await completeOriginals(env, row as Asset)))
+      )
         available.set(row.checksum, { id: row.id, isTrashed: row.deleted_at !== null });
     }
   } catch {
@@ -331,7 +344,7 @@ export function assetDto(row: Asset) {
     id: row.id,
     ownerId: row.owner_id,
     checksum: row.checksum,
-    type: 'IMAGE',
+    type: row.media_type ?? 'IMAGE',
     createdAt: row.created_at,
     fileCreatedAt: row.file_created_at,
     fileModifiedAt: row.file_modified_at,
@@ -341,11 +354,11 @@ export function assetDto(row: Asset) {
     height: row.height,
     isFavorite: !!row.favorite,
     isEdited: false,
-    visibility: 'timeline',
-    duration: null,
+    visibility: row.visibility ?? 'timeline',
+    duration: row.duration ?? null,
     deletedAt: row.deleted_at ?? null,
     libraryId: null,
-    livePhotoVideoId: null,
+    livePhotoVideoId: row.live_photo_video_id ?? null,
     stackId: null,
     thumbhash: null,
   };
@@ -376,9 +389,32 @@ export async function readAsset(
     .first<Asset>();
   if (!row) throw new HttpError(404, '图片不存在或无权访问');
   if (!kind) return Response.json(assetDetailDto(row));
+  if (kind === 'thumbnail' && row.media_type === 'VIDEO') {
+    const still = await env.IMMICH_CF_DB.prepare(
+      'SELECT id FROM assets WHERE live_photo_video_id=? AND owner_id=?',
+    )
+      .bind(row.id, identity.id)
+      .first<{ id: string }>();
+    if (!still)
+      throw new HttpError(503, 'preview：动态原件已保存，请先完成配套照片上传', 'preview');
+    return readAsset(request, env, identity, still.id, kind);
+  }
+  if (kind === 'video/playback' && row.media_type !== 'VIDEO')
+    throw new HttpError(404, '视频不存在或无权访问');
   const size = new URL(request.url).searchParams.get('size');
   if (size && !['thumbnail', 'preview', 'fullsize', 'original'].includes(size))
     invalid('size', '必须为 thumbnail、preview、fullsize 或 original');
+  if (kind === 'thumbnail' && row.mime === 'image/heic' && size !== 'original') {
+    await runPreviews(env, row.id);
+    await authenticate(request, env.IMMICH_CF_DB);
+    return readPreview(
+      request,
+      env,
+      row.id,
+      identity.id,
+      size === 'thumbnail' || !size ? 256 : 2048,
+    );
+  }
   return media(
     request,
     env.IMMICH_CF_MEDIA,

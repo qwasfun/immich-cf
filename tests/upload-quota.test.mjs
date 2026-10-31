@@ -21,7 +21,9 @@ test('非空配额迁移保留记录，只排除同所有者已发布预约；�
       VALUES (?,?,?,?,'fixture','image/png',100,1,1,'date','date','date',0)`);
     for (let i = 0; i < 19; i++) asset.run(`a-${i}`, 'a', `hash-${i}`, `a/key-${i}`);
     asset.run('b-asset', 'b', 'cross-owner-hash', 'b/key');
-    const intent = db.prepare('INSERT INTO upload_intents VALUES (?,?,?,?,?)');
+    const intent = db.prepare(
+      'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES (?,?,?,?,?)',
+    );
     intent.run('a', 'hash-0', 'old-0', 'a/old-0', 'date');
     intent.run('a', 'hash-1', 'old-1', 'a/old-1', 'date');
     assert.throws(
@@ -40,7 +42,7 @@ test('非空配额迁移保留记录，只排除同所有者已发布预约；�
     assert.throws(() => intent.run('a', 'new-hash', 'denied', 'a/denied', 'date'), /ASSET_LIMIT/);
     // Reusing an existing reservation does not require another slot.
     db.prepare(
-      'INSERT INTO upload_intents VALUES (?,?,?,?,?) ON CONFLICT(owner_id,checksum) DO NOTHING',
+      'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES (?,?,?,?,?) ON CONFLICT(owner_id,checksum) DO NOTHING',
     ).run('a', 'cross-owner-hash', 'retry', 'a/retry', 'date');
     asset.run('published', 'a', 'cross-owner-hash', 'a/pending');
     assert.throws(() => intent.run('a', 'new-hash', 'denied', 'a/denied', 'date'), /ASSET_LIMIT/);

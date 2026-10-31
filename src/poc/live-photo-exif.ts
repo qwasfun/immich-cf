@@ -2,7 +2,7 @@ import { invalid } from './http';
 
 // Bounded EXIF IFD0 -> ExifIFD -> Apple MakerNote inspection, not a full decoder.
 // Apple layout/tag evidence: ExifTool MakerNotes.pm and Apple.pm (see P2 document).
-export function rejectLivePhotoExif(bytes: Uint8Array) {
+export function rejectLivePhotoExif(bytes: Uint8Array, identified?: (id: string | null) => void) {
   const uncertain = (): never =>
     invalid(
       'assetData',
@@ -50,7 +50,24 @@ export function rejectLivePhotoExif(bytes: Uint8Array) {
     for (let i = 0; i < count; i++) {
       const tag = v.getUint16(16 + i * 12, le);
       // Presence is sufficient: malformed/empty identifiers must not bypass rejection.
-      if (tag === 0x11 || tag === 0x17) return live();
+      if (tag === 0x11 || tag === 0x17) {
+        if (!identified) return live();
+        if (tag === 0x17) {
+          identified(null);
+          continue;
+        }
+        const entry = 16 + i * 12;
+        const type = v.getUint16(entry + 2, le),
+          length = v.getUint32(entry + 4, le);
+        const start = length <= 4 ? entry + 8 : v.getUint32(entry + 8, le);
+        if (type !== 2 || length < 2 || length > 256 || start > note.length - length)
+          return uncertain();
+        const id = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false })
+          .decode(note.subarray(start, start + length))
+          .replace(/\0$/, '');
+        if (!/^[a-zA-Z0-9-]{8,128}$/.test(id)) return uncertain();
+        identified(id);
+      }
     }
     // Do not silently ignore a chained MakerNote IFD.
     if (end + 4 <= size && v.getUint32(end, le) !== 0) return uncertain();

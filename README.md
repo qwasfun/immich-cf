@@ -4,6 +4,8 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
+新增 [Live Photo 原件备份与 Images 免费预览](docs/p2-live-photo-support.md)：JPEG/HEIC＋MOV 配对、流式上传、整组生命周期和 v2 导出；真实 iPhone 播放与恢复仍待独立验收。
+
 测试账号已由用户确认升级Workers Paid，功能开发暂不受免费计划限制；当前约束以[Paid开发决策](docs/paid-development-decision.md)为准。
 
 已推进个人相册、收藏和[回收站/恢复/永久删除](docs/p4-trash.md)，阶段结果以[开发进度](docs/development-progress.md)及各次dev验收记录为准；P2以下仍有真机、真实规模和预算退出项，不能据此认定项目已全部完成。

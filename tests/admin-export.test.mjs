@@ -30,6 +30,27 @@ async function fixture(mode = 'ok') {
     albums: [],
     relations: [],
   };
+  let videoId;
+  if (mode.startsWith('v2')) {
+    manifest.format = 'immich-cf-account-v2';
+    videoId = randomUUID();
+    Object.assign(manifest.assets[0], {
+      media_type: 'IMAGE',
+      visibility: 'timeline',
+      deleted_at: null,
+      live_photo_video_id: videoId,
+    });
+    if (mode !== 'v2-incomplete')
+      manifest.assets.push({
+        ...manifest.assets[0],
+        id: videoId,
+        mime: 'video/quicktime',
+        media_type: 'VIDEO',
+        visibility: 'hidden',
+        live_photo_video_id: null,
+        downloadPath: `/api/immich-cf/admin/export/original?userId=${owner}&id=${videoId}&revision=1`,
+      });
+  }
   let reads = 0,
     media = 0;
   const request = async (url, options) => {
@@ -40,7 +61,10 @@ async function fixture(mode = 'ok') {
         return { metrics: { errorCode: 'CURL_28', status: 0 }, bytes: null };
       return {
         metrics: { errorCode: null, status: 200 },
-        bytes: mode === 'corrupt' ? Buffer.alloc(bytes.length) : bytes,
+        bytes:
+          mode === 'corrupt' || (mode === 'v2-corrupt' && url.includes(videoId))
+            ? Buffer.alloc(bytes.length)
+            : bytes,
       };
     }
     reads++;
@@ -55,6 +79,7 @@ async function fixture(mode = 'ok') {
     out,
     bytes,
     id,
+    videoId,
     run: () =>
       exportAccount({
         baseUrl: 'https://example.invalid',
@@ -88,4 +113,16 @@ test('导出工具复用curl有界重试恢复超时，凭据不进入清单', a
   await f.run();
   assert.equal(f.getMedia(), 3);
   assert.ok(!(await readFile(join(f.out, 'manifest.json'), 'utf8')).includes('a'.repeat(64)));
+});
+test('v2 导出保留配对 MOV；缺失或损坏动态部分不得生成完整标记', async () => {
+  const f = await fixture('v2');
+  assert.equal((await f.run()).assets, 2);
+  assert.deepEqual(await readFile(join(f.out, f.videoId + '.mov')), f.bytes);
+  await access(join(f.out, 'COMPLETE.json'));
+  for (const mode of ['v2-incomplete', 'v2-corrupt']) {
+    const broken = await fixture(mode);
+    await assert.rejects(broken.run());
+    await access(join(broken.out, 'INCOMPLETE'));
+    await assert.rejects(access(join(broken.out, 'COMPLETE.json')));
+  }
 });

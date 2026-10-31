@@ -26,7 +26,7 @@ const config = {
   port: 0,
   persist: true,
   persistTo: state,
-  vars: { ENABLE_P1_POC: 'true' },
+  vars: { ENABLE_P1_POC: 'true', ENABLE_LIVE_PHOTO: 'false', IMAGES_FREE_CONFIRMED: 'false' },
   experimental: { disableExperimentalWarning: true, forceLocal: true, watch: false },
 };
 before(async () => {
@@ -779,7 +779,9 @@ test('未完成上传占用容量，超限拒绝在 R2 写入之前；已有预�
   for (let i = 0; i < 20; i++) {
     const asset = crypto.randomUUID();
     await db
-      .prepare('INSERT INTO upload_intents VALUES (?,?,?,?,?)')
+      .prepare(
+        'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES (?,?,?,?,?)',
+      )
       .bind(
         id,
         i === 0 ? pngHash : `pending-${i}`,
@@ -3025,7 +3027,9 @@ async function legacyIntegrity() {
   });
   await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(id).run();
   await db
-    .prepare('INSERT INTO upload_intents VALUES (?,?,?,?,?)')
+    .prepare(
+      'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES (?,?,?,?,?)',
+    )
     .bind(a.id, row.checksum, crypto.randomUUID(), row.object_key, row.created_at)
     .run();
   return {
@@ -4612,7 +4616,9 @@ test('R2 GC 全局引用检查保留活动、退役、源、上传预约与摘�
     [
       () =>
         db
-          .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+          .prepare(
+            'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES(?,?,?,?,?)',
+          )
           .bind(a.id, crypto.randomUUID(), crypto.randomUUID(), key, 'date')
           .run(),
       () => db.prepare('DELETE FROM upload_intents WHERE object_key=?').bind(key).run(),
@@ -4653,7 +4659,9 @@ test('R2 GC 认领后禁止重新发布，摘要写入先预约且失败仍保�
   );
   await assert.rejects(
     db
-      .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+      .prepare(
+        'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES(?,?,?,?,?)',
+      )
       .bind(a.id, 'new-checksum', crypto.randomUUID(), key, 'date')
       .run(),
     /R2_CLEANUP_CLAIMED/,
@@ -6158,7 +6166,9 @@ test('P4 永久删除持久授权后清理原图，幂等重放不误删重新�
   );
   await assert.rejects(
     db
-      .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+      .prepare(
+        'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES(?,?,?,?,?)',
+      )
       .bind(a.id, old.checksum, crypto.randomUUID(), old.object_key, old.created_at)
       .run(),
     /PURGE_FENCED/,
@@ -6249,7 +6259,9 @@ test('P4 永久删除保留上传预约、其他活动/退役/副本引用，未
     const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.ids[0]).first();
     if (kind === 'upload')
       await db
-        .prepare('INSERT INTO upload_intents VALUES(?,?,?,?,?)')
+        .prepare(
+          'INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES(?,?,?,?,?)',
+        )
         .bind(a.id, row.checksum, crypto.randomUUID(), row.object_key, row.created_at)
         .run();
     if (kind === 'active')

@@ -42,7 +42,7 @@ export async function exportAccount({
         method: 'GET',
         headers: { Authorization: `Bearer ${accessToken}` },
         tls12: true,
-        timeoutMs: 20000,
+        timeoutMs: 120000,
         maxResponseBytes,
         ...(proxy ? { proxy } : {}),
       });
@@ -55,10 +55,10 @@ export async function exportAccount({
   const path = '/api/immich-cf/admin/export?userId=' + encodeURIComponent(userId);
   const manifest = JSON.parse((await get(path)).toString('utf8'));
   if (
-    manifest.format !== 'immich-cf-account-v1' ||
+    !['immich-cf-account-v1', 'immich-cf-account-v2'].includes(manifest.format) ||
     manifest.ownerId !== userId ||
     !Array.isArray(manifest.assets) ||
-    manifest.assets.length > 20 ||
+    manifest.assets.length > (manifest.format === 'immich-cf-account-v2' ? 40 : 20) ||
     !Array.isArray(manifest.albums) ||
     !Array.isArray(manifest.relations)
   )
@@ -74,25 +74,68 @@ export async function exportAccount({
     if (
       !/^[a-f0-9-]{36}$/i.test(asset.id) ||
       seen.has(asset.id) ||
-      !['image/jpeg', 'image/png'].includes(asset.mime) ||
+      ![
+        'image/jpeg',
+        'image/png',
+        ...(manifest.format === 'immich-cf-account-v2' ? ['image/heic', 'video/quicktime'] : []),
+      ].includes(asset.mime) ||
       !Number.isSafeInteger(asset.bytes) ||
       asset.bytes < 1 ||
-      asset.bytes > 4194304 ||
+      asset.bytes >
+        (manifest.format === 'immich-cf-account-v1'
+          ? 4194304
+          : asset.mime === 'video/quicktime'
+            ? 64 * 1024 * 1024
+            : 20000000) ||
       typeof asset.checksum !== 'string'
     )
       throw Error('资产清单：ID、格式、大小或校验值无效');
     seen.add(asset.id);
     const expected = `/api/immich-cf/admin/export/original?userId=${userId}&id=${asset.id}&revision=${asset.sync_seq}`;
     if (asset.downloadPath !== expected) throw Error('下载路径：与清单账号或资产不匹配');
-    const bytes = await get(expected, 4194304);
+    const bytes = await get(expected, asset.bytes);
     if (
       bytes.length !== asset.bytes ||
       createHash('sha1').update(bytes).digest('base64') !== asset.checksum
     )
       throw Error('原图：字节数或SHA-1不符，导出未完成');
-    await writeFile(join(dir, asset.id + (asset.mime === 'image/png' ? '.png' : '.jpg')), bytes, {
-      flag: 'wx',
-    });
+    await writeFile(
+      join(
+        dir,
+        asset.id +
+          {
+            'image/png': '.png',
+            'image/jpeg': '.jpg',
+            'image/heic': '.heic',
+            'video/quicktime': '.mov',
+          }[asset.mime],
+      ),
+      bytes,
+      {
+        flag: 'wx',
+      },
+    );
+  }
+  if (manifest.format === 'immich-cf-account-v2') {
+    const linked = new Set();
+    for (const asset of manifest.assets) {
+      if (!asset.live_photo_video_id) continue;
+      const video = manifest.assets.find((v) => v.id === asset.live_photo_video_id);
+      if (
+        asset.media_type !== 'IMAGE' ||
+        asset.visibility !== 'timeline' ||
+        !video ||
+        video.media_type !== 'VIDEO' ||
+        video.mime !== 'video/quicktime' ||
+        video.visibility !== 'hidden' ||
+        video.deleted_at !== asset.deleted_at ||
+        linked.has(video.id)
+      )
+        throw Error('Live Photo 配对：照片与动态原件不完整或关系冲突，导出未完成');
+      linked.add(video.id);
+    }
+    if (manifest.assets.some((a) => a.media_type === 'VIDEO' && !linked.has(a.id)))
+      throw Error('Live Photo 配对：存在尚未配对的动态原件，导出未完成');
   }
   const latest = JSON.parse((await get(path)).toString('utf8'));
   for (const key of ['assets', 'albums', 'relations'])

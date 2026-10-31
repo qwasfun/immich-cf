@@ -14,6 +14,7 @@ import { updateFavorite } from './favorites';
 import { storageAudit } from './storage-audit';
 import { admin } from './admin';
 import { upgradeIntegrity } from './upgrade-integrity';
+import { runPreviews } from './previews';
 
 const methods: Record<string, string[]> = {
   '/api/immich-cf/admin/status': ['GET'],
@@ -56,7 +57,9 @@ export async function route(
   ctx?: ExecutionContext,
 ): Promise<Response | null> {
   const path = new URL(request.url).pathname;
-  const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
+  const assetPath = path.match(
+    /^\/api\/assets\/([^/]+)(?:\/(original|thumbnail|video\/playback))?$/,
+  );
   const albumPath = path.match(/^\/api\/albums\/([^/]+)(\/assets)?$/);
   const allowed =
     methods[path] ??
@@ -115,7 +118,15 @@ async function dispatch(
   if (path === '/api/server/ping') return Response.json({ res: 'pong' });
   // Only static small JPEG/PNG files are supported by this experiment.
   if (path === '/api/server/media-types')
-    return Response.json({ image: ['image/jpeg', 'image/png'], video: [], sidecar: [] });
+    return Response.json({
+      image: [
+        'image/jpeg',
+        'image/png',
+        ...(String(env.ENABLE_LIVE_PHOTO) === 'true' ? ['image/heic'] : []),
+      ],
+      video: String(env.ENABLE_LIVE_PHOTO) === 'true' ? ['video/quicktime'] : [],
+      sidecar: [],
+    });
   if (path === '/api/server/version')
     return Response.json({ major: 3, minor: 3, patch: 1, prerelease: null });
   if (path === '/api/server/features')
@@ -204,9 +215,16 @@ async function dispatch(
   if (path === '/api/immich-cf/upgrade-integrity') return upgradeIntegrity(request, env, identity);
   if (path === '/api/immich-cf/storage-audit') return storageAudit(request, env, identity);
   if (path === '/api/immich-cf/repair-dimensions') return repairDimensions(request, env, identity);
-  if (path === '/api/assets') return upload(request, env, identity);
+  if (path === '/api/assets') {
+    const response = await upload(request, env, identity);
+    if (ctx && String(env.ENABLE_LIVE_PHOTO) === 'true')
+      ctx.waitUntil(runPreviews(env).catch(() => undefined));
+    return response;
+  }
   if (path === '/api/assets/bulk-upload-check') return bulkCheck(request, env, identity);
-  const assetPath = path.match(/^\/api\/assets\/([^/]+)(?:\/(original|thumbnail))?$/);
+  const assetPath = path.match(
+    /^\/api\/assets\/([^/]+)(?:\/(original|thumbnail|video\/playback))?$/,
+  );
   if (assetPath) return readAsset(request, env, identity, assetPath[1]!, assetPath[2]);
   if (path === '/api/users/me/onboarding') return onboarding(request, db, identity);
   if (path === '/api/users/me/preferences') {

@@ -66,7 +66,7 @@ test('R2 清理持久隔离覆盖所有引用表 INSERT/UPDATE，跨账号引用
     db.exec(`INSERT INTO users(id,email,name,password_hash,created_at,update_id) VALUES('owner','owner@example.invalid','local','not-a-login-hash','date','version');
       INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES('asset','owner','sum','live','file.png','image/png',32,1,1,'date','date','date',0);
       INSERT INTO retired_assets VALUES('retired','owner','retired-key',NULL,32,'sum',0,'date');
-      INSERT INTO upload_intents VALUES('owner','pending','intent','pending-key','date');
+      INSERT INTO upload_intents(owner_id,checksum,id,object_key,created_at) VALUES('owner','pending','intent','pending-key','date');
       INSERT INTO integrity_copy_intents VALUES('staging-key','owner','asset');`);
     for (const key of ['live', 'retired-key', 'pending-key', 'staging-key'])
       assert.throws(

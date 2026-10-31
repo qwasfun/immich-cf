@@ -1,9 +1,17 @@
 import { errorResponse, jsonResponse } from './http/responses';
 import { runPurgeJobs } from './poc/purge';
 import { route } from './poc/routes';
+import { runPreviews } from './poc/previews';
+import { cleanStaging } from './poc/media-staging';
 
 export default {
   async scheduled(controller, env, ctx) {
+    if (String(env.ENABLE_P1_POC) === 'true')
+      ctx.waitUntil(
+        Promise.all([runPreviews(env), cleanStaging(env)]).catch(() => {
+          console.error(JSON.stringify({ code: 'MEDIA_MAINTENANCE_UNAVAILABLE' }));
+        }),
+      );
     if (controller.cron && String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(
         runPurgeJobs(env)

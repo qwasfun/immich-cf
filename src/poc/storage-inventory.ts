@@ -27,6 +27,8 @@ export async function storageInventory(
     mode === 'references' &&
     after &&
     !/^(asset|source|intent|retired|retired-source):[a-f0-9-]{36}$/i.test(after) &&
+    !/^preview:[a-f0-9-]{36}:(256|2048)$/i.test(after) &&
+    !/^staging:[a-f0-9-]{36}$/i.test(after) &&
     !after.startsWith('copy:' + identity.id + '/')
   )
     invalid('after', '必须使用当前 references 页的 nextAfter，首次请省略');
@@ -36,6 +38,16 @@ export async function storageInventory(
       // provides a shared D1 snapshot; never interpolate user input into SQL.
       const sources = [
         ['asset', 'assets', 'id', 'object_key', 'bytes', 'checksum', 'r2_sha1_verified'],
+        [
+          'preview',
+          'media_previews',
+          "asset_id||':'||variant",
+          'object_key',
+          'bytes',
+          'checksum',
+          '1',
+        ],
+        ['staging', 'media_upload_staging', 'id', 'object_key', 'bytes', 'checksum', '0'],
         ['copy', 'integrity_copy_intents', 'object_key', 'object_key', 'NULL', 'NULL', '0'],
         ['intent', 'upload_intents', 'id', 'object_key', 'NULL', 'checksum', '0'],
         ['retired', 'retired_assets', 'id', 'object_key', 'bytes', 'checksum', 'r2_sha1_verified'],
@@ -156,6 +168,8 @@ export async function storageInventory(
         EXISTS(SELECT 1 FROM retired_assets WHERE integrity_source_key=k.value) "retired-source",
         EXISTS(SELECT 1 FROM upload_intents WHERE object_key=k.value) "upload-intent",
         EXISTS(SELECT 1 FROM integrity_copy_intents WHERE object_key=k.value) "integrity-copy-intent",
+        EXISTS(SELECT 1 FROM media_previews WHERE object_key=k.value) preview,
+        EXISTS(SELECT 1 FROM media_upload_staging WHERE object_key=k.value AND status<>'deleted') staging,
         (SELECT status FROM r2_cleanup_claims WHERE object_key=k.value) cleanup
         FROM json_each(?) k`,
       )
@@ -168,6 +182,8 @@ export async function storageInventory(
         'retired-source': number;
         'upload-intent': number;
         'integrity-copy-intent': number;
+        preview: number;
+        staging: number;
         cleanup: string | null;
       }>();
     const kinds = new Map(references.results.map((row) => [row.object_key, row]));
@@ -180,6 +196,8 @@ export async function storageInventory(
         'retired-source',
         'upload-intent',
         'integrity-copy-intent',
+        'preview',
+        'staging',
       ] as const;
       const refs = refKinds.filter((kind) => observation?.[kind]).sort();
       const classification = refs.length
