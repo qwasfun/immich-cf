@@ -5438,6 +5438,250 @@ test('P4 收藏提交时重新鉴权，撤销/过期/禁用不写入；成功响
   assert.deepEqual(await db.prepare('SELECT * FROM assets WHERE id=?').bind(id).first(), committed);
 });
 
+test('iOS 照片标识单项元数据读写、完整响应与幂等，不误入收藏也不改原件', async () => {
+  const a = await reliabilityAccount();
+  const id = (await (await uploadFixture(a.token)).json()).id;
+  const path = `/api/assets/${id}/metadata`;
+  assert.deepEqual(await (await send(path, undefined, a.token, 'GET')).json(), []);
+  const before = await auditSnapshot(a.id);
+  const value = {
+    iCloudId: 'PRIVATE-CLOUD-ID',
+    createdAt: '2026-11-01T17:42:45.000',
+    latitude: '1.23',
+  };
+  const request = { items: [{ key: 'mobile-app', value }] };
+  const r = await send(path, request, a.token, 'PUT');
+  assert.equal(r.status, 200, await r.clone().text());
+  const saved = await r.json();
+  assert.equal(saved.length, 1);
+  assert.deepEqual(saved[0].value, value);
+  assert.match(saved[0].updatedAt, /^\d{4}-\d\d-\d\dT/);
+  assert.deepEqual(await (await send(path, undefined, a.token, 'GET')).json(), saved);
+  assert.deepEqual(
+    await (await send(path + '/mobile-app', undefined, a.token, 'GET')).json(),
+    saved[0],
+  );
+  const after = await auditSnapshot(a.id);
+  assert.ok(after.assets[0].sync_seq > before.assets[0].sync_seq);
+  for (const field of [
+    'checksum',
+    'bytes',
+    'object_key',
+    'file_created_at',
+    'file_modified_at',
+    'favorite',
+  ])
+    assert.equal(after.assets[0][field], before.assets[0][field]);
+  assert.deepEqual(after.objects, before.objects);
+  assert.deepEqual(await (await send(path, request, a.token, 'PUT')).json(), saved);
+  assert.deepEqual(await auditSnapshot(a.id), after);
+  assert.equal((await send('/api/assets/metadata', undefined, a.token, 'GET')).status, 405);
+});
+
+test('iOS 批量元数据全量校验所有权及重复项，越权或缺失时不部分写入', async () => {
+  const a = await reliabilityAccount(),
+    other = await reliabilityAccount();
+  const ids = [];
+  for (const file of ['small.jpg', 'small.png'])
+    ids.push((await (await uploadFixture(a.token, file)).json()).id);
+  const foreign = (await (await uploadFixture(other.token)).json()).id;
+  const item = (assetId) => ({
+    assetId,
+    key: 'mobile-app',
+    value: { iCloudId: 'PRIVATE-CLOUD-ID' },
+  });
+  const before = await auditSnapshot(a.id);
+  for (const bad of [foreign, crypto.randomUUID()]) {
+    const r = await send(
+      '/api/assets/metadata',
+      { items: [item(ids[0]), item(bad)] },
+      a.token,
+      'PUT',
+    );
+    assert.equal(r.status, 404);
+    assert.deepEqual((await r.json()).errors[0].path, ['items[1].assetId']);
+    assert.deepEqual(await auditSnapshot(a.id), before);
+  }
+  let r = await send(
+    '/api/assets/metadata',
+    { items: [item(ids[0]), item(ids[0].toUpperCase())] },
+    a.token,
+    'PUT',
+  );
+  assert.equal(r.status, 400);
+  assert.deepEqual((await r.json()).errors[0].path, ['items[1].assetId']);
+  const request = { items: ids.map(item) };
+  r = await send('/api/assets/metadata', request, a.token, 'PUT');
+  assert.equal(r.status, 200, await r.clone().text());
+  const data = await r.json();
+  assert.deepEqual(
+    data.map((entry) => entry.assetId),
+    ids,
+  );
+  assert.ok(
+    data.every(
+      (entry) =>
+        entry.key === 'mobile-app' &&
+        entry.updatedAt &&
+        entry.value.iCloudId === 'PRIVATE-CLOUD-ID',
+    ),
+  );
+  const committed = await auditSnapshot(a.id);
+  assert.equal((await send('/api/assets/metadata', request, a.token, 'PUT')).status, 200);
+  assert.deepEqual(await auditSnapshot(a.id), committed);
+  const denied = await send(`/api/assets/${ids[0]}/metadata`, undefined, other.token, 'GET');
+  assert.equal(denied.status, 404);
+  assert.ok(!(await denied.text()).includes('PRIVATE'));
+});
+
+test('iOS 元数据字段错误定位到具体项，不回显私密标识或位置', async () => {
+  const a = await reliabilityAccount(),
+    id = (await (await uploadFixture(a.token)).json()).id;
+  const item = { assetId: id, key: 'mobile-app', value: { iCloudId: 'PRIVATE-CLOUD-ID' } };
+  const before = await auditSnapshot(a.id);
+  for (const [request, field] of [
+    [{}, 'items'],
+    [{ items: [] }, 'items'],
+    [{ items: [null] }, 'items[0]'],
+    [{ items: [{ ...item, assetId: 'PRIVATE-ID' }] }, 'items[0].assetId'],
+    [{ items: [{ ...item, key: 'PRIVATE-KEY' }] }, 'items[0].key'],
+    [{ items: [{ ...item, value: 'PRIVATE-VALUE' }] }, 'items[0].value'],
+    [{ items: [{ ...item, value: { iCloudId: 'PRIVATE'.repeat(1400) } }] }, 'items[0].value'],
+  ]) {
+    const r = await send('/api/assets/metadata', request, a.token, 'PUT');
+    assert.equal(r.status, 400);
+    const data = await r.json();
+    assert.deepEqual(data.errors[0].path, [field]);
+    assert.ok(!JSON.stringify(data).includes('PRIVATE'));
+  }
+  assert.deepEqual(await auditSnapshot(a.id), before);
+  assert.equal(
+    (await send('/api/assets/metadata', { items: [item] }, undefined, 'PUT')).status,
+    401,
+  );
+});
+
+test('iOS 元数据事务提交重新校验会话；响应丢失后重试不重复推进同步版本', async () => {
+  for (const change of ['revoked', 'expired', 'disabled']) {
+    const a = await reliabilityAccount(),
+      id = (await (await uploadFixture(a.token)).json()).id;
+    const request = {
+      items: [{ assetId: id, key: 'mobile-app', value: { iCloudId: 'PRIVATE-CLOUD-ID' } }],
+    };
+    const held = await pausedSyncRequest(a.token, '/api/assets/metadata', 'PUT', request);
+    try {
+      if (change === 'revoked')
+        await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(a.id).run();
+      if (change === 'expired')
+        await db.prepare('UPDATE sessions SET expires_at=1 WHERE user_id=?').bind(a.id).run();
+      if (change === 'disabled')
+        await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(a.id).run();
+      await held.release();
+      assert.equal((await held.response).status, 404);
+      assert.equal(
+        (await db.prepare('SELECT metadata FROM assets WHERE id=?').bind(id).first()).metadata,
+        '[]',
+      );
+    } finally {
+      await held.release();
+    }
+  }
+  const a = await reliabilityAccount(),
+    id = (await (await uploadFixture(a.token)).json()).id;
+  const request = {
+    items: [{ assetId: id, key: 'mobile-app', value: { iCloudId: 'PRIVATE-CLOUD-ID' } }],
+  };
+  const r = await worker.fetch('/api/assets/metadata', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${a.token}`,
+      'Content-Type': 'application/json',
+      'x-test-storage-fault': 'after-d1',
+    },
+    body: JSON.stringify(request),
+  });
+  assert.equal(r.status, 503);
+  const committed = await auditSnapshot(a.id);
+  assert.equal((await send('/api/assets/metadata', request, a.token, 'PUT')).status, 200);
+  assert.deepEqual(await auditSnapshot(a.id), committed);
+});
+
+test('iOS 照片标识更新经双会话增量同步及 reset/ACK 收敛', async () => {
+  const a = await reliabilityAccount(),
+    id = (await (await uploadFixture(a.token)).json()).id;
+  const login = await send('/api/auth/login', { email: `${a.id}@example.invalid`, password });
+  const other = (await login.json()).accessToken;
+  for (const token of [a.token, other]) {
+    const initial = await syncEvents(token);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: initial.map((e) => e.ack) }, token)).status,
+      204,
+    );
+  }
+  const value = {
+    iCloudId: 'PRIVATE-CLOUD-ID',
+    createdAt: '2026-11-01T17:42:45.000',
+    adjustmentTime: '2026-11-01T18:00:00.000',
+  };
+  assert.equal(
+    (
+      await send(
+        '/api/assets/metadata',
+        { items: [{ assetId: id, key: 'mobile-app', value }] },
+        a.token,
+        'PUT',
+      )
+    ).status,
+    200,
+  );
+  for (const token of [a.token, other]) {
+    const events = await syncEvents(token);
+    assert.deepEqual(events.find((e) => e.type === 'AssetMetadataV1').data.value, value);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, token)).status,
+      204,
+    );
+    assert.equal((await syncEvents(token)).filter((e) => e.type === 'AssetMetadataV1').length, 0);
+  }
+  await streamReset(other);
+  const reset = (await syncEvents(other))[0];
+  assert.equal((await send('/api/sync/ack', { acks: [reset.ack] }, other)).status, 204);
+  const rebuilt = await syncEvents(other);
+  assert.deepEqual(rebuilt.find((e) => e.type === 'AssetMetadataV1').data.value, value);
+});
+
+test('iOS 元数据与收藏并发互不覆盖，已有其他元数据保持', async () => {
+  const a = await reliabilityAccount(),
+    id = (await (await uploadFixture(a.token)).json()).id;
+  await db
+    .prepare('UPDATE assets SET metadata=? WHERE id=?')
+    .bind(JSON.stringify([{ key: 'legacy', value: { retained: true } }]), id)
+    .run();
+  const results = await Promise.all([
+    send(
+      '/api/assets/metadata',
+      { items: [{ assetId: id, key: 'mobile-app', value: { iCloudId: 'PRIVATE-CLOUD-ID' } }] },
+      a.token,
+      'PUT',
+    ),
+    send(`/api/assets/${id}`, { isFavorite: true }, a.token, 'PUT'),
+  ]);
+  assert.deepEqual(
+    results.map((r) => r.status),
+    [200, 200],
+  );
+  const row = await db.prepare('SELECT favorite,metadata FROM assets WHERE id=?').bind(id).first();
+  assert.equal(row.favorite, 1);
+  assert.equal(
+    JSON.parse(row.metadata).find((entry) => entry.key === 'legacy').value.retained,
+    true,
+  );
+  assert.equal(
+    JSON.parse(row.metadata).find((entry) => entry.key === 'mobile-app').value.iCloudId,
+    'PRIVATE-CLOUD-ID',
+  );
+});
+
 test('测试维护入口拒绝未认证JSON后下一次正常multipart连接仍完整可读', async () => {
   const a = await reliabilityAccount();
   for (let attempt = 0; attempt < 3; attempt++) {

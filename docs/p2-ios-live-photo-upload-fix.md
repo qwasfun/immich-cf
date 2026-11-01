@@ -1,0 +1,29 @@
+# iOS 真机上传：名额提示与照片标识同步修复
+
+2026-11-02（Asia/Shanghai）。用户报告官方 iOS App 3.3.5 build 26，在 dev（服务端协议版本 3.3.1）备份 IMG_0138.JPG 时遇到缺少 `livePhotoVideoId`，同时 `syncCloudIds: bulk` 写入元数据返回 400。
+
+## 原因与修复
+
+只读检查 2026-11-02 01:42–01:44 的 dev 请求记录和持久暂存状态，发现两轮相同顺序：约 3.46 MB 的动态部分请求返回 409，约 2.05 MB 的静态照片随后返回 400。对应账号当时已有 20 个逻辑名额、20 份资产，上传预约为 0；动态视频完整接收、容器校验通过后被名额限制拒绝。
+
+官方 3.3.5 只有在动态部分成功返回资产 ID 后，才给照片添加 `livePhotoVideoId`；动态部分收到 HTTP 错误时仍可能继续传照片，前台日志最终只显示照片错误。此次原因是账号名额已满，不能把照片单独放行并误报完整备份。
+
+现在新配对缺少动态 ID 时，如果同时确认没有既有配对名额且账号已满，照片返回具体的名额错误，说明回收站和待完成上传也占名额，并给出先确认独立备份、再永久删除不需要项目、随后重试的操作要求。已有配对的重复上传与原件修复仍可使用其既有名额。失败日志只记录固定分类、状态码与媒体类型，方便定位 App 隐藏的动态部分错误。
+
+另一个独立问题是 `/api/assets/metadata` 被普通 `/api/assets/{id}` 路由识别成了收藏修改。这是缺失的服务端接口兼容，现已添加：
+
+- `PUT /api/assets/metadata`：批量写入照片的 `mobile-app` 标识。
+- `GET/PUT /api/assets/{id}/metadata`：读取或写入单张照片的标识。
+- `GET /api/assets/{id}/metadata/mobile-app`：读取指定标识。
+
+按冻结契约返回 `key`、`value`、`updatedAt`，批量响应含 `assetId`。保留 `iCloudId`、本地创建/编辑时间和位置等 App 数据的原始结构；错误与日志不回显这些值。批量操作先完整校验字段、重复项和所有权，在单个事务中重新检查会话；有一个不可写项目便全部拒绝。隐藏动态视频不接收照片标识，已有其他元数据继续保留。相同内容重试不推进同步版本，实际变更通过既有 Sync/ACK/reset 机制发送到其他会话。
+
+参考官方源码：[3.3.5 前台上传](https://github.com/immich-app/immich/blob/v3.3.5/mobile/lib/services/foreground_upload.service.dart)、[3.3.5 标识格式](https://github.com/immich-app/immich/blob/v3.3.5/mobile/lib/domain/models/asset/asset_metadata.model.dart)、[冻结版本的标识同步](https://github.com/immich-app/immich/blob/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/utils/migrate_cloud_ids.dart)。服务端协议版本保持 3.3.1。
+
+## 验证与真机续测
+
+本机定向 7 项通过；完整检查 220 项通过、0 失败、0 跳过，格式、lint、类型、构建与冻结契约 279 个操作/53 个来源校验通过。覆盖请求路由、响应结构、私密字段不回显、缺失/越权/重复项的原子拒绝、会话撤销/过期/禁用、响应丢失后重试、双会话增量同步和 reset/ACK、与收藏并发、隐藏视频标识保护，以及满额时原件修复和新配对拒绝。dev 发布与公网结果随后记录。
+
+20 个逻辑资产的约束保持，回收站项目也占名额。继续用原账号真机上传前，需要先确认旧项目已有其他备份，再永久删除至少一个不需要的项目以释放名额。该操作由用户选择具体项目，已有照片和原件持续保留。
+
+重新打开 App 并执行同步后，确认 `syncCloudIds` 不再报此 400；释放名额后重试 JPEG/HEIC Live Photo 的前台和后台备份。动态播放、第二台设备同步及下载到系统“照片”后仍可播放，继续按[真机验收步骤](p2-live-photo-support-dev-deployment.md#必须补充的-iphone-验收)记录实际结果。本次失败日志不能作为这些项目已通过的证据。

@@ -11,6 +11,7 @@ import { recoverPurgeJobs, runPurgeJobs } from './purge';
 import { body, invalid } from './http';
 import { albums } from './albums';
 import { updateFavorite } from './favorites';
+import { assetMetadata } from './asset-metadata';
 import { storageAudit } from './storage-audit';
 import { admin } from './admin';
 import { upgradeIntegrity } from './upgrade-integrity';
@@ -32,6 +33,7 @@ const methods: Record<string, string[]> = {
   '/api/immich-cf/purge-status': ['GET'],
   '/api/immich-cf/purge-run': ['POST'],
   '/api/assets/bulk-upload-check': ['POST'],
+  '/api/assets/metadata': ['PUT'],
   '/.well-known/immich': ['GET'],
   '/api/server/ping': ['GET'],
   '/api/server/version': ['GET'],
@@ -61,19 +63,24 @@ export async function route(
     /^\/api\/assets\/([^/]+)(?:\/(original|thumbnail|video\/playback))?$/,
   );
   const albumPath = path.match(/^\/api\/albums\/([^/]+)(\/assets)?$/);
+  const metadataPath = path.match(/^\/api\/assets\/([^/]+)\/metadata(?:\/([^/]+))?$/);
   const allowed =
     methods[path] ??
     (assetPath
       ? assetPath[2]
         ? ['GET', 'HEAD']
         : ['GET', 'HEAD', 'PUT']
-      : albumPath
-        ? albumPath[2]
-          ? ['PUT', 'DELETE']
-          : ['GET', 'PATCH', 'DELETE']
-        : /^\/api\/sessions\/[^/]+$/.test(path)
-          ? ['DELETE', 'PUT']
-          : undefined);
+      : metadataPath
+        ? metadataPath[2]
+          ? ['GET']
+          : ['GET', 'PUT']
+        : albumPath
+          ? albumPath[2]
+            ? ['PUT', 'DELETE']
+            : ['GET', 'PATCH', 'DELETE']
+          : /^\/api\/sessions\/[^/]+$/.test(path)
+            ? ['DELETE', 'PUT']
+            : undefined);
   if (!allowed) return null;
   let response: Response;
   try {
@@ -201,6 +208,9 @@ async function dispatch(
   if (path.startsWith('/api/trash/') || (path === '/api/assets' && request.method === 'DELETE'))
     return trash(request, env, identity, ctx);
   if (path === '/api/assets/statistics') return assetStatistics(request, db, identity);
+  const metadataMatch = path.match(/^\/api\/assets\/([^/]+)\/metadata(?:\/([^/]+))?$/);
+  if (path === '/api/assets/metadata' || metadataMatch)
+    return assetMetadata(request, db, identity, metadataMatch?.[1], metadataMatch?.[2]);
   if (path === '/api/immich-cf/purge-status') return purgeStatus(request, db, identity);
   const albumMatch = path.match(/^\/api\/albums\/([^/]+)(\/assets)?$/);
   if (path === '/api/albums' || albumMatch)

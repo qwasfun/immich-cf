@@ -123,6 +123,24 @@ test('JPEG/MOV 完整配对、>4MiB 流式上传、原件摘要、隐藏统计�
   const detail = await (await api(`/api/assets/${p.id}`, undefined, u.token, 'GET')).json();
   assert.equal(detail.livePhotoVideoId, p.video);
   assert.equal(detail.type, 'IMAGE');
+  const metadata = await api(
+    '/api/assets/metadata',
+    {
+      items: [p.id, p.video].map((assetId) => ({
+        assetId,
+        key: 'mobile-app',
+        value: { iCloudId: 'PRIVATE-CLOUD-ID' },
+      })),
+    },
+    u.token,
+    'PUT',
+  );
+  assert.equal(metadata.status, 404);
+  assert.deepEqual((await metadata.json()).errors[0].path, ['items[1].assetId']);
+  assert.equal(
+    (await db.prepare('SELECT metadata FROM assets WHERE id=?').bind(p.id).first()).metadata,
+    '[]',
+  );
   assert.deepEqual(await (await api('/api/assets/statistics', undefined, u.token, 'GET')).json(), {
     images: 1,
     videos: 0,
@@ -378,6 +396,12 @@ test('最后一个逻辑名额并发争用，动态和照片合计一项，满�
     photo = liveJpeg(ids[winner]);
   assert.equal((await upload(u, photo, { livePhotoVideoId: video })).status, 201);
   assert.equal((await upload(u, photo, { livePhotoVideoId: video })).status, 200);
+  const losingPhoto = await upload(u, liveJpeg(ids[1 - winner]));
+  assert.equal(losingPhoto.status, 409);
+  const cause = await losingPhoto.json();
+  assert.deepEqual(cause.errors[0].path, ['assetData']);
+  assert.match(cause.message, /20.*回收站.*动态视频.*释放名额/);
+  assert.equal((await upload(u, photo)).status, 400); // An existing slot still requires its video ID.
   assert.equal(
     (
       await db

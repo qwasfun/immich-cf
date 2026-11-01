@@ -7,6 +7,13 @@ import { stageUpload, cleanStaging } from './media-staging';
 import { guardLivePhoto } from './live-photo';
 import { queuePreviews } from './previews';
 
+function assetLimit(missingMotion = false): never {
+  throw new HttpError(
+    409,
+    `assetData：账户已达 20 个逻辑资产上限（含回收站和待完成上传）${missingMotion ? '，动态视频尚未完成，照片也不能完成整组备份' : ''}；请先确认已有项目已另行备份，再永久删除不需要的项目以释放名额，然后重试备份`,
+    'assetData',
+  );
+}
 export async function completeOriginals(env: Env, row: Asset): Promise<boolean> {
   if (
     !originalMatches(
@@ -40,6 +47,7 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
   const staged = await stageUpload(request, env, identity.id),
     db = env.IMMICH_CF_DB,
     form = staged.fields;
+  let mediaType: string | undefined;
   try {
     for (const key of ['deviceId', 'deviceAssetId']) {
       const v = form.get(key);
@@ -107,6 +115,7 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
         invalid('assetData', '媒体容器或配对元数据不完整，请重新选择未修改的原件');
       throw error;
     }
+    mediaType = info.type;
     if (info.type === 'IMAGE' && staged.size > MAX_PHOTO)
       throw new HttpError(
         413,
@@ -131,12 +140,24 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
       invalid('visibility', '照片必须使用 timeline，动态部分应上传 MOV 原件');
     if (info.marked && !info.pair)
       invalid('assetData', 'Live Photo 缺少有效配对标识，请重新选择照片和动态原件');
-    if (info.type === 'IMAGE' && info.pair && !linked)
-      invalid('livePhotoVideoId', 'Live Photo 必须先完整上传动态视频，再提交返回的视频 ID');
-    if (linked !== null && (typeof linked !== 'string' || !/^[a-f0-9-]{36}$/i.test(linked)))
-      invalid('livePhotoVideoId', '请使用动态视频上传返回的有效资产 ID');
     const pairId = info.pair ? await digest(info.pair) : null,
       logical = pairId ? `live:${pairId}` : `sha1:${staged.hash}`;
+    if (info.type === 'IMAGE' && info.pair && !linked) {
+      // Official iOS continues with the still after a rejected motion upload.
+      // Preserve the actual quota cause instead of masking it with a missing-ID error.
+      if (
+        await db
+          .prepare(
+            'SELECT 1 WHERE (SELECT COUNT(*) FROM logical_asset_slots WHERE owner_id=?)>=20 AND NOT EXISTS(SELECT 1 FROM logical_asset_slots WHERE owner_id=? AND slot=?)',
+          )
+          .bind(identity.id, identity.id, logical)
+          .first()
+      )
+        assetLimit(true);
+      invalid('livePhotoVideoId', 'Live Photo 必须先完整上传动态视频，再提交返回的视频 ID');
+    }
+    if (linked !== null && (typeof linked !== 'string' || !/^[a-f0-9-]{36}$/i.test(linked)))
+      invalid('livePhotoVideoId', '请使用动态视频上传返回的有效资产 ID');
     const verifyVideo = async () => {
       if (!linked) return;
       if (!pairId)
@@ -309,14 +330,24 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
       { status: result[0]!.meta.changes ? 201 : 200 },
     );
   } catch (error) {
+    // The official client can hide the motion HTTP failure. Log only our fixed
+    // category, status and media type, never filenames, metadata or submitted values.
+    console.log(
+      JSON.stringify({
+        code: String(error).includes('ASSET_LIMIT')
+          ? 'MEDIA_UPLOAD_ASSET_LIMIT'
+          : 'MEDIA_UPLOAD_REJECTED',
+        status: String(error).includes('ASSET_LIMIT')
+          ? 409
+          : error instanceof HttpError
+            ? error.status
+            : 503,
+        mediaType: mediaType ?? 'unknown',
+      }),
+    );
     if (error instanceof HttpError) throw error;
     const message = String(error);
-    if (message.includes('ASSET_LIMIT'))
-      throw new HttpError(
-        409,
-        'assetData：当前账户最多 20 个逻辑资产（含待恢复上传和回收站），请先处理现有项目',
-        'assetData',
-      );
+    if (message.includes('ASSET_LIMIT')) assetLimit();
     if (
       message.includes('LIVE_PHOTO') ||
       message.includes('upload_intents.owner_id') ||

@@ -4,6 +4,8 @@
 
 实现已部署 dev，完整检查与公网结果见[dev 验证记录](p2-live-photo-support-dev-deployment.md)。test/生产保持不变。
 
+2026-11-02 收到 iOS 3.3.5 build 26 真机失败日志：账号占满 20 个逻辑名额，使动态部分先被拒绝，另发现云端照片标识写入接口缺失。修复和续测说明见[真机问题记录](p2-ios-live-photo-upload-fix.md)。播放与系统相册恢复仍待真机通过。
+
 ## 接口与存储
 
 沿用 POST /api/assets。先上传 visibility=hidden 的 MOV，取得 id；再上传 JPEG/HEIC，livePhotoVideoId 填入该 id。两份文件独立保留原始字节和 R2 原生 SHA-1；按照片 MakerNote ContentIdentifier 与 MOV content.identifier 校验同一所有者内的配对，不接受替换配对、缺少动态原件或已删除视频。MOV 限 H.264/HEVC 与有效 Live Photo 元数据，不开放普通视频备份。
