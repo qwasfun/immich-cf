@@ -10,22 +10,24 @@
     "pnpm": "11.x"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "pnpm web:build && node scripts/dev.mjs",
+    "web:dev": "vite --config web/vite.config.ts",
+    "web:build": "vite build --config web/vite.config.ts",
     "types": "wrangler types --env dev",
-    "typecheck": "pnpm types && tsc --noEmit",
-    "lint": "eslint src",
+    "typecheck": "pnpm types && tsc --noEmit && tsc --project web/tsconfig.json",
+    "lint": "eslint src web/src",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test": "pnpm web:build && node --test --test-concurrency=1 tests/*.test.mjs",
     "contracts:verify": "node scripts/verify-contracts.mjs",
     "p2:real-media": "node scripts/real-media-check.mjs",
     "p1:create-local-user": "node scripts/create-local-user.mjs",
-    "build": "wrangler deploy --env dev --dry-run --outdir dist",
+    "build": "pnpm web:build && wrangler deploy --env dev --dry-run --outdir dist/worker",
     "deploy:dev": "node scripts/release.mjs dev",
     "db:migrate:local": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --local",
     "db:migrate:dev": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --remote",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "dev:local": "wrangler dev --env dev --local",
+    "dev:local": "pnpm web:build && wrangler dev --env dev --local",
     "deploy:test": "node scripts/release.mjs test",
     "deploy:prod": "node scripts/release.mjs prod",
     "release:dev": "node scripts/release.mjs dev",
@@ -36,15 +38,20 @@
     "reference:down": "node scripts/reference-env.mjs down"
   },
   "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "eslint": "10.12.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
+    "vite": "^8.3.5",
     "wrangler": "4.149.0"
   },
   "dependencies": {
     "@remix-run/multipart-parser": "1.0.0",
     "bcryptjs": "3.0.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "saxes": "6.0.0"
   }
 }

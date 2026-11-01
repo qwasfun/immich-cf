@@ -4,6 +4,8 @@
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
 
+新增 [中文网页版 V1](docs/web-v1.md)：照片墙、大图与原件下载、收藏/相册/回收站管理、账号设置及管理员账号管理；不提供浏览器上传或公开分享。dev 网页沿用 Worker 根地址，验收情况见 [发布记录](docs/web-v1-dev-deployment.md)。
+
 新增 [Live Photo 原件备份与 Images 免费预览](docs/p2-live-photo-support.md)：JPEG/HEIC＋MOV 配对、流式上传、整组生命周期和 v2 导出；真实 iPhone 播放与恢复仍待独立验收。
 
 测试账号已由用户确认升级Workers Paid，功能开发暂不受免费计划限制；当前约束以[Paid开发决策](docs/paid-development-decision.md)为准。

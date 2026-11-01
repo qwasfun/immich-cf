@@ -3,6 +3,7 @@ import { runPurgeJobs } from './poc/purge';
 import { route } from './poc/routes';
 import { runPreviews } from './poc/previews';
 import { cleanStaging } from './poc/media-staging';
+import { webRoute } from './web/routes';
 
 export default {
   async scheduled(controller, env, ctx) {
@@ -48,6 +49,8 @@ export default {
     }
 
     if (String(env.ENABLE_P1_POC) === 'true') {
+      const web = await webRoute(request, env, requestId, ctx);
+      if (web) return web;
       const response = await route(request, env, requestId, ctx);
       if (response) return response;
     }
@@ -61,6 +64,34 @@ export default {
       );
     }
 
+    if (
+      String(env.ENABLE_P1_POC) === 'true' &&
+      env.WEB_ASSETS &&
+      ['GET', 'HEAD'].includes(request.method) &&
+      (/^\/(?:login|photos|favorites|trash|account|admin\/users)?\/?$/.test(pathname) ||
+        /^\/albums(?:\/[a-f0-9-]{36})?\/?$/.test(pathname) ||
+        pathname.startsWith('/assets/') ||
+        pathname === '/favicon.svg')
+    ) {
+      const asset = await env.WEB_ASSETS.fetch(request);
+      if (
+        pathname.startsWith('/assets/') &&
+        asset.headers.get('Content-Type')?.includes('text/html')
+      )
+        return errorResponse('NOT_FOUND', '请求的静态文件不存在', 404, requestId);
+      const response = new Response(asset.body, asset);
+      response.headers.set('X-Content-Type-Options', 'nosniff');
+      response.headers.set('Referrer-Policy', 'same-origin');
+      response.headers.set(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      );
+      response.headers.set(
+        'Cache-Control',
+        pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-store',
+      );
+      return response;
+    }
     return errorResponse('NOT_FOUND', '请求的接口不存在', 404, requestId);
   },
 } satisfies ExportedHandler<Env>;

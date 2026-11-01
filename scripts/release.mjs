@@ -26,6 +26,17 @@ if (upstream) {
 }
 const wrangler = path.resolve(path.dirname(require.resolve('wrangler')), '../bin/wrangler.js');
 const run = (args) => execFileSync(process.execPath, [wrangler, ...args], { stdio: 'inherit' });
+// A release must contain the frontend built from the same checkout as the Worker.
+execFileSync(
+  process.execPath,
+  [
+    path.resolve(path.dirname(require.resolve('vite/package.json')), 'bin/vite.js'),
+    'build',
+    '--config',
+    'web/vite.config.ts',
+  ],
+  { stdio: 'inherit' },
+);
 console.log(
   `发布环境 ${target}，提交 ${git('rev-parse', 'HEAD')}。数据仅应用本环境迁移，不复制其它环境数据。`,
 );

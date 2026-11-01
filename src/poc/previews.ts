@@ -4,7 +4,7 @@ import { originalMatches } from './integrity';
 
 export async function queuePreviews(env: Env, id: string) {
   const row = await env.IMMICH_CF_DB.prepare(
-    "SELECT owner_id,checksum FROM assets WHERE id=? AND mime='image/heic' AND media_type='IMAGE'",
+    "SELECT owner_id,checksum FROM assets WHERE id=? AND mime IN ('image/jpeg','image/png','image/heic') AND media_type='IMAGE'",
   )
     .bind(id)
     .first<{ owner_id: string; checksum: string }>();
@@ -63,10 +63,10 @@ export async function runPreviews(env: Env, assetId?: string) {
     try {
       const asset = await db
         .prepare(
-          "SELECT object_key,bytes,checksum FROM assets WHERE id=? AND owner_id=? AND mime='image/heic' AND checksum=?",
+          "SELECT object_key,bytes,checksum,r2_sha1_verified FROM assets WHERE id=? AND owner_id=? AND mime IN ('image/jpeg','image/png','image/heic') AND checksum=?",
         )
         .bind(row.asset_id, row.owner_id, row.source_checksum)
-        .first<{ object_key: string; bytes: number; checksum: string }>();
+        .first<{ object_key: string; bytes: number; checksum: string; r2_sha1_verified: number }>();
       if (!asset) {
         await db
           .prepare(
@@ -97,7 +97,10 @@ export async function runPreviews(env: Env, assetId?: string) {
       )
         throw new HttpError(503, '9422');
       const source = await env.IMMICH_CF_MEDIA.get(asset.object_key);
-      if (!source || !originalMatches(source, asset.bytes, asset.checksum, true))
+      if (
+        !source ||
+        !originalMatches(source, asset.bytes, asset.checksum, !!asset.r2_sha1_verified)
+      )
         throw new HttpError(503, 'ORIGINAL_UNAVAILABLE');
       let timer: ReturnType<typeof setTimeout> | undefined;
       const transform = env.IMAGES.input(source.body)
