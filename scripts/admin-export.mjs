@@ -35,7 +35,7 @@ export async function exportAccount({
   }
   if (typeof accessToken !== 'string' || !/^[a-f0-9]{64}$/i.test(accessToken))
     throw Error('credentials：请提供含有效accessToken的本机JSON文件');
-  async function get(path, maxResponseBytes = 2 * 1024 * 1024) {
+  async function get(path, maxResponseBytes = 2 * 1024 * 1024, allowLegacy = false) {
     let r;
     for (let n = 0; n < 3; n++) {
       r = await request(base.origin + path, {
@@ -48,24 +48,128 @@ export async function exportAccount({
       });
       if (!r.metrics.errorCode && ![502, 503, 504].includes(r.metrics.status)) break;
     }
+    if (allowLegacy && !r.metrics.errorCode && [404, 405, 501].includes(r.metrics.status))
+      return undefined;
     if (r.metrics.errorCode || r.metrics.status !== 200)
       throw Error('导出请求：未取得完整有效响应，请检查授权、网络或重新导出');
     return r.bytes;
   }
   const path = '/api/immich-cf/admin/export?userId=' + encodeURIComponent(userId);
-  const manifest = JSON.parse((await get(path)).toString('utf8'));
+  const pagePath = '/api/immich-cf/admin/export/page?userId=' + encodeURIComponent(userId);
+  const dir = resolve(out);
+  await mkdir(dir);
+  await writeFile(join(dir, 'INCOMPLETE'), '导出未完成，不能作为完整备份\n', { flag: 'wx' });
+  const first = await get(pagePath, 2 * 1024 * 1024, true);
+  let manifest, completionPath, snapshot, totals, exportedAt;
+  if (first === undefined) manifest = JSON.parse((await get(path)).toString('utf8'));
+  else {
+    const arrays = { assets: [], albums: [], relations: [] },
+      max = { assets: 20000, albums: 100, relations: 1000000 };
+    const kinds = ['assets', 'albums', 'relations', 'complete'],
+      sizes = [50, 20, 2000, 0];
+    const lastKeys = {},
+      seenCursors = new Set();
+    let data = JSON.parse(first.toString('utf8')),
+      requestPath = pagePath,
+      priorKind = 0;
+    for (let page = 0; ; page++) {
+      if (
+        page > 2000 ||
+        data.format !== 'immich-cf-account-pages-v1' ||
+        data.manifestFormat !== 'immich-cf-account-v2' ||
+        data.ownerId !== userId ||
+        !data.includesTrash ||
+        data.fullDatabaseBackup !== false
+      )
+        throw Error('分页清单：格式、账号或页数无效，导出未完成');
+      if (page === 0) {
+        snapshot = data.snapshot;
+        totals = data.totals;
+        exportedAt = data.exportedAt;
+        if (
+          !snapshot ||
+          !['assetRevision', 'albumRevision'].every(
+            (k) => Number.isSafeInteger(snapshot[k]) && snapshot[k] >= 0,
+          ) ||
+          !totals ||
+          !Object.keys(max).every(
+            (k) => Number.isSafeInteger(totals[k]) && totals[k] >= 0 && totals[k] <= max[k],
+          ) ||
+          typeof exportedAt !== 'string'
+        )
+          throw Error('分页清单：版本或总数无效，导出未完成');
+      }
+      if (
+        JSON.stringify(data.snapshot) !== JSON.stringify(snapshot) ||
+        JSON.stringify(data.totals) !== JSON.stringify(totals) ||
+        data.exportedAt !== exportedAt
+      )
+        throw Error('分页清单：图库版本已变化，导出未完成');
+      const kind = kinds.indexOf(data.page?.kind);
+      if (
+        kind < priorKind ||
+        kind > priorKind + 1 ||
+        (page === 0 && kind !== 0) ||
+        !Array.isArray(data.page?.items) ||
+        data.page.items.length > sizes[kind]
+      )
+        throw Error('分页清单：顺序或单页范围无效，导出未完成');
+      priorKind = kind;
+      if (kind === 3) {
+        if (
+          data.page.nextCursor !== null ||
+          data.page.items.length ||
+          !Object.keys(arrays).every((k) => arrays[k].length === totals[k])
+        )
+          throw Error('分页清单：项目缺失或总数不符，导出未完成');
+        completionPath = requestPath;
+        break;
+      }
+      const name = kinds[kind];
+      for (const row of data.page.items) {
+        const ids = kind === 2 ? [row.album_id, row.asset_id] : [row.id];
+        if (ids.some((id) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)))
+          throw Error('分页清单：项目 ID 无效，导出未完成');
+        const key = ids.join(':');
+        if (lastKeys[name] !== undefined && key <= lastKeys[name])
+          throw Error('分页清单：存在重复或乱序项目，导出未完成');
+        lastKeys[name] = key;
+        arrays[name].push(row);
+      }
+      if (arrays[name].length > totals[name]) throw Error('分页清单：项目总数溢出，导出未完成');
+      const cursor = data.page.nextCursor;
+      if (
+        typeof cursor !== 'string' ||
+        !/^[a-zA-Z0-9_-]{1,2048}$/.test(cursor) ||
+        seenCursors.has(cursor)
+      )
+        throw Error('分页清单：缺少有效后续游标，导出未完成');
+      seenCursors.add(cursor);
+      requestPath = pagePath + '&cursor=' + encodeURIComponent(cursor);
+      data = JSON.parse((await get(requestPath)).toString('utf8'));
+    }
+    manifest = {
+      format: 'immich-cf-account-v2',
+      ownerId: userId,
+      exportedAt,
+      includesTrash: true,
+      fullDatabaseBackup: false,
+      ...arrays,
+      snapshot,
+      totals,
+    };
+  }
   if (
     !['immich-cf-account-v1', 'immich-cf-account-v2'].includes(manifest.format) ||
     manifest.ownerId !== userId ||
     !Array.isArray(manifest.assets) ||
-    manifest.assets.length > (manifest.format === 'immich-cf-account-v2' ? 40 : 20) ||
+    manifest.assets.length > (manifest.format === 'immich-cf-account-v2' ? 20000 : 10000) ||
     !Array.isArray(manifest.albums) ||
-    !Array.isArray(manifest.relations)
+    manifest.albums.length > 100 ||
+    !Array.isArray(manifest.relations) ||
+    manifest.relations.length > 1000000
   )
     throw Error('清单：格式、账号或范围不正确');
-  const dir = resolve(out);
-  await mkdir(dir); // A fresh folder prevents overwriting an existing export.
-  await writeFile(join(dir, 'INCOMPLETE'), '导出未完成，不能作为完整备份\n', { flag: 'wx' });
   await writeFile(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', {
     flag: 'wx',
   });
@@ -90,6 +194,13 @@ export async function exportAccount({
       typeof asset.checksum !== 'string'
     )
       throw Error('资产清单：ID、格式、大小或校验值无效');
+    if (
+      manifest.format === 'immich-cf-account-v2' &&
+      (asset.mime === 'video/quicktime'
+        ? asset.media_type !== 'VIDEO' || asset.visibility !== 'hidden' || asset.live_photo_video_id
+        : asset.media_type !== 'IMAGE')
+    )
+      throw Error('资产清单：媒体类型、可见性或配对字段无效');
     seen.add(asset.id);
     const expected = `/api/immich-cf/admin/export/original?userId=${userId}&id=${asset.id}&revision=${asset.sync_seq}`;
     if (asset.downloadPath !== expected) throw Error('下载路径：与清单账号或资产不匹配');
@@ -117,10 +228,11 @@ export async function exportAccount({
     );
   }
   if (manifest.format === 'immich-cf-account-v2') {
-    const linked = new Set();
+    const linked = new Set(),
+      byId = new Map(manifest.assets.map((a) => [a.id, a]));
     for (const asset of manifest.assets) {
       if (!asset.live_photo_video_id) continue;
-      const video = manifest.assets.find((v) => v.id === asset.live_photo_video_id);
+      const video = byId.get(asset.live_photo_video_id);
       if (
         asset.media_type !== 'IMAGE' ||
         asset.visibility !== 'timeline' ||
@@ -136,11 +248,55 @@ export async function exportAccount({
     }
     if (manifest.assets.some((a) => a.media_type === 'VIDEO' && !linked.has(a.id)))
       throw Error('Live Photo 配对：存在尚未配对的动态原件，导出未完成');
+    if (manifest.assets.length - linked.size > 10000)
+      throw Error('资产清单：超过 10,000 个逻辑资产，导出未完成');
   }
-  const latest = JSON.parse((await get(path)).toString('utf8'));
-  for (const key of ['assets', 'albums', 'relations'])
-    if (JSON.stringify(latest[key]) !== JSON.stringify(manifest[key]))
-      throw Error('清单：下载期间图库发生变化，请保留此目录并重新导出到新目录');
+  const albumIds = new Set(),
+    relations = new Set(),
+    byId = new Map(manifest.assets.map((a) => [a.id, a]));
+  for (const album of manifest.albums) {
+    if (
+      typeof album.id !== 'string' ||
+      !/^[a-f0-9-]{36}$/i.test(album.id) ||
+      albumIds.has(album.id)
+    )
+      throw Error('相册清单：ID 无效或重复，导出未完成');
+    albumIds.add(album.id);
+  }
+  for (const relation of manifest.relations) {
+    const key = relation.album_id + ':' + relation.asset_id;
+    if (
+      !albumIds.has(relation.album_id) ||
+      !byId.has(relation.asset_id) ||
+      byId.get(relation.asset_id).media_type === 'VIDEO' ||
+      relations.has(key)
+    )
+      throw Error('相册关系：照片或相册缺失、重复或引用了隐藏视频，导出未完成');
+    relations.add(key);
+  }
+  for (const album of manifest.albums)
+    if (album.thumbnail_asset_id && !relations.has(album.id + ':' + album.thumbnail_asset_id))
+      throw Error('相册封面：未关联到对应照片，导出未完成');
+  if (completionPath) {
+    const latest = JSON.parse((await get(completionPath)).toString('utf8'));
+    if (
+      latest.format !== 'immich-cf-account-pages-v1' ||
+      latest.ownerId !== userId ||
+      latest.page?.kind !== 'complete' ||
+      latest.page.nextCursor !== null ||
+      !Array.isArray(latest.page.items) ||
+      latest.page.items.length ||
+      JSON.stringify(latest.snapshot) !== JSON.stringify(snapshot) ||
+      JSON.stringify(latest.totals) !== JSON.stringify(totals) ||
+      latest.exportedAt !== exportedAt
+    )
+      throw Error('清单：下载期间图库或相册关系发生变化，导出未完成');
+  } else {
+    const latest = JSON.parse((await get(path)).toString('utf8'));
+    for (const key of ['assets', 'albums', 'relations'])
+      if (JSON.stringify(latest[key]) !== JSON.stringify(manifest[key]))
+        throw Error('清单：下载期间图库发生变化，请保留此目录并重新导出到新目录');
+  }
   await writeFile(
     join(dir, 'INCOMPLETE'),
     JSON.stringify(

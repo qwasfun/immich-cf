@@ -57,6 +57,8 @@ before(async () => {
     remoteBindings: false,
   });
   db = platform.env.IMMICH_CF_DB;
+  // Keep existing small-capacity quota scenarios isolated from the production default.
+  await db.prepare('UPDATE asset_quota_config SET logical_limit=20 WHERE id=1').run();
   await db
     .prepare(
       'INSERT INTO users (id,email,name,password_hash,created_at,update_id) VALUES (?,?,?,?,?,?)',

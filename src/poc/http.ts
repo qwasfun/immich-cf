@@ -12,7 +12,11 @@ export function invalid(field: string, reason: string): never {
   throw new HttpError(400, `${field}：${reason}`, field);
 }
 
-export async function body(request: Request, allowEmpty = false): Promise<Record<string, unknown>> {
+export async function body(
+  request: Request,
+  allowEmpty = false,
+  maxBytes = 65536,
+): Promise<Record<string, unknown>> {
   const json = request.headers.get('content-type')?.toLowerCase().startsWith('application/json');
   if (!allowEmpty && !json) {
     throw new HttpError(415, 'Content-Type：请使用 application/json');
@@ -25,9 +29,13 @@ export async function body(request: Request, allowEmpty = false): Promise<Record
     const { value, done } = await reader.read();
     if (done) break;
     length += value.length;
-    if (length > 65536) {
+    if (length > maxBytes) {
       await reader.cancel();
-      throw new HttpError(413, '请求体：最多 64 KiB，请减少提交内容');
+      throw new HttpError(
+        413,
+        `请求体：最多 ${maxBytes === 65536 ? '64 KiB' : maxBytes.toLocaleString('en-US') + ' 字节'}，请减少提交内容或分批发送`,
+        '请求体',
+      );
     }
     chunks.push(value);
   }

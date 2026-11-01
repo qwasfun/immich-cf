@@ -1,10 +1,11 @@
 import { authenticate, type Identity } from './auth';
 import { body, HttpError, invalid } from './http';
+import { assetQuota, assetLimit } from './quota';
 import { imageHeader } from './image-header';
 import { media } from './media';
 import { guardLivePhoto } from './live-photo';
 import { originalMatches } from './integrity';
-import { completeOriginals, uploadLive } from './live-upload';
+import { uploadLive } from './live-upload';
 import { readPreview, runPreviews } from './previews';
 
 import { MAX_IMAGE, parseUploadForm } from './multipart';
@@ -277,11 +278,7 @@ export async function upload(request: Request, env: Env, identity: Identity) {
   } catch (error) {
     if (error instanceof HttpError) throw error;
     if (error instanceof Error && error.message.includes('ASSET_LIMIT'))
-      throw new HttpError(
-        409,
-        'assetData：当前实验账户最多 20 张（含待恢复上传），请重试未完成图片或停止批量备份',
-        'assetData',
-      );
+      assetLimit((await assetQuota(db, identity.id)).limitValue);
     throw new HttpError(503, 'assetData：图片暂未确认保存，请稍后重试同一图片', 'assetData');
   }
 }
@@ -295,9 +292,12 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
     return { id: item.id as string, checksum: checksum(item.checksum, `assets.${i}.checksum`) };
   });
   const rows = await env.IMMICH_CF_DB.prepare(
-    "SELECT * FROM assets WHERE owner_id = ? AND visibility='timeline'",
+    `SELECT a.id,a.owner_id,a.checksum,a.object_key,a.bytes,a.r2_sha1_verified,a.deleted_at,a.live_photo_video_id,
+    v.id video_id,v.object_key video_key,v.bytes video_bytes,v.checksum video_checksum,v.r2_sha1_verified video_verified
+    FROM assets a LEFT JOIN assets v ON v.id=a.live_photo_video_id AND v.owner_id=a.owner_id AND v.media_type='VIDEO' AND v.visibility='hidden' AND v.pair_id=a.pair_id AND v.deleted_at IS a.deleted_at
+    WHERE a.owner_id=? AND a.visibility='timeline' AND a.checksum IN(SELECT value FROM json_each(?))`,
   )
-    .bind(identity.id)
+    .bind(identity.id, JSON.stringify([...new Set(entries.map((entry) => entry.checksum))]))
     .all<{
       id: string;
       checksum: string;
@@ -306,8 +306,13 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
       r2_sha1_verified: number;
       deleted_at: string | null;
       live_photo_video_id: string | null;
+      video_id: string | null;
+      video_key: string;
+      video_bytes: number;
+      video_checksum: string;
+      video_verified: number;
     }>();
-  // Only inspect this owner's requested matches, once per checksum (at most 20 assets).
+  // Inspect only the requested owner/checksum matches, never the full library.
   // An unavailable store is not evidence of either a duplicate or a missing original.
   const requested = new Set(entries.map((entry) => entry.checksum));
   const available = new Map<string, { id: string; isTrashed: boolean }>();
@@ -317,7 +322,14 @@ export async function bulkCheck(request: Request, env: Env, identity: Identity) 
       const object = await env.IMMICH_CF_MEDIA.head(row.object_key);
       if (
         originalMatches(object, row.bytes, row.checksum, !!row.r2_sha1_verified) &&
-        (!row.live_photo_video_id || (await completeOriginals(env, row as Asset)))
+        (!row.live_photo_video_id ||
+          (row.video_id &&
+            originalMatches(
+              await env.IMMICH_CF_MEDIA.head(row.video_key),
+              row.video_bytes,
+              row.video_checksum,
+              !!row.video_verified,
+            )))
       )
         available.set(row.checksum, { id: row.id, isTrashed: row.deleted_at !== null });
     }
@@ -424,82 +436,4 @@ export async function readAsset(
     row.checksum,
     !!row.r2_sha1_verified,
   );
-}
-export async function assetEvents(
-  db: D1Database,
-  identity: Identity,
-  types: string[],
-  checkpoints: ReadonlyMap<string, string>,
-  reset = false,
-) {
-  if (!types.includes('AssetsV2') && !types.includes('AssetMetadataV1')) return [];
-  const watermark = (await db
-    .prepare('SELECT value FROM asset_sync_clock WHERE id=1')
-    .first<{ value: number }>())!.value;
-  const floor = (type: string) => (reset ? 0 : Number(checkpoints.get(type)?.split('|')[1] ?? 0));
-  const rows = types.includes('AssetsV2')
-    ? await db
-        .prepare(
-          'SELECT * FROM assets WHERE owner_id=? AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq',
-        )
-        .bind(identity.id, floor('AssetV2'), watermark)
-        .all<Asset>()
-    : { results: [] };
-  const events: { type: string; ack: string; data: unknown }[] = [];
-  const metadataEvents: typeof events = [];
-  for (const row of rows.results) {
-    const cursor = String(row.sync_seq).padStart(20, '0');
-    const add = (type: string, data: unknown) => {
-      const ack = `${type}|${cursor}`;
-      if (reset || !checkpoints.has(type) || checkpoints.get(type)! < ack)
-        (type === 'AssetMetadataV1' ? metadataEvents : events).push({ type, ack, data });
-    };
-    if (types.includes('AssetsV2')) add('AssetV2', assetDto(row));
-  }
-  if (types.includes('AssetMetadataV1')) {
-    const removed = await db
-      .prepare(
-        `SELECT t.asset_id,t.metadata_key,t.sync_seq FROM asset_metadata_tombstones t
-      WHERE t.owner_id=? AND t.sync_seq>? AND t.sync_seq<=?
-      AND NOT EXISTS(SELECT 1 FROM assets a,json_each(a.metadata) entry WHERE a.id=t.asset_id AND a.owner_id=t.owner_id AND json_extract(entry.value,'$.key')=t.metadata_key)
-      ORDER BY t.sync_seq`,
-      )
-      .bind(identity.id, floor('AssetMetadataDeleteV1'), watermark)
-      .all<{ asset_id: string; metadata_key: string; sync_seq: number }>();
-    for (const row of removed.results)
-      metadataEvents.push({
-        type: 'AssetMetadataDeleteV1',
-        ack: `AssetMetadataDeleteV1|${String(row.sync_seq).padStart(20, '0')}`,
-        data: { assetId: row.asset_id, key: row.metadata_key },
-      });
-    const metadata = await db
-      .prepare(
-        "SELECT id,metadata,sync_seq FROM assets WHERE owner_id=? AND metadata<>'[]' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq",
-      )
-      .bind(identity.id, floor('AssetMetadataV1'), watermark)
-      .all<{ id: string; metadata: string; sync_seq: number }>();
-    for (const row of metadata.results)
-      for (const entry of JSON.parse(row.metadata))
-        metadataEvents.push({
-          type: 'AssetMetadataV1',
-          ack: `AssetMetadataV1|${String(row.sync_seq).padStart(20, '0')}`,
-          data: { assetId: row.id, ...entry },
-        });
-  }
-  const deletions = types.includes('AssetsV2')
-    ? await db
-        .prepare(
-          'SELECT asset_id,sync_seq FROM asset_tombstones WHERE owner_id=? AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq',
-        )
-        .bind(identity.id, floor('AssetDeleteV1'), watermark)
-        .all<{ asset_id: string; sync_seq: number }>()
-    : { results: [] };
-  for (const row of deletions.results)
-    events.push({
-      type: 'AssetDeleteV1',
-      ack: `AssetDeleteV1|${String(row.sync_seq).padStart(20, '0')}`,
-      data: { assetId: row.asset_id },
-    });
-  // Frozen upstream emits all asset rows before the metadata family.
-  return [...events, ...metadataEvents];
 }

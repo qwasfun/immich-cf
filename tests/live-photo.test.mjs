@@ -38,6 +38,8 @@ before(async () => {
     remoteBindings: false,
   });
   db = platform.env.IMMICH_CF_DB;
+  // Preserve the small-capacity fault/concurrency matrix; capacity.test covers the real 10,000 limit.
+  await db.prepare('UPDATE asset_quota_config SET logical_limit=20 WHERE id=1').run();
   bucket = platform.env.IMMICH_CF_MEDIA;
   worker = await unstable_dev('tests/fixtures/live-photo-worker.ts', {
     config: 'wrangler.json',
@@ -564,4 +566,216 @@ test('重启遗留 multipart 有持久编号可中止，清理不能越过原件
       .run(),
     /STAGING_FENCED/,
   );
+});
+
+test('10,000 项图库：分页导出、80MB 元数据流、双会话 ACK/reset 与完整配对', async () => {
+  await db.prepare('UPDATE asset_quota_config SET logical_limit=10000 WHERE id=1').run();
+  try {
+    const u = await user();
+    const metadata = JSON.stringify([
+      { key: 'mobile-app', value: { iCloudId: 'capacity-fixture', padding: 'x'.repeat(7900) } },
+    ]);
+    for (let at = 0; at < 9999; at += 100) {
+      await db.batch(
+        Array.from({ length: Math.min(100, 9999 - at) }, (_, offset) => {
+          const n = at + offset,
+            id = `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+          return db
+            .prepare(
+              `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata) VALUES(?,?,?,?,?,'image/png',1,1,1,'date','date','date',0,?)`,
+            )
+            .bind(id, u.id, 'seed-' + n, u.id + '/' + id, 'seed.png', metadata);
+        }),
+      );
+    }
+    const p = await pair(u);
+    const over = await upload(u, liveMov(pairId()), { visibility: 'hidden' }, 'OVER.MOV');
+    assert.equal(over.status, 409);
+    assert.match((await over.json()).message, /10,000/);
+    await db.prepare('INSERT INTO operations_admins(user_id) VALUES(?)').bind(u.id).run();
+    const album = await api('/api/albums', { albumName: 'capacity album' }, u.token);
+    assert.equal(album.status, 201);
+    await db
+      .prepare(
+        "INSERT INTO album_assets(album_id,asset_id,owner_id) SELECT ?,id,owner_id FROM assets WHERE owner_id=? AND visibility='timeline' ORDER BY id LIMIT 2001",
+      )
+      .bind((await album.json()).id, u.id)
+      .run();
+    const legacy = await api(
+      `/api/immich-cf/admin/export?userId=${u.id}`,
+      undefined,
+      u.token,
+      'GET',
+    );
+    assert.equal(legacy.status, 409);
+    let path = `/api/immich-cf/admin/export/page?userId=${u.id}`,
+      first,
+      terminal;
+    const ids = new Set();
+    let relations = 0;
+    let pages = 0;
+    while (true) {
+      const r = await api(path, undefined, u.token, 'GET');
+      assert.equal(r.status, 200, await r.clone().text());
+      const data = await r.json();
+      first ??= data;
+      assert.equal(data.snapshot.assetRevision, first.snapshot.assetRevision);
+      if (data.page.kind === 'assets')
+        for (const row of data.page.items) {
+          assert.ok(!ids.has(row.id));
+          ids.add(row.id);
+        }
+      if (data.page.kind === 'relations') relations += data.page.items.length;
+      pages++;
+      if (data.page.nextCursor === null) {
+        terminal = path;
+        assert.equal(data.page.kind, 'complete');
+        break;
+      }
+      path = `/api/immich-cf/admin/export/page?userId=${u.id}&cursor=${encodeURIComponent(data.page.nextCursor)}`;
+    }
+    assert.equal(ids.size, 10001);
+    assert.equal(first.totals.assets, 10001);
+    assert.equal(first.totals.relations, 2001);
+    assert.equal(relations, 2001);
+    assert.ok(ids.has(p.id) && ids.has(p.video));
+    assert.ok(pages > 200);
+    async function consume(token, reset = false) {
+      const r = await api(
+        '/api/sync/stream',
+        {
+          types: [
+            'AssetsV2',
+            'AssetMetadataV1',
+            'AlbumsV2',
+            'AlbumUsersV1',
+            'AlbumAssetsV2',
+            'AlbumToAssetsV1',
+          ],
+          ...(reset ? { reset: true } : {}),
+        },
+        token,
+      );
+      assert.equal(r.status, 200);
+      const counts = {},
+        acks = new Map(),
+        seen = new Set(),
+        decoder = new TextDecoder();
+      let buffer = '',
+        linked = false;
+      for await (const chunk of r.body) {
+        buffer += decoder.decode(chunk, { stream: true });
+        let at;
+        while ((at = buffer.indexOf('\n')) >= 0) {
+          const e = JSON.parse(buffer.slice(0, at));
+          buffer = buffer.slice(at + 1);
+          counts[e.type] = (counts[e.type] ?? 0) + 1;
+          acks.set(e.type, e.ack);
+          if (e.type === 'AssetV2') {
+            assert.ok(!seen.has(e.data.id));
+            seen.add(e.data.id);
+            if (e.data.id === p.id) linked = e.data.livePhotoVideoId === p.video;
+          }
+          if (e.type === 'AssetMetadataV1') assert.equal(e.data.value.padding.length, 7900);
+        }
+      }
+      assert.equal(buffer, '');
+      return { counts, acks: [...acks.values()], linked };
+    }
+    const second = await api('/api/auth/login', {
+      email: `${u.id}@example.invalid`,
+      password: 'test-password',
+    });
+    const other = (await second.json()).accessToken;
+    for (const token of [u.token, other]) {
+      const result = await consume(token);
+      assert.equal(result.counts.AssetV2, 10001);
+      assert.equal(result.counts.AssetMetadataV1, 9999);
+      assert.equal(result.counts.AlbumToAssetV1, 2001);
+      assert.equal(result.counts.AlbumAssetCreateV2, 2001);
+      assert.equal(result.counts.SyncCompleteV1, 1);
+      assert.equal(result.linked, true);
+      assert.equal((await api('/api/sync/ack', { acks: result.acks }, token)).status, 204);
+      const next = await consume(token);
+      assert.equal(next.counts.AssetV2 ?? 0, 0);
+      assert.equal(next.counts.AssetMetadataV1 ?? 0, 0);
+    }
+    const rebuilt = await consume(other, true);
+    assert.equal(rebuilt.counts.AssetV2, 10001);
+    assert.equal(rebuilt.counts.AssetMetadataV1, 9999);
+    assert.equal(rebuilt.linked, true);
+    assert.equal((await api('/api/sync/ack', { acks: rebuilt.acks }, other)).status, 204);
+    const interrupted = await api(
+      '/api/sync/stream',
+      { types: ['AssetsV2', 'AssetMetadataV1'], reset: true },
+      u.token,
+    );
+    const reader = interrupted.body.getReader();
+    const interruptionDecoder = new TextDecoder();
+    let prefix = '';
+    while (!prefix.includes('\n')) {
+      const part = await reader.read();
+      assert.equal(part.done, false);
+      prefix += interruptionDecoder.decode(part.value, { stream: true });
+    }
+    const firstLine = JSON.parse(prefix.split('\n')[0]);
+    assert.equal(firstLine.type, 'AssetV2');
+    assert.equal(
+      (await api(`/api/assets/${p.id}`, { isFavorite: true }, u.token, 'PUT')).status,
+      200,
+    );
+    let sawComplete = prefix.includes('SyncCompleteV1'),
+      tail = prefix.slice(-128);
+    // An intermediary may turn a body error into a clean, incomplete EOF.
+    // Both must lack SyncComplete; recovery is checked through the actual ACK below.
+    try {
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        const text = tail + interruptionDecoder.decode(next.value, { stream: true });
+        if (text.includes('SyncCompleteV1')) sawComplete = true;
+        tail = text.slice(-128);
+      }
+    } catch {
+      /* Body errors and incomplete EOF have the same retry contract. */
+    }
+    assert.equal(sawComplete, false);
+    assert.equal((await api('/api/sync/ack', { acks: [firstLine.ack] }, u.token)).status, 204);
+    const recovered = await consume(u.token);
+    assert.equal(recovered.counts.AssetV2, 10000);
+    assert.equal(recovered.counts.SyncCompleteV1, 1);
+    assert.equal(recovered.linked, true);
+    const bulkItems = Array.from({ length: 5000 }, (_, n) => ({
+      assetId: `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`,
+      key: 'mobile-app',
+      value: { iCloudId: 'capacity-migrated-' + n, createdAt: '2026-11-02T00:00:00.000' },
+    }));
+    assert.ok(Buffer.byteLength(JSON.stringify({ items: bulkItems })) > 65536);
+    const bulkMetadata = await api('/api/assets/metadata', { items: bulkItems }, u.token, 'PUT');
+    assert.equal(bulkMetadata.status, 200, await bulkMetadata.clone().text());
+    assert.equal((await bulkMetadata.json()).length, 5000);
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT logical_assets FROM asset_owner_usage WHERE owner_id=?')
+          .bind(u.id)
+          .first()
+      ).logical_assets,
+      10000,
+    );
+    assert.equal(
+      (
+        await api(
+          '/api/assets/metadata',
+          { items: [{ assetId: p.id, key: 'mobile-app', value: { iCloudId: 'changed' } }] },
+          u.token,
+          'PUT',
+        )
+      ).status,
+      200,
+    );
+    assert.equal((await api(terminal, undefined, u.token, 'GET')).status, 409); // A completed cursor cannot validate an obsolete export.
+  } finally {
+    await db.prepare('UPDATE asset_quota_config SET logical_limit=20 WHERE id=1').run();
+  }
 });

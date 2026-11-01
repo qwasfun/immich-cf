@@ -20,6 +20,7 @@ import { runPreviews } from './previews';
 const methods: Record<string, string[]> = {
   '/api/immich-cf/admin/status': ['GET'],
   '/api/immich-cf/admin/export': ['GET'],
+  '/api/immich-cf/admin/export/page': ['GET'],
   '/api/immich-cf/admin/export/original': ['GET'],
   '/api/immich-cf/upgrade-integrity': ['POST'],
   '/api/immich-cf/storage-audit': ['POST'],

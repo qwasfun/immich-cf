@@ -6,14 +6,8 @@ import { inspectMedia, MAX_PHOTO } from './media-format';
 import { stageUpload, cleanStaging } from './media-staging';
 import { guardLivePhoto } from './live-photo';
 import { queuePreviews } from './previews';
+import { assetQuota, assetLimit } from './quota';
 
-function assetLimit(missingMotion = false): never {
-  throw new HttpError(
-    409,
-    `assetData：账户已达 20 个逻辑资产上限（含回收站和待完成上传）${missingMotion ? '，动态视频尚未完成，照片也不能完成整组备份' : ''}；请先确认已有项目已另行备份，再永久删除不需要的项目以释放名额，然后重试备份`,
-    'assetData',
-  );
-}
 export async function completeOriginals(env: Env, row: Asset): Promise<boolean> {
   if (
     !originalMatches(
@@ -145,15 +139,17 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
     if (info.type === 'IMAGE' && info.pair && !linked) {
       // Official iOS continues with the still after a rejected motion upload.
       // Preserve the actual quota cause instead of masking it with a missing-ID error.
+      const quota = await assetQuota(db, identity.id);
       if (
-        await db
+        quota.used >= quota.limitValue &&
+        (await db
           .prepare(
-            'SELECT 1 WHERE (SELECT COUNT(*) FROM logical_asset_slots WHERE owner_id=?)>=20 AND NOT EXISTS(SELECT 1 FROM logical_asset_slots WHERE owner_id=? AND slot=?)',
+            'SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM logical_asset_slots WHERE owner_id=? AND slot=?)',
           )
-          .bind(identity.id, identity.id, logical)
-          .first()
+          .bind(identity.id, logical)
+          .first())
       )
-        assetLimit(true);
+        assetLimit(quota.limitValue, true);
       invalid('livePhotoVideoId', 'Live Photo 必须先完整上传动态视频，再提交返回的视频 ID');
     }
     if (linked !== null && (typeof linked !== 'string' || !/^[a-f0-9-]{36}$/i.test(linked)))
@@ -347,7 +343,7 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
     );
     if (error instanceof HttpError) throw error;
     const message = String(error);
-    if (message.includes('ASSET_LIMIT')) assetLimit();
+    if (message.includes('ASSET_LIMIT')) assetLimit((await assetQuota(db, identity.id)).limitValue);
     if (
       message.includes('LIVE_PHOTO') ||
       message.includes('upload_intents.owner_id') ||

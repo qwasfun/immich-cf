@@ -13,6 +13,36 @@ const events = [
   { type: 'SyncCompleteV1', data: {}, ack: 'SyncCompleteV1|019e0000-0000-7000-8000-000000000001' },
 ];
 
+test('异步分页源遵循背压，取消时释放源，失败时不伪造 SyncComplete', async () => {
+  let fetched = 0,
+    closed = false;
+  async function* pages() {
+    try {
+      for (const event of events) {
+        fetched++;
+        yield event;
+      }
+    } finally {
+      closed = true;
+    }
+  }
+  const response = syncLines(pages());
+  assert.equal(fetched, 0);
+  const reader = response.body.getReader();
+  await reader.read();
+  assert.equal(fetched, 1);
+  await reader.cancel();
+  assert.equal(fetched, 1);
+  assert.equal(closed, true);
+  async function* broken() {
+    yield events[0];
+    throw Error('TEST_PAGE_CHANGED');
+  }
+  const failed = syncLines(broken()).body.getReader();
+  assert.equal(JSON.parse(new TextDecoder().decode((await failed.read()).value)).type, 'UserV1');
+  await assert.rejects(failed.read(), /TEST_PAGE_CHANGED/);
+});
+
 test('JSONL 在每个字节切点、逐字节及多行同块下保留 Unicode、空值、转义和 ACK', async () => {
   const response = syncLines(events);
   assert.equal(response.headers.get('content-type'), 'application/jsonlines+json');

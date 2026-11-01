@@ -55,6 +55,8 @@ async function fixture(mode = 'ok') {
     media = 0;
   const request = async (url, options) => {
     assert.equal(options.method, 'GET');
+    if (url.includes('/export/page?'))
+      return { metrics: { errorCode: null, status: 404 }, bytes: Buffer.from('{}') };
     if (url.includes('/original?')) {
       media++;
       if (mode === 'timeout' && media < 3)

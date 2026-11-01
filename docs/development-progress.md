@@ -1,5 +1,7 @@
 # immich-cf 开发进度与剩余任务
 
+2026-11-02 容量调整：每账号默认上限提高到 10,000 个逻辑资产，新增引用计数迁移、分批账号导出和内部分页 Sync，保留现有资产、Live Photo 配对及检查点。实施与验证见[容量说明](p2-asset-capacity.md)；真实规模、真机及灾备退出关口保持独立。
+
 2026-10-30约束更新：用户确认测试账号Workers已升级Paid，功能开发暂不受免费计划限制；免费额度转为后续优化目标，CPU专项继续暂缓。历史Free/G1结果保留，后续按目标套餐验收。见[Paid开发决策](paid-development-decision.md)。
 
 2026-11-01 媒体范围更新：dev 已部署 Live Photo 原件配对及 HEIC 预览，Images 单独坚持免费额度，不新增或升级付费服务。214 项完整检查、公开真实 HEIC/MOV 配对、原件摘要、预览和 v2 导出验证通过；真实 iPhone 前后台备份、第二设备播放及恢复仍未验收。见[本轮 dev 验证](p2-live-photo-support-dev-deployment.md)。

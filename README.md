@@ -10,7 +10,7 @@
 
 已推进个人相册、收藏和[回收站/恢复/永久删除](docs/p4-trash.md)，阶段结果以[开发进度](docs/development-progress.md)及各次dev验收记录为准；P2以下仍有真机、真实规模和预算退出项，不能据此认定项目已全部完成。
 
-当前推进 **P4 个人图库功能**，P2 媒体与完整兼容验收仍有未通过项：dev 已具备身份、会话、onboarding、JPEG/PNG/HEIC 上传、Live Photo 原件配对、私有读取和资产 Sync。照片最多 20,000,000 字节 / 6400 万像素、单边 16384，动态 MOV 最多 64 MiB，每账户最多 20 个逻辑资产；一组 Live Photo 计一项。官方 iOS 原小图片上传、显示与预览已获用户确认；新增 Live Photo 的真机前后台备份、动态播放及系统相册恢复仍待验收。[本轮 dev 验证](docs/p2-live-photo-support-dev-deployment.md)不等同于完整兼容、整库恢复或 G1 通过。`/healthz` 成功仅表示 Worker 正在运行。
+当前推进 **P4 个人图库功能**，P2 媒体与完整兼容验收仍有未通过项：dev 已具备身份、会话、onboarding、JPEG/PNG/HEIC 上传、Live Photo 原件配对、私有读取和资产 Sync。照片最多 20,000,000 字节 / 6400 万像素、单边 16384，动态 MOV 最多 64 MiB，每账户最多 [10,000 个逻辑资产](docs/p2-asset-capacity.md)；一组 Live Photo 计一项，并支持分批导出。官方 iOS 原小图片上传、显示与预览已获用户确认；新增 Live Photo 的真机前后台备份、动态播放及系统相册恢复仍待验收。[Live Photo dev 验证](docs/p2-live-photo-support-dev-deployment.md)不等同于完整兼容、整库恢复或 G1 通过。`/healthz` 成功仅表示 Worker 正在运行。
 
 ## 需求与开发顺序
 

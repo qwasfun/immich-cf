@@ -3,6 +3,7 @@ import { HttpError, invalid } from './http';
 import { MAX_PHOTO, MAX_MOTION } from './media-format';
 import type { Asset } from './assets';
 import { completeOriginals } from './live-upload';
+import { exportPage } from './export-pages';
 
 const uuid = (v: string | null, field: string) => {
   if (!v || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(v))
@@ -28,7 +29,9 @@ export async function admin(request: Request, env: Env, identity: Identity) {
     ? []
     : path.endsWith('/original')
       ? ['userId', 'id', 'revision']
-      : ['userId'];
+      : path.endsWith('/page')
+        ? ['userId', 'cursor']
+        : ['userId'];
   for (const key of url.searchParams.keys())
     if (!allowed.includes(key)) invalid(key, '此接口不接受该字段，请移除');
   if (path.endsWith('/status')) {
@@ -46,6 +49,7 @@ export async function admin(request: Request, env: Env, identity: Identity) {
       db.prepare(
         "SELECT (SELECT COUNT(*) FROM assets v WHERE v.media_type='VIDEO' AND NOT EXISTS(SELECT 1 FROM assets p WHERE p.live_photo_video_id=v.id)) pendingPairs,(SELECT COUNT(*) FROM media_previews WHERE status NOT IN ('ready','retired')) pendingPreviews,(SELECT COUNT(*) FROM media_previews WHERE status='quota') quotaErrors",
       ),
+      db.prepare('SELECT logical_limit FROM asset_quota_config WHERE id=1'),
     ]);
     let originalHealth: Record<string, unknown> | undefined;
     if (String(env.ENABLE_LIVE_PHOTO) === 'true') {
@@ -85,7 +89,7 @@ export async function admin(request: Request, env: Env, identity: Identity) {
         motionBytes: MAX_MOTION,
         pixels: 64000000,
         maxEdge: 16384,
-        logicalAssetsPerUser: 20,
+        logicalAssetsPerUser: (result[4]!.results[0] as { logical_limit: number }).logical_limit,
       },
       livePhotoStatus: {
         ...(result[3]!.results[0] as Record<string, unknown>),
@@ -117,12 +121,15 @@ export async function admin(request: Request, env: Env, identity: Identity) {
         includesTrash: true,
         fullDatabaseBackup: false,
         restoreVerified: false,
+        paginatedManifest: '/api/immich-cf/admin/export/page',
       },
     });
   }
   const owner = uuid(url.searchParams.get('userId'), 'userId');
   if (!(await db.prepare('SELECT id FROM users WHERE id=?').bind(owner).first()))
     throw new HttpError(404, 'userId：账号不存在，请核对账号ID', 'userId');
+  if (path.endsWith('/page'))
+    return exportPage(request, db, owner, () => requireOperator(db, identity));
   if (path.endsWith('/original')) {
     const id = uuid(url.searchParams.get('id'), 'id'),
       revision = url.searchParams.get('revision');
@@ -200,7 +207,10 @@ export async function admin(request: Request, env: Env, identity: Identity) {
     data[1]!.results.length > 100 ||
     data[2]!.results.length > 2000
   )
-    throw new HttpError(409, '导出范围：超过当前单账号安全上限，请使用后续分批导出工具');
+    throw new HttpError(
+      409,
+      '导出范围：此旧版入口最多返回 40 份原件；请更新导出工具以使用 /api/immich-cf/admin/export/page 分批导出',
+    );
   await requireOperator(db, identity);
   const assets: (Record<string, unknown> & { downloadPath: string })[] = data[0]!.results.map(
     (row) => ({

@@ -2,8 +2,8 @@ import type { Identity } from './auth';
 import { body, HttpError, invalid, strings, uuid7 } from './http';
 import { entityTypes, supportedTypes } from './types';
 import { onboardingEvents } from './onboarding';
-import { albumEvents, albumTypes } from './album-sync';
-import { assetEvents } from './assets';
+import { albumTypes } from './album-sync';
+import { libraryEventPages } from './sync-event-pages';
 import { syncLines as lines } from './sync-lines';
 
 interface SyncState {
@@ -258,18 +258,32 @@ export async function sync(
   }
   if (types.includes('UserMetadataV1'))
     events.push(...(await onboardingEvents(db, identity, checkpoints, explicitReset)));
-  const ownEvents = await assetEvents(db, identity, types, checkpoints, explicitReset);
-  const albumSnapshot = await albumEvents(db, identity, types, checkpoints, explicitReset);
-  events.push(
-    ...ownEvents.filter((event) => !event.type.startsWith('AssetMetadata')),
-    ...albumSnapshot.assets,
-    ...albumSnapshot.albums,
-    ...ownEvents.filter((event) => event.type.startsWith('AssetMetadata')),
-  );
-  events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
+  const source = libraryEventPages(db, identity, types, checkpoints, explicitReset);
+  let exhausted = false;
+  // Preflight a bounded first batch before committing the response. Small libraries
+  // retain the existing atomic snapshot behavior; large streams continue by keyset.
+  while (events.length < 5000) {
+    const next = await source.next();
+    if (next.done) {
+      exhausted = true;
+      break;
+    }
+    events.push(...next.value);
+  }
+  if (exhausted)
+    events.push({ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` });
   // Cursor comparisons above use the unchanged cursor prefix; wire ACKs bind to a generation.
   const deliveryEpoch = explicitReset ? crypto.randomUUID() : epoch;
   if (deliveryEpoch) for (const event of events) event.ack += `|${deliveryEpoch}`;
+  const readState = {
+    assets:
+      historyRequested || types.includes('AuthUsersV2') || types.includes('AlbumAssetsV2')
+        ? (identity.asset_revision ?? 0)
+        : -1,
+    albums: types.some((type) => albumTypes.includes(type)) ? (identity.album_revision ?? 0) : -1,
+    onboarding: types.includes('UserMetadataV1') ? (identity.onboarding_revision ?? 0) : -1,
+    user: types.includes('AuthUsersV2') || types.includes('UsersV1') ? identity.update_id : '',
+  };
   // Progress reset and snapshot delivery registration share the generation guard transaction.
   await guarded(
     db,
@@ -330,15 +344,48 @@ export async function sync(
     ],
     [],
     historyRequested ? historyFloor : -1,
-    {
-      assets:
-        historyRequested || types.includes('AuthUsersV2') || types.includes('AlbumAssetsV2')
-          ? (identity.asset_revision ?? 0)
-          : -1,
-      albums: types.some((type) => albumTypes.includes(type)) ? (identity.album_revision ?? 0) : -1,
-      onboarding: types.includes('UserMetadataV1') ? (identity.onboarding_revision ?? 0) : -1,
-      user: types.includes('AuthUsersV2') || types.includes('UsersV1') ? identity.update_id : '',
-    },
+    readState,
   );
-  return lines(events);
+  if (exhausted) return lines(events);
+  return lines(
+    (async function* () {
+      try {
+        yield* events;
+        events.length = 0;
+        while (true) {
+          const next = await source.next();
+          const page = next.done
+            ? [{ type: 'SyncCompleteV1', data: {}, ack: `SyncCompleteV1|${uuid7()}` }]
+            : next.value;
+          if (deliveryEpoch) for (const event of page) event.ack += `|${deliveryEpoch}`;
+          // Validate the same owner revisions, history floor, epoch and live session
+          // before each page becomes visible. A change aborts without SyncComplete.
+          await guarded(
+            db,
+            session,
+            deliveryEpoch,
+            'stream',
+            [
+              db
+                .prepare(
+                  `INSERT INTO sync_deliveries(session_id,type,ack,issued_at) SELECT ?,json_extract(value,'$[0]'),json_extract(value,'$[1]'),? FROM json_each(?) WHERE true ON CONFLICT(session_id,ack) DO UPDATE SET issued_at=excluded.issued_at`,
+                )
+                .bind(
+                  session,
+                  Date.now(),
+                  JSON.stringify(page.map((event) => [event.type, event.ack])),
+                ),
+            ],
+            [],
+            historyRequested ? historyFloor : -1,
+            readState,
+          );
+          yield* page;
+          if (next.done) return;
+        }
+      } finally {
+        await source.return(undefined);
+      }
+    })(),
+  );
 }

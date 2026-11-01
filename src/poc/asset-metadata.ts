@@ -50,11 +50,18 @@ export async function assetMetadata(
     if (!item) throw new HttpError(404, 'key：尚未保存此元数据，请先完成照片标识同步', 'key');
     return Response.json(item);
   }
-  const input = await body(request);
+  // Official iOS migrates cloud IDs in batches of 5,000. Keep the JSON parameter
+  // below D1's 2 MB bound-value limit; other write endpoints retain 64 KiB.
+  const bulk = id === undefined,
+    maxItems = bulk ? 5000 : 1000;
+  const input = await body(request, false, bulk ? 1900000 : 65536);
   for (const field of Object.keys(input))
     if (field !== 'items') invalid(field, '此接口仅接受 items 元数据数组，请移除此字段');
-  if (!Array.isArray(input.items) || !input.items.length || input.items.length > 1000)
-    invalid('items', '请提供 1～1000 项元数据；请求体合计最多 64 KiB');
+  if (!Array.isArray(input.items) || !input.items.length || input.items.length > maxItems)
+    invalid(
+      'items',
+      `请提供 1～${maxItems} 项元数据；请求体合计最多 ${bulk ? '1,900,000 字节' : '64 KiB'}`,
+    );
   const seen = new Set<string>();
   const items = input.items.map((raw: unknown, index: number) => {
     const field = `items[${index}]`;
@@ -84,6 +91,9 @@ export async function assetMetadata(
     seen.add(normalized);
     return { assetId: normalized, key: 'mobile-app', value: item.value };
   });
+  const encodedItems = JSON.stringify(items);
+  if (new TextEncoder().encode(encodedItems).length > 1900000)
+    invalid('items', '批量元数据编码后合计最多 1,900,000 字节，请减少内容或分批同步');
   const ids = JSON.stringify(items.map((item) => item.assetId));
   const selected = `owner_id=? AND media_type='IMAGE' AND id IN(SELECT value FROM json_each(?))`;
   const authorized = `(SELECT COUNT(*) FROM assets WHERE ${selected})=? AND ${live}`;
@@ -91,13 +101,11 @@ export async function assetMetadata(
   // including when a session is revoked while the request body is arriving.
   const result = await db.batch<MetadataRow>([
     db
-      .prepare(
-        `SELECT id,metadata,updated_at FROM assets WHERE ${selected} AND ${live} ORDER BY id`,
-      )
+      .prepare(`SELECT id FROM assets WHERE ${selected} AND ${live} ORDER BY id`)
       .bind(identity.id, ids, ...session),
     db
       .prepare(
-        `WITH submitted AS (SELECT json_extract(value,'$.assetId') asset_id,json_extract(value,'$.value') data FROM json_each(?))
+        `WITH submitted AS MATERIALIZED (SELECT json_extract(value,'$.assetId') asset_id,json_extract(value,'$.value') data FROM json_each(?))
         UPDATE assets AS a SET metadata=(SELECT json_group_array(json(value)) FROM (
           SELECT value FROM json_each(a.metadata) WHERE json_extract(value,'$.key')<>'mobile-app'
           UNION ALL SELECT json_object('key','mobile-app','value',json((SELECT data FROM submitted WHERE asset_id=a.id)),'updatedAt',?)
@@ -107,7 +115,7 @@ export async function assetMetadata(
         )`,
       )
       .bind(
-        JSON.stringify(items),
+        encodedItems,
         new Date().toISOString(),
         identity.id,
         ids,
@@ -118,7 +126,7 @@ export async function assetMetadata(
       ),
     db
       .prepare(
-        `SELECT id,metadata,updated_at FROM assets WHERE ${selected} AND ${authorized} ORDER BY id`,
+        `SELECT a.id,(SELECT json_group_array(json(e.value)) FROM json_each(a.metadata) e WHERE json_extract(e.value,'$.key')='mobile-app') metadata,a.updated_at FROM assets a WHERE ${selected} AND ${authorized} ORDER BY id`,
       )
       .bind(identity.id, ids, identity.id, ids, items.length, ...session),
   ]);
