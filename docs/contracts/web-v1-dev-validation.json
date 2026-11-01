@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "13201341641f095f390508dcd5b2b46d66998020",
+  "workerVersion": "e16349bf-50f2-4675-9205-4362e633b6e9",
+  "local": {
+    "tests": 236,
+    "failed": 0,
+    "skipped": 0,
+    "finalWebRetest": 9,
+    "contracts": {
+      "operations": 279,
+      "sources": 53
+    }
+  },
+  "browser": {
+    "engine": "embedded Chromium",
+    "widths": [390, 1280],
+    "publishedLoginVerified": true,
+    "edgeVerified": false,
+    "edgeReason": "native window approval timed out",
+    "iPhoneSafariVerified": false,
+    "livePhotoDeviceDecodeVerified": false
+  },
+  "network": {
+    "checkedAt": "2026-11-01T19:40:45.991Z",
+    "complete": true,
+    "checks": [
+      {
+        "label": "root-html",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "unauthenticated-bootstrap",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "operator-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "operator-bootstrap",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "find-own-probe-account",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "find-empty-validation-fixtures",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "disable-empty-validation-fixture",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "normal-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "normal-bootstrap",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "normal-admin-denied",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "label": "duplicate-email",
+        "status": 409,
+        "expected": 409
+      },
+      {
+        "label": "password-error-without-value",
+        "status": 400,
+        "expected": 400
+      },
+      {
+        "label": "upload-web-v1-public.jpg",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "upload-web-v1-public.png",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "upload-web-v1-public.MOV",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "upload-web-v1-public.HEIC",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "photo-list-hidden-motion",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "first-page",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "second-page",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "original-hash-jpeg",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "real-jpeg-thumbnail",
+        "status": 200,
+        "bytes": 1684
+      },
+      {
+        "label": "real-jpeg-preview",
+        "status": 200,
+        "bytes": 2670
+      },
+      {
+        "label": "original-hash-png",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "real-png-thumbnail",
+        "status": 200,
+        "bytes": 1584
+      },
+      {
+        "label": "real-png-preview",
+        "status": 200,
+        "bytes": 3068
+      },
+      {
+        "label": "original-hash-heic",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "real-heic-thumbnail",
+        "status": 200,
+        "bytes": 7896
+      },
+      {
+        "label": "real-heic-preview",
+        "status": 200,
+        "bytes": 517235
+      },
+      {
+        "label": "motion-original-hash",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "operator-cross-account-photo-denied",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "label": "favorite-write",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "favorite-list",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "stale-cursor",
+        "status": 409,
+        "expected": 409
+      },
+      {
+        "label": "create-album",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "set-cover",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "album-list",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "trash-live-pair",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "trash-list",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "restore-live-pair",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "second-user-session",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "change-own-password",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "old-session-revoked",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "changed-password-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "admin-reset-password",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "reset-session-revoked",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "reset-password-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "rename-account",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "disable-account",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "disabled-session-denied",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "enable-account",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "enabled-account-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "delete-test-album",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "purge-only-own-fixtures",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "empty-own-library",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "revoke-account-sessions",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "revoked-account-denied",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "disable-test-account",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "operator-logout",
+        "status": 200,
+        "expected": 200
+      }
+    ],
+    "privateSamplesUploaded": false,
+    "deviceVerified": false,
+    "cleanup": {
+      "assetsLogicallyRemoved": true,
+      "albumRemoved": true,
+      "testUserDisabled": true
+    }
+  },
+  "preservation": {
+    "method": "aggregate comparison; original assets restricted to pre-deployment sync_seq <= 414",
+    "before": {
+      "assets": 38,
+      "bytes": 78536575,
+      "revisionSum": 3968,
+      "revisionMax": 414,
+      "verified": 38,
+      "trashed": 0,
+      "objectKeyLengths": 3392,
+      "sourceKeyLengths": 492,
+      "checksumLengths": 1064
+    },
+    "after": {
+      "assets": 38,
+      "bytes": 78536575,
+      "revisionSum": 3968,
+      "revisionMax": 414,
+      "verified": 38,
+      "trashed": 0,
+      "objectKeyLengths": 3392,
+      "sourceKeyLengths": 492,
+      "checksumLengths": 1064
+    },
+    "originalAggregatesMatch": true,
+    "checkpointsBefore": {
+      "checkpoints": 15,
+      "ackLengths": 587,
+      "typeLengths": 203
+    },
+    "checkpointsAfter": {
+      "checkpoints": 15,
+      "ackLengths": 587,
+      "typeLengths": 203
+    },
+    "otherAccountAdditionsDuringValidation": 5,
+    "ownRemainingAssets": 0,
+    "originalUploadReservations": 0,
+    "originalCopyReservations": 0,
+    "originalAlbumRelations": 6,
+    "operatorsAfter": 1,
+    "testOperatorDisabled": true,
+    "temporaryOperatorGrantRemoved": true,
+    "allFixturePurgeJobsDone": true
+  },
+  "environments": {
+    "devOnly": true,
+    "testPromoted": false,
+    "productionPromoted": false
+  }
+}
