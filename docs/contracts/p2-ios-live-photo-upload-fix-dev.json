@@ -1,0 +1,90 @@
+{
+  "recordedAt": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "environment": "dev",
+  "reportedClient": {
+    "platform": "iOS",
+    "version": "3.3.5",
+    "build": "26",
+    "evidence": "user-reported"
+  },
+  "serverProtocolVersion": "3.3.1",
+  "sourceCommit": "895b6595f5fa3caf186dc052eafa9b7ca7c200a2",
+  "workerVersion": "fd1a85b7-0e49-4b39-ad38-e500fde1848e",
+  "migrations": 28,
+  "newMigrations": 0,
+  "diagnosis": {
+    "windowStartUtc": "2026-11-01T17:42:00Z",
+    "windowEndUtc": "2026-11-01T17:44:00Z",
+    "motionHttpStatuses": [409, 409],
+    "stillHttpStatuses": [400, 400],
+    "motionBytes": 3455999,
+    "stillBytes": 2050820,
+    "ownerLogicalSlots": 20,
+    "ownerAssetComponents": 20,
+    "pendingUploadIntents": 0,
+    "metadataHttpStatus": 400,
+    "metadataRouteWasShadowedByAssetFavoriteRoute": true
+  },
+  "localChecks": {
+    "targetedPassed": 7,
+    "fullPassed": 220,
+    "failed": 0,
+    "skipped": 0,
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "build": true,
+    "frozenContractOperations": 279,
+    "frozenContractSources": 53,
+    "bundleKiB": 319.32,
+    "gzipKiB": 77.16
+  },
+  "devMetadataProbe": {
+    "startedAtUtc": "2026-11-01T17:59:48.263Z",
+    "complete": true,
+    "httpChecks": 19,
+    "bulkMetadataStatus": 200,
+    "duplicateBulkMetadataStatus": 200,
+    "singleMetadataStatus": 200,
+    "metadataKeyReadStatus": 200,
+    "hiddenVideoMetadataStatus": 404,
+    "unauthenticatedStatus": 401,
+    "twoSessionSyncAndAck": true,
+    "originalSha1Verified": 4,
+    "temporarySessionsLoggedOut": true
+  },
+  "devQuotaProbe": {
+    "startedAtUtc": "2026-11-01T18:00:44.051Z",
+    "complete": true,
+    "httpChecks": 6,
+    "motionStatus": 409,
+    "stillAfterMotionFailureStatus": 409,
+    "specificQuotaReasonVerified": true,
+    "existingAssets": 20,
+    "originalFieldsUnchanged": true,
+    "deletedUserAssets": false,
+    "quotaChanged": false,
+    "temporarySessionLoggedOut": true
+  },
+  "preservation": {
+    "existingAssets": 30,
+    "originalFields": ["id", "owner_id", "checksum", "object_key", "bytes", "deleted_at"],
+    "originalFieldsUnchanged": true,
+    "existingCheckpoints": 9,
+    "existingCheckpointsUnchanged": true,
+    "isolatedProbePhotoSyncVersionsAdvanced": 2,
+    "pendingUploadIntents": 0,
+    "pendingStaging": 0,
+    "operatorGrants": 1
+  },
+  "boundaries": {
+    "paidPlanChanged": false,
+    "testChanged": false,
+    "productionChanged": false,
+    "officialAppRetestPassed": false,
+    "fullLivePhotoSupportAccepted": false,
+    "systemPhotosRestoreVerified": false,
+    "wholeLibraryRecoveryVerified": false
+  }
+}
