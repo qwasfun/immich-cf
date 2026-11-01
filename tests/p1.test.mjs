@@ -82,12 +82,13 @@ after(async () => {
   }
 });
 
-const send = (url, data, token, method = 'POST') =>
+const send = (url, data, token, method = 'POST', extraHeaders = {}) =>
   worker.fetch(url, {
     method,
     headers: {
       'content-type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extraHeaders,
     },
     body: JSON.stringify(data),
   });
@@ -156,7 +157,14 @@ test('字段校验具体且不泄露提交值；错误凭据一致', async () =>
       .status,
     400,
   );
-  assert.equal((await send('/api/auth/login', { padding: 'x'.repeat(70000) })).status, 413);
+  assert.equal(
+    (
+      await send('/api/auth/login', { padding: 'x'.repeat(70000) }, undefined, 'POST', {
+        'x-test-complete-input': '1',
+      })
+    ).status,
+    413,
+  );
 });
 
 test('Cookie/Bearer、持久化、会话隔离、撤销和过期', async () => {
@@ -2486,7 +2494,11 @@ test('multipart UTF-8/总量/字段/文件边界拒绝无资产残留，边界�
     const encoded = await encodedUpload({ name: 'field-limits', bytes, fields });
     return worker.fetch('/api/assets', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': encoded.type },
+      headers: {
+        Authorization: `Bearer ${a.token}`,
+        'Content-Type': encoded.type,
+        'x-test-complete-input': '1',
+      },
       body: encoded.bytes,
     });
   };

@@ -12,6 +12,17 @@ const gates = new Map<string, { released: boolean }>();
 
 export default {
   async fetch(request: Request, env: Env) {
+    if (request.headers.has('x-test-complete-input')) {
+      // Finish the test HTTP hop before exercising an early parser rejection.
+      // Cancelling ProxyWorker's incoming stream can poison its next keep-alive
+      // request on Linux, producing a proxy 500 rather than the application's 4xx.
+      // Streaming/abort tests use their existing dedicated injected streams.
+      const bytes = await request.arrayBuffer();
+      const headers = new Headers(request.headers);
+      headers.delete('x-test-complete-input');
+      headers.delete('content-length');
+      request = new Request(request.url, { method: request.method, headers, body: bytes });
+    }
     if (request.headers.has('x-test-background')) {
       const work: Promise<unknown>[] = [];
       const response = await app.fetch(request, env, {
