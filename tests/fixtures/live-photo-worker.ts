@@ -2,8 +2,17 @@ import app from '../../src/index';
 import { runPreviews } from '../../src/poc/previews';
 import { inspectMedia } from '../../src/poc/media-format';
 import { cleanStaging } from '../../src/poc/media-staging';
+import { HttpError } from '../../src/poc/http';
 export default {
   async fetch(request: Request, env: Env) {
+    if (request.headers.has('x-test-complete-input')) {
+      // Keep the dev HTTP hop out of the upload parser's deliberate cancellation.
+      const bytes = await request.arrayBuffer();
+      const headers = new Headers(request.headers);
+      headers.delete('x-test-complete-input');
+      headers.delete('content-length');
+      request = new Request(request.url, { method: request.method, headers, body: bytes });
+    }
     // The dev proxy cannot forward a malformed multipart after an upstream cancel.
     // As in fault-worker.ts, inject the actual parser stream behind that proxy.
     if (request.headers.has('x-test-multipart-split')) {
@@ -66,6 +75,29 @@ export default {
       await cleanStaging(env);
       return Response.json({ ok: true });
     }
-    return app.fetch(request, configured);
+    const response = await app.fetch(request, configured);
+    if (!request.headers.has('x-test-stale-stream-eof') || !response.body) return response;
+    // A deliberate stale snapshot must remain incomplete. Let the test HTTP hop
+    // end at EOF instead of poisoning ProxyWorker's next keep-alive request.
+    // Unexpected stream failures still propagate; production uses src/index.ts.
+    const reader = response.body.getReader();
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const next = await reader.read();
+            if (next.done) controller.close();
+            else controller.enqueue(next.value);
+          } catch (error) {
+            if (error instanceof HttpError && error.status === 409) controller.close();
+            else controller.error(error);
+          }
+        },
+        cancel(reason) {
+          return reader.cancel(reason);
+        },
+      }),
+      response,
+    );
   },
 };

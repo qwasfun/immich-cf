@@ -77,12 +77,13 @@ async function user() {
   assert.equal(r.status, 201);
   return { id, token: (await r.json()).accessToken };
 }
-const api = (url, body, token, method = 'POST') =>
+const api = (url, body, token, method = 'POST', headers = {}) =>
   worker.fetch(url, {
     method,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -315,8 +316,15 @@ test('动态视频 64 MiB 边界，超限中止 multipart，原件与同步不�
     id = pairId(),
     base = liveMov(id, 0).length;
   assert.equal(
-    (await upload(u, liveMov(id, 64 * 1024 * 1024 + 1 - base), { visibility: 'hidden' }, 'IMG.MOV'))
-      .status,
+    (
+      await upload(
+        u,
+        liveMov(id, 64 * 1024 * 1024 + 1 - base),
+        { visibility: 'hidden' },
+        'IMG.MOV',
+        { 'x-test-complete-input': 'true' },
+      )
+    ).status,
     413,
   );
   const r = await upload(
@@ -709,6 +717,8 @@ test('10,000 项图库：分页导出、80MB 元数据流、双会话 ACK/reset 
       '/api/sync/stream',
       { types: ['AssetsV2', 'AssetMetadataV1'], reset: true },
       u.token,
+      'POST',
+      { 'x-test-stale-stream-eof': 'true' },
     );
     const reader = interrupted.body.getReader();
     const interruptionDecoder = new TextDecoder();
