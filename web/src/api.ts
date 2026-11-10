@@ -19,6 +19,11 @@ const labels: Record<string, string> = {
   id: '项目',
   cursor: '分页',
   size: '预览尺寸',
+  q: '文件名',
+  from: '拍摄开始时间',
+  to: '拍摄结束时间',
+  type: '照片类型',
+  order: '排序',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z]+)([：:])/, (all, key: string) =>

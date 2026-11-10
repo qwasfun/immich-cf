@@ -3,6 +3,7 @@ import { assetDetailDto, type Asset, readAsset } from '../poc/assets';
 import { HttpError, invalid } from '../poc/http';
 import { queuePreviews, readPreview, runPreviews } from '../poc/previews';
 import { decode, encode, pageSize, uuid } from './common';
+import { photoQuery, photoQueryParams, PhotoQueryError } from './gallery-query';
 
 interface Cursor {
   owner: string;
@@ -11,6 +12,7 @@ interface Cursor {
   version: string;
   time: number;
   id: string;
+  query?: string;
 }
 interface Row extends Asset {
   sortTime: number;
@@ -19,8 +21,16 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
   const params = new URL(request.url).searchParams,
     db = env.IMMICH_CF_DB;
   for (const key of params.keys())
-    if (!['view', 'albumId', 'cursor', 'limit'].includes(key))
+    if (!['view', 'albumId', 'cursor', 'limit', 'q', 'from', 'to', 'type', 'order'].includes(key))
       invalid(key, '此查询参数不受支持，请移除');
+  let query;
+  try {
+    query = photoQuery(params);
+  } catch (error) {
+    if (error instanceof PhotoQueryError) throw new HttpError(400, error.message, error.field);
+    throw error;
+  }
+  const queryKey = photoQueryParams(query).toString();
   const view = params.get('view') ?? 'photos',
     album = params.has('albumId') ? uuid(params.get('albumId'), 'albumId') : '';
   if (!['photos', 'favorites', 'trash', 'album'].includes(view))
@@ -36,6 +46,7 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
     (cursor.owner !== identity.id ||
       cursor.view !== view ||
       cursor.album !== album ||
+      (cursor.query ?? '') !== queryKey ||
       typeof cursor.version !== 'string' ||
       !/^\d+:\d+$/.test(cursor.version) ||
       !Number.isFinite(cursor.time) ||
@@ -43,9 +54,29 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
   )
     invalid('cursor', '分页游标不属于当前账号或筛选，请刷新后重试');
   if (cursor) uuid(cursor.id, 'cursor');
-  const sort = view === 'trash' ? 'julianday(a.deleted_at)' : 'julianday(a.file_created_at)';
-  const where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${view === 'trash' ? 'NOT ' : ''}NULL${view === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
+  const sort = view === 'trash' ? 'julianday(a.deleted_at)' : 'julianday(a.file_created_at)',
+    ascending = query.order === 'oldest',
+    direction = ascending ? 'ASC' : 'DESC';
+  let where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${view === 'trash' ? 'NOT ' : ''}NULL${view === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
   const args: (string | number)[] = [identity.id, ...(album ? [album] : [])];
+  if (query.q) {
+    where += " AND a.filename LIKE ? ESCAPE '\\'";
+    args.push('%' + query.q.replace(/[\\%_]/g, '\\$&') + '%');
+  }
+  if (query.from) {
+    where += ' AND julianday(a.file_created_at)>=julianday(?)';
+    args.push(query.from);
+  }
+  if (query.to) {
+    where += ' AND julianday(a.file_created_at)<julianday(?)';
+    args.push(query.to);
+  }
+  if (query.type === 'live' || query.type === 'static')
+    where += ` AND a.live_photo_video_id IS ${query.type === 'live' ? 'NOT ' : ''}NULL`;
+  else if (query.type !== 'all') {
+    where += ' AND a.mime=?';
+    args.push('image/' + query.type);
+  }
   if (cursor) args.push(cursor.time, cursor.id);
   const results = await db.batch([
     db
@@ -55,7 +86,7 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
       .bind(identity.id, identity.id),
     db
       .prepare(
-        `SELECT a.*,${sort} sortTime FROM assets a WHERE ${where}${cursor ? ` AND (${sort},a.id)<(?,?)` : ''} ORDER BY ${sort} DESC,a.id DESC LIMIT ?`,
+        `SELECT a.*,${sort} sortTime FROM assets a WHERE ${where}${cursor ? ` AND (${sort},a.id)${ascending ? '>' : '<'}(?,?)` : ''} ORDER BY ${sort} ${direction},a.id ${direction} LIMIT ?`,
       )
       .bind(...args, limit + 1),
     ...(album
@@ -82,7 +113,15 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
     version,
     nextCursor:
       rows.length > limit && last
-        ? encode({ owner: identity.id, view, album, version, time: last.sortTime, id: last.id })
+        ? encode({
+            owner: identity.id,
+            view,
+            album,
+            version,
+            time: last.sortTime,
+            id: last.id,
+            query: queryKey,
+          })
         : null,
   });
 }

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api, albumMembers, bytes, date, web } from './api';
 import type { Album, Page, Photo } from './api';
 import { Confirm, Empty, ErrorBox, FormModal, Icon, Modal, Preview } from './ui';
+import { emptyPhotoQuery, hasPhotoFilters, photoQueryParams } from '../../src/web/gallery-query';
+import { PhotoFilters } from './PhotoFilters';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -54,33 +56,44 @@ export function Picker({
   submit: (ids: string[]) => Promise<void>;
 }) {
   const [items, setItems] = useState<Photo[]>([]),
+    [query, setQuery] = useState(emptyPhotoQuery),
     [cursor, setCursor] = useState<string | null>(null),
     [selected, setSelected] = useState<Set<string>>(new Set()),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(false);
+  const loadVersion = useRef(0);
   async function load(next?: string) {
+    const version = ++loadVersion.current;
     setLoading(true);
     setError('');
     try {
       const page = await api<Page<Photo>>(
-        `${web}/assets?view=photos${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
+        `${web}/assets?view=photos&${photoQueryParams(query)}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
       );
+      if (version !== loadVersion.current) return;
       setItems((prev) => (next ? [...prev, ...page.items] : page.items));
       setCursor(page.nextCursor);
     } catch (e) {
-      setError((e as Error).message);
+      if (version === loadVersion.current) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }
   useEffect(() => {
+    setItems([]);
+    setCursor(null);
+    setSelected(new Set());
     void load();
-  }, []);
+    return () => {
+      loadVersion.current++;
+    };
+  }, [query]);
   return (
     <Modal title={title} close={close} wide busy={busy}>
       <div className="form-body picker-body">
         <p className="muted">选择已备份的照片 · 已选 {selected.size} 项（最多 1000 项）</p>
+        <PhotoFilters apply={setQuery} disabled={busy} />
         <ErrorBox
           error={error}
           retry={() => {
@@ -100,10 +113,14 @@ export function Picker({
           ))}
         </div>
         {!loading && !error && !items.length && (
-          <Empty title="还没有照片">请先通过 App 备份照片。</Empty>
+          <Empty title={hasPhotoFilters(query) ? '没有符合条件的照片' : '还没有照片'}>
+            {hasPhotoFilters(query)
+              ? '请调整搜索条件，或点击“重置”查看全部照片。'
+              : '请先通过 App 备份照片。'}
+          </Empty>
         )}
         {loading && <p className="muted">正在加载…</p>}
-        {cursor && (
+        {cursor && !error && (
           <button disabled={loading || busy} onClick={() => void load(cursor)}>
             加载更多照片
           </button>
@@ -381,6 +398,7 @@ export function Gallery({
 }) {
   const loadVersion = useRef(0);
   const [items, setItems] = useState<Photo[]>([]),
+    [query, setQuery] = useState(emptyPhotoQuery),
     [cursor, setCursor] = useState<string | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true),
@@ -404,7 +422,7 @@ export function Gallery({
     setError('');
     try {
       const page = await api<Page<Photo>>(
-        `${web}/assets?view=${view}${albumId ? '&albumId=' + albumId : ''}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
+        `${web}/assets?view=${view}&${photoQueryParams(query)}${albumId ? '&albumId=' + albumId : ''}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
       );
       if (version !== loadVersion.current) return;
       setItems((prev) => (next ? [...prev, ...page.items] : page.items));
@@ -433,7 +451,10 @@ export function Gallery({
       live = false;
       loadVersion.current++;
     };
-  }, [view, albumId, refresh]);
+  }, [view, albumId, refresh, query]);
+  useEffect(() => {
+    setOpened(null);
+  }, [query]);
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -446,6 +467,19 @@ export function Gallery({
   function ask(kind: string, ids = [...selected]) {
     setTargets(ids);
     setDialog(kind);
+  }
+  function selectDay(photos: Photo[]) {
+    const next = new Set(selected),
+      allSelected = photos.every((photo) => next.has(photo.id));
+    for (const photo of photos) {
+      if (allSelected) next.delete(photo.id);
+      else next.add(photo.id);
+    }
+    if (next.size > 1000) {
+      setError('所选照片：每次最多 1000 项，请先取消部分选择或分批操作');
+      return;
+    }
+    setSelected(next);
   }
   async function favorite(ids: string[], value: boolean) {
     setBusy(true);
@@ -533,6 +567,7 @@ export function Gallery({
           )}
         </div>
       </div>
+      <PhotoFilters apply={setQuery} disabled={busy} trash={view === 'trash'} />
       {selected.size > 0 && (
         <div className="selection-toolbar">
           <strong>已选择 {selected.size} 项</strong>
@@ -568,11 +603,14 @@ export function Gallery({
       )}
       <div className="list-summary">
         <span>
-          {loading ? '正在加载照片…' : `已加载 ${items.length} 张${cursor ? ' · 还有更多' : ''}`}
+          {loading
+            ? '正在加载照片…'
+            : `${hasPhotoFilters(query) ? '筛选结果 · ' : ''}已加载 ${items.length} 张${cursor ? ' · 还有更多' : ''} · ${query.order === 'oldest' ? '最早在前' : '最新在前'}`}
         </span>
         {items.length > 0 && (
           <button
             className="text-button"
+            disabled={busy || loading}
             onClick={() =>
               selected.size
                 ? setSelected(new Set())
@@ -589,15 +627,28 @@ export function Gallery({
         error={error}
         retry={() => {
           setSelected(new Set());
+          setItems([]);
+          setCursor(null);
           void load();
         }}
       />
       {[...groups].map(([label, photos]) => (
         <section className="day-group" key={label}>
-          <h2>
-            {label}
-            <span>{photos.length}</span>
-          </h2>
+          <div className="day-heading">
+            <h2>
+              {label}
+              <span>{photos.length}</span>
+            </h2>
+            <button
+              className="text-button"
+              disabled={busy || loading}
+              aria-label={`${photos.every((p) => selected.has(p.id)) ? '取消选择' : '选择'}${label}已加载照片`}
+              aria-pressed={photos.every((p) => selected.has(p.id))}
+              onClick={() => selectDay(photos)}
+            >
+              {photos.every((p) => selected.has(p.id)) ? '取消当天选择' : '选择当天已加载'}
+            </button>
+          </div>
           <div className="photo-grid">
             {photos.map((p) => (
               <PhotoCard
@@ -615,20 +666,24 @@ export function Gallery({
         <Empty
           icon={view === 'trash' ? 'trash' : view === 'favorites' ? 'heart' : 'photos'}
           title={
-            view === 'trash'
-              ? '回收站是空的'
-              : view === 'favorites'
-                ? '还没有收藏'
-                : '这里还没有照片'
+            hasPhotoFilters(query)
+              ? '没有符合条件的照片'
+              : view === 'trash'
+                ? '回收站是空的'
+                : view === 'favorites'
+                  ? '还没有收藏'
+                  : '这里还没有照片'
           }
         >
-          {view === 'photos'
-            ? '通过 Immich App 备份后，照片会出现在这里。'
-            : view === 'favorites'
-              ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
-              : view === 'album'
-                ? '点击“添加照片”，从已备份的图库中选择。'
-                : '从图库删除的照片会出现在这里。'}
+          {hasPhotoFilters(query)
+            ? '请调整文件名、日期或照片类型，或点击“重置”查看全部照片。'
+            : view === 'photos'
+              ? '通过 Immich App 备份后，照片会出现在这里。'
+              : view === 'favorites'
+                ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
+                : view === 'album'
+                  ? '点击“添加照片”，从已备份的图库中选择。'
+                  : '从图库删除的照片会出现在这里。'}
         </Empty>
       )}
       {cursor && !error && (

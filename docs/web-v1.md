@@ -8,6 +8,8 @@
 
 照片墙按拍摄时刻倒序、相同时按 ID 排序，并按浏览器本地日期分组；回收站按删除时刻排列。每页默认 60 项、最多 100 项，手动加载下一页，不在首屏读取整库。缩略图仅在接近可见区域时请求，最多同时请求四张；生成中的预览最多自动重试三次，失败后显示具体原因与手动重试入口。
 
+照片、收藏、相册、回收站和相册选图支持文件名包含搜索、拍摄日期范围、静态/动态照片及 JPEG/PNG/HEIC 类型筛选，可切换最新/最早在前。搜索覆盖当前视图的完整图库，并非只查找已加载照片；文件名中的 `%`、`_` 和反斜杠按字面匹配。日期按浏览器本地时区解释，包含结束日期当天；回收站仍按删除时间排序，日期筛选始终针对拍摄时间。点击“查找”应用条件，“重置”恢复全部条件及默认排序，切换条件会清空旧选择。照片墙可选择或取消当天已加载照片，每批上限仍为 1000 项。
+
 大图支持上一张/下一张已加载照片、键盘方向键、触摸左右切换、详情、收藏、加入相册和原件下载。照片信息包含名称、时间、格式、大小和尺寸。列表选择只作用于已加载项目，每批最多 1000 项并显示数量。
 
 相册支持创建、改名/描述、添加/移除照片、设置封面和删除相册；删除相册不删除照片。回收站支持所选/全部恢复及所选永久删除/清空；全量动作明确包含尚未加载的回收项，永久删除独立确认。永久删除提交成功表示逻辑删除已提交，物理清理由现有持久任务继续，不把提交响应当作 R2 清理完成。
@@ -31,19 +33,21 @@ JPEG、PNG、HEIC 均按需生成 256/2048 JPEG 衍生图，原件不重编码�
 
 所有接口复用现有会话，响应 `Cache-Control: no-store`；无需在 URL 或网页持久存储中放置访问令牌。
 
-| 接口                                                  | 行为                                                                             |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------- |
-| GET `/api/immich-cf/web/bootstrap`                    | 当前用户、网页管理权限、用量和服务端有效限制                                     |
-| GET `/api/immich-cf/web/assets`                       | `view=photos/favorites/trash/album`；相册视图必填 `albumId`；支持 `limit/cursor` |
-| GET/HEAD `/api/immich-cf/web/assets/{id}/preview`     | `size=thumbnail/preview`，只返回衍生图；生成中/失败/额度不足返回具体 503         |
-| GET/HEAD `/api/immich-cf/web/assets/{id}/download`    | `component=photo/motion`，保留原始字节，安全 attachment 文件名                   |
-| POST `/api/immich-cf/web/password`                    | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                  |
-| GET/POST `/api/immich-cf/admin/users`                 | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                 |
-| PATCH `/api/immich-cf/admin/users/{id}`               | 每次只改 `name` 或布尔值 `disabled`                                              |
-| POST `/api/immich-cf/admin/users/{id}/reset-password` | `password`，撤销目标全部会话                                                     |
-| DELETE `/api/immich-cf/admin/users/{id}/sessions`     | 撤销普通账号全部会话                                                             |
+| 接口                                                  | 行为                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| GET `/api/immich-cf/web/bootstrap`                    | 当前用户、网页管理权限、用量和服务端有效限制                                                |
+| GET `/api/immich-cf/web/assets`                       | `view=photos/favorites/trash/album`；相册视图必填 `albumId`；支持 `limit/cursor` 和下述筛选 |
+| GET/HEAD `/api/immich-cf/web/assets/{id}/preview`     | `size=thumbnail/preview`，只返回衍生图；生成中/失败/额度不足返回具体 503                    |
+| GET/HEAD `/api/immich-cf/web/assets/{id}/download`    | `component=photo/motion`，保留原始字节，安全 attachment 文件名                              |
+| POST `/api/immich-cf/web/password`                    | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                             |
+| GET/POST `/api/immich-cf/admin/users`                 | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                            |
+| PATCH `/api/immich-cf/admin/users/{id}`               | 每次只改 `name` 或布尔值 `disabled`                                                         |
+| POST `/api/immich-cf/admin/users/{id}/reset-password` | `password`，撤销目标全部会话                                                                |
+| DELETE `/api/immich-cf/admin/users/{id}/sessions`     | 撤销普通账号全部会话                                                                        |
 
-照片分页返回 `items/nextCursor/version`，游标绑定当前账号、视图、相册和资产/相册版本，按时间与 ID 继续读取；图库变化返回 409，界面保留原因并提供从第一页刷新的入口。账号列表返回 `items/nextCursor`，按账号 ID 稳定分页。收藏、相册、回收站和会话操作复用既有接口及同步日志，不建立另一份图库数据。
+照片筛选参数：`q` 为去除首尾空白后最多 100 字符的文件名片段（ASCII 字母不区分大小写）；`from/to` 为规范 UTC ISO 时间（如 `2026-11-01T16:00:00.000Z`），分别为包含/不包含的拍摄时间边界；`type=all/static/live/jpeg/png/heic`；`order=newest/oldest`。筛选字段不得重复，日期和范围错误返回明确字段及修正要求。前后端共用参数校验规则，不回显错误提交值。
+
+照片分页返回 `items/nextCursor/version`，游标绑定当前账号、视图、相册、全部筛选/排序条件和资产/相册版本，按时间与 ID 继续读取；切换条件使用旧游标返回 400，图库变化返回 409，界面保留原因并提供从第一页刷新的入口。账号列表返回 `items/nextCursor`，按账号 ID 稳定分页。收藏、相册、回收站和会话操作复用既有接口及同步日志，不建立另一份图库数据。回收站的“全部恢复”和“清空”始终覆盖全部回收项（包括筛选未显示和未加载项目），确认框明确说明范围。
 
 ## 本地开发、构建与发布
 

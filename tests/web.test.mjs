@@ -224,6 +224,187 @@ test('1001 张跨日期照片稳定分页、收藏/回收站/相册筛选、游�
     200,
   );
 });
+test('照片按文件名全文库查询、字面通配符、拍摄日期和类型组合筛选，四种视图保持隔离', async () => {
+  const u = await user(),
+    foreign = await user(),
+    pair = pairId();
+  const motion = await seed(u, liveMov(pair), 'video/quicktime', {
+    type: 'VIDEO',
+    visibility: 'hidden',
+    pair,
+  });
+  const live = await seed(u, undefined, undefined, {
+    filename: '旅行 Live.JPG',
+    date: '2026-11-01T16:00:00.000Z',
+    video: motion.id,
+    pair,
+  });
+  const png = await seed(u, undefined, 'image/png', {
+    filename: '旅行 100%_\\日落.png',
+    date: '2026-11-02T15:59:59.999Z',
+  });
+  const outside = await seed(u, undefined, undefined, {
+    filename: '旅行 100abxx日落.jpg',
+    date: '2026-11-02T16:00:00.000Z',
+  });
+  const heic = await seed(u, undefined, 'image/heic', {
+    filename: '旅行.heic',
+    date: '2026-11-01T15:59:59.999Z',
+  });
+  await seed(foreign, undefined, 'image/png', { filename: '旅行 100%_\\日落.png' });
+  const search = async (params) => {
+    const r = await call(root + '/assets?' + new URLSearchParams(params), u);
+    assert.equal(r.status, 200, await r.clone().text());
+    return (await r.json()).items;
+  };
+  assert.deepEqual(
+    (await search({ q: '100%_\\' })).map((p) => p.id),
+    [png.id],
+  );
+  assert.deepEqual(await search({ q: "' OR 1=1 --" }), []);
+  assert.deepEqual(
+    (await search({ q: '  live  ', type: 'live' })).map((p) => p.id),
+    [live.id],
+  );
+  assert.deepEqual(
+    (await search({ type: 'heic' })).map((p) => p.id),
+    [heic.id],
+  );
+  assert.equal((await search({ type: 'static' })).length, 3);
+  const range = { q: '旅行', from: '2026-11-01T16:00:00.000Z', to: '2026-11-02T16:00:00.000Z' };
+  assert.deepEqual(
+    (await search(range)).map((p) => p.id),
+    [png.id, live.id],
+  );
+  assert.deepEqual(
+    (await search({ ...range, type: 'png' })).map((p) => p.id),
+    [png.id],
+  );
+  await call('/api/assets', u, 'PUT', { ids: [live.id], isFavorite: true });
+  assert.deepEqual(
+    (await search({ ...range, view: 'favorites' })).map((p) => p.id),
+    [live.id],
+  );
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '筛选相册', assetIds: [png.id, outside.id] })
+  ).json();
+  assert.deepEqual(
+    (await search({ ...range, view: 'album', albumId: album.id })).map((p) => p.id),
+    [png.id],
+  );
+  await call('/api/assets', u, 'DELETE', { ids: [png.id] });
+  assert.deepEqual(
+    (await search({ ...range, type: 'png', view: 'trash' })).map((p) => p.id),
+    [png.id],
+  );
+  assert.deepEqual(await search({ ...range, type: 'png' }), []);
+});
+
+test('搜索超过首屏的照片，升降序跨页无遗漏且游标绑定所有筛选与账号', async () => {
+  const u = await user(),
+    foreign = await user(),
+    date = '2026-11-02T00:00:00.000Z';
+  for (let start = 0; start < 125; start += 50) {
+    await db.batch(
+      Array.from({ length: Math.min(50, 125 - start) }, (_, offset) => {
+        const id = randomUUID(),
+          i = start + offset;
+        return db
+          .prepare(
+            "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,0)",
+          )
+          .bind(id, u.id, id, id, `batch-${i}.jpg`, date, date, date);
+      }),
+    );
+  }
+  for (const order of ['newest', 'oldest']) {
+    const seen = [];
+    let cursor;
+    do {
+      const r = await call(
+        root +
+          '/assets?' +
+          new URLSearchParams({ q: 'batch-', order, limit: '7', ...(cursor ? { cursor } : {}) }),
+        u,
+      );
+      assert.equal(r.status, 200, await r.clone().text());
+      const page = await r.json();
+      seen.push(...page.items.map((p) => p.id));
+      cursor = page.nextCursor;
+      if (seen.length === 7) {
+        for (const change of [
+          { q: 'batch-1' },
+          { order: order === 'newest' ? 'oldest' : 'newest' },
+          { type: 'jpeg' },
+          { from: date },
+          { to: '2027-01-01T00:00:00.000Z' },
+        ]) {
+          const mismatch = await call(
+            root + '/assets?' + new URLSearchParams({ q: 'batch-', order, cursor, ...change }),
+            u,
+          );
+          assert.equal(mismatch.status, 400);
+          assert.equal((await mismatch.json()).errors[0].path[0], 'cursor');
+        }
+        assert.equal(
+          (
+            await call(
+              root + '/assets?' + new URLSearchParams({ q: 'batch-', order, cursor }),
+              foreign,
+            )
+          ).status,
+          400,
+        );
+      }
+    } while (cursor);
+    assert.equal(seen.length, 125);
+    assert.equal(new Set(seen).size, 125);
+    const sorted = [...seen].sort();
+    assert.deepEqual(seen, order === 'newest' ? sorted.reverse() : sorted);
+    const last = (
+      await (await call(root + '/assets?' + new URLSearchParams({ order, limit: '100' }), u)).json()
+    ).nextCursor;
+    const tail = (
+      await (await call(root + '/assets?' + new URLSearchParams({ order, cursor: last }), u)).json()
+    ).items.at(-1);
+    const match = await (
+      await call(root + '/assets?' + new URLSearchParams({ q: tail.originalFileName }), u)
+    ).json();
+    assert.deepEqual(
+      match.items.map((p) => p.id),
+      [tail.id],
+    );
+  }
+});
+
+test('筛选错误定位具体字段、说明修正要求且不回显提交值', async () => {
+  const u = await user();
+  for (const [params, field, message] of [
+    [{ q: 'sensitive-'.repeat(12) }, 'q', /文件名.*100.*缩短/],
+    [{ from: '2026-02-30T00:00:00.000Z' }, 'from', /拍摄开始时间.*有效/],
+    [{ to: '2026-11-01' }, 'to', /拍摄结束时间.*有效/],
+    [
+      { from: '2026-11-03T00:00:00.000Z', to: '2026-11-02T00:00:00.000Z' },
+      'from/to',
+      /拍摄开始时间、拍摄结束时间.*必须早于/,
+    ],
+    [{ type: 'secret' }, 'type', /照片类型.*请选择/],
+    [{ order: 'secret' }, 'order', /排序.*请选择/],
+  ]) {
+    const r = await call(root + '/assets?' + new URLSearchParams(params), u);
+    assert.equal(r.status, 400);
+    const body = await r.json();
+    assert.equal(body.errors[0].path[0], field);
+    assert.match(body.errors[0].message, message);
+    assert.doesNotMatch(JSON.stringify(body), /sensitive-|secret/);
+  }
+  for (const field of ['q', 'from', 'to', 'type', 'order']) {
+    const r = await call(`${root}/assets?${field}=a&${field}=b`, u);
+    assert.equal(r.status, 400);
+    assert.equal((await r.json()).errors[0].path[0], field);
+  }
+});
+
 test('JPEG/PNG/HEIC 使用真正的衍生预览，额度与生成失败返回具体状态', async () => {
   const u = await user();
   for (const [content, mime] of [

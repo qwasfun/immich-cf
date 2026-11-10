@@ -43,6 +43,12 @@ const shapes: Record<string, ReactNode> = {
     </>
   ),
   plus: <path d="M12 4v16M4 12h16" />,
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m16 16 5 5" />
+    </>
+  ),
   close: <path d="m6 6 12 12M6 18 18 6" />,
   left: <path d="m15 5-7 7 7 7" />,
   right: <path d="m9 5 7 7-7 7" />,
