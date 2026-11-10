@@ -332,6 +332,7 @@ test('动态视频 64 MiB 边界，超限中止 multipart，原件与同步不�
     liveMov(id, 64 * 1024 * 1024 - base),
     { visibility: 'hidden' },
     'IMG.MOV',
+    { 'x-test-complete-input': 'true' },
   );
   assert.equal(r.status, 201, await r.clone().text());
   assert.equal(
