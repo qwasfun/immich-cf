@@ -28,6 +28,16 @@ Live Photo 须同时选择一张照片及一份同名 MOV（忽略扩展名和�
 
 上传入口为 POST `/api/immich-cf/web/upload`，严格要求同源 Origin 与有效 Cookie/Bearer 会话，直接复用原有上传与存储流程，不另建资产或授权模型。表单和错误不写入应用日志，错误保留具体字段与修正要求。新入口不改变官方 App 的 `/api/assets` 契约。
 
+## 批量下载
+
+照片、收藏、相册或回收站中选择项目后，点击“打包下载”；每次支持 1～1000 张照片。个人相册详情的“下载整本相册”包含整本相册所有有效照片，包括未加载及被当前筛选隐藏的项目，排除回收站项目，最多 10,000 张。下载前显示照片数、原件数、原件总字节和 ZIP 分包清单。
+
+每个 ZIP 最多包含 1 GiB 原件或 1000 份文件；同组 Live Photo 的照片与 MOV 使用共同名称、始终放在同一包。保留原始字节，不转码或重新压缩照片；中文名称保留，跨包重名自动编号，路径和系统保留字符会清理。ZIP 包含原件，不包含相册关系、收藏或完整账号元数据，不能代替账号备份与系统 Live Photo 恢复。
+
+可逐包点击“下载 ZIP”或“依次下载全部”，浏览器可能要求允许多个文件下载。面板显示按原件处理的进度与服务端传输结果；文件是否保存成功仍以浏览器下载列表为准。“停止后续分包”或关闭面板停止后续任务，当前文件须在浏览器下载列表取消。失败的 ZIP 应重新下载，不提供断点续传。
+
+任务只绑定当前账号及当前登录会话，24 小时后失效；每账号最多保留 2000 个未过期分包，现有维护调度分批清除过期清单。准备及逐份读取时检查会话和图库版本，图库/相册变化、登录撤销、原件缺失或摘要不符会明确失败，需重新准备。ZIP 在服务端逐份流式生成，不写入 R2，不将整个 ZIP 缓存在浏览器内存。逐份校验原件长度与 SHA-1，最后校验通过才输出 ZIP 尾部，避免把不完整归档称作成功。
+
 ## 账号与权限
 
 - 普通用户只访问自己的照片与相册。网页不增加管理员跨账号照片浏览能力；原有受控运维导出接口保持原权限。
@@ -52,6 +62,9 @@ Live Photo 须同时选择一张照片及一份同名 MOV（忽略扩展名和�
 | GET `/api/immich-cf/web/assets`                       | `view=photos/favorites/trash/album`；相册视图必填 `albumId`；支持 `limit/cursor` 和下述筛选 |
 | GET/HEAD `/api/immich-cf/web/assets/{id}/preview`     | `size=thumbnail/preview`，只返回衍生图；生成中/失败/额度不足返回具体 503                    |
 | GET/HEAD `/api/immich-cf/web/assets/{id}/download`    | `component=photo/motion`，保留原始字节，安全 attachment 文件名                              |
+| POST `/api/immich-cf/web/downloads`                   | 同源 JSON，`ids` 或 `albumId` 二选一；返回当前会话专属分包计划和限制                        |
+| GET/DELETE `/api/immich-cf/web/downloads/{id}`        | 查询传输状态与进度；同源 DELETE 停止任务                                                    |
+| GET `/api/immich-cf/web/downloads/{id}/archive`       | `attempt` 为 UUID；流式原件 ZIP、明确长度、附件响应，失败可重试                             |
 | POST `/api/immich-cf/web/password`                    | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                             |
 | GET/POST `/api/immich-cf/admin/users`                 | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                            |
 | PATCH `/api/immich-cf/admin/users/{id}`               | 每次只改 `name` 或布尔值 `disabled`                                                         |
@@ -81,5 +94,7 @@ pnpm release:dev
 ```
 
 发布流程要求干净提交并从同一提交重新构建网页，再应用前向迁移和部署。迁移 0030 新增日期索引、账号事务守卫与管理审计，并扩展原有预览归属检查支持 JPEG/PNG；不重建或清空现有数据。Images 沿用已有免费额度、租约与熔断，不购买或升级服务。
+
+迁移 0031 只新增有界、可过期的网页下载任务表与索引，不复制或修改现有媒体。ZIP 使用固定版本 `client-zip` 2.5.1，配合 Workers `FixedLengthStream` 发送准确长度，运行时逐份读取 R2 原件。
 
 验收包括至少 1000 个合成逻辑资产、分页隔离/变化、原件摘要、预览故障/额度、Live Photo、管理员提交竞态、会话撤销、桌面与手机宽度交互。真实 iPhone Safari、设备解码与系统相册恢复独立记录，不用桌面模拟替代。部署结果见 [dev 验收记录](web-v1-dev-deployment.md)。

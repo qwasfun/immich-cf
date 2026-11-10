@@ -4,6 +4,7 @@ import type { Album, Page, Photo } from './api';
 import { Confirm, Empty, ErrorBox, FormModal, Icon, Modal, Preview } from './ui';
 import { emptyPhotoQuery, hasPhotoFilters, photoQueryParams } from '../../src/web/gallery-query';
 import { PhotoFilters } from './PhotoFilters';
+import { Download } from './Download';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -548,6 +549,10 @@ export function Gallery({
         <div className="heading-actions">
           {album && (
             <>
+              <button disabled={loading || busy} onClick={() => setDialog('download-album')}>
+                <Icon name="download" />
+                下载整本相册
+              </button>
               <button onClick={() => setDialog('edit-album')}>编辑相册</button>
               <button className="primary" onClick={() => setDialog('picker')}>
                 <Icon name="plus" />
@@ -572,6 +577,10 @@ export function Gallery({
         <div className="selection-toolbar">
           <strong>已选择 {selected.size} 项</strong>
           <button onClick={() => setSelected(new Set())}>取消选择</button>
+          <button disabled={busy || loading} onClick={() => ask('download')}>
+            <Icon name="download" size={16} />
+            打包下载
+          </button>
           {view === 'trash' ? (
             <>
               <button onClick={() => ask('restore')}>恢复所选</button>
@@ -714,6 +723,8 @@ export function Gallery({
         />
       )}
       {dialog === 'album' && <AlbumChoice ids={targets} close={close} changed={changed} />}
+      {dialog === 'download' && <Download ids={targets} close={close} />}
+      {dialog === 'download-album' && <Download albumId={albumId} close={close} />}
       {dialog === 'picker' && (
         <Picker
           title="添加照片到相册"

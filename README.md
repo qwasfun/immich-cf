@@ -10,6 +10,8 @@
 
 Web 照片查找支持完整图库文件名搜索、拍摄日期/类型组合筛选、时间升降序和按日期批量选择；照片、收藏、相册、回收站及相册选图共用查询与分页规则。
 
+Web 支持所选照片及整本个人相册打包下载 ZIP，自动包含 Live Photo 的照片与 MOV 原件；大相册自动分包，可逐包或依次下载，进度和失败原因在面板显示。完整规则见 [批量下载](docs/web-v1.md#批量下载)。
+
 新增 [Live Photo 原件备份与 Images 免费预览](docs/p2-live-photo-support.md)：JPEG/HEIC＋MOV 配对、流式上传、整组生命周期和 v2 导出；真实 iPhone 播放与恢复仍待独立验收。
 
 测试账号已由用户确认升级Workers Paid，功能开发暂不受免费计划限制；当前约束以[Paid开发决策](docs/paid-development-decision.md)为准。

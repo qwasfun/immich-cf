@@ -4,14 +4,17 @@ import { route } from './poc/routes';
 import { runPreviews } from './poc/previews';
 import { cleanStaging } from './poc/media-staging';
 import { webRoute } from './web/routes';
+import { cleanDownloads } from './web/downloads';
 
 export default {
   async scheduled(controller, env, ctx) {
     if (String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(
-        Promise.all([runPreviews(env), cleanStaging(env)]).catch(() => {
-          console.error(JSON.stringify({ code: 'MEDIA_MAINTENANCE_UNAVAILABLE' }));
-        }),
+        Promise.all([runPreviews(env), cleanStaging(env), cleanDownloads(env.IMMICH_CF_DB)]).catch(
+          () => {
+            console.error(JSON.stringify({ code: 'MEDIA_MAINTENANCE_UNAVAILABLE' }));
+          },
+        ),
       );
     if (controller.cron && String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(

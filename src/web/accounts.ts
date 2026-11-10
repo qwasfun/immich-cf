@@ -6,6 +6,7 @@ import { decode, encode, field, only, pageSize, sameOrigin, uuid } from './commo
 import { MAX_PHOTO, MAX_MOTION } from '../poc/media-format';
 import { MAX_IMAGE } from '../poc/multipart';
 import { MAX_IMAGE_EDGE, MAX_IMAGE_PIXELS } from '../poc/image-limits';
+import { ARCHIVE_BYTES, ARCHIVE_FILES } from './archive-plan';
 
 function name(value: unknown) {
   if (
@@ -229,6 +230,12 @@ export async function webBootstrap(request: Request, env: Env, identity: Identit
     limits: {
       ...results[2]!.results[0],
       logicalAssetsIncludeTrashAndReservations: true,
+      download: {
+        partBytes: ARCHIVE_BYTES,
+        partFiles: ARCHIVE_FILES,
+        selectedPhotos: 1000,
+        albumPhotos: 10000,
+      },
       upload: {
         photoBytes: String(env.ENABLE_LIVE_PHOTO) === 'true' ? MAX_PHOTO : MAX_IMAGE,
         motionBytes: String(env.ENABLE_LIVE_PHOTO) === 'true' ? MAX_MOTION : 0,
@@ -242,6 +249,7 @@ export async function webBootstrap(request: Request, env: Env, identity: Identit
     },
     support: {
       upload: true,
+      download: true,
       share: false,
       previewFormats: ['image/jpeg', 'image/png', 'image/heic'],
       livePhotoPlayback: 'browser-dependent',

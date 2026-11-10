@@ -1454,6 +1454,87 @@ main {
     display: none;
   }
 }
+.modal:has(.download-body) {
+  overflow: hidden;
+}
+.modal:has(.download-body) .modal-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(90dvh - 2px);
+}
+.modal:has(.download-body) header,
+.modal:has(.download-body) footer {
+  flex-shrink: 0;
+}
+.download-body {
+  min-height: 0;
+  overflow: auto;
+}
+.download-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 18px 0;
+}
+.download-overview span,
+.download-part-info > span,
+.download-part-info > small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.download-parts {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.download-parts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.download-parts li > svg {
+  flex-shrink: 0;
+  color: var(--blue);
+  margin-top: 4px;
+}
+.download-part-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow-wrap: anywhere;
+}
+.download-part-info progress {
+  width: 100%;
+  height: 7px;
+  accent-color: var(--blue);
+}
+.download-part-info .download-complete {
+  color: #36826b;
+}
+.download-wait {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.download-frame {
+  display: none;
+}
+@media (max-width: 700px) {
+  .download-parts li {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .download-parts li > button {
+    margin-left: 30px;
+  }
+  .download-part-info {
+    flex-basis: calc(100% - 35px);
+  }
+}
 .photo-filters {
   padding: 18px;
   margin-bottom: 22px;

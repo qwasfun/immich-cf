@@ -151,6 +151,195 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
   assert.equal((await (await call('/api/users/me', u)).json()).isAdmin, false);
 });
 
+const prepareZip = (u, input) => call(root + '/downloads', u, 'POST', input);
+function inspectZip(bytes) {
+  return JSON.parse(
+    execFileSync(
+      process.platform === 'win32' ? 'python' : 'python3',
+      [
+        '-X',
+        'utf8',
+        '-c',
+        'import sys,io,zipfile,json,hashlib; z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())); assert z.testzip() is None; print(json.dumps([{ "name":i.filename,"bytes":i.file_size,"sha1":hashlib.sha1(z.read(i)).hexdigest()} for i in z.infolist()]))',
+      ],
+      { input: Buffer.from(bytes), maxBuffer: 2 * 1024 ** 2, encoding: 'utf8' },
+    ),
+  );
+}
+test('所选照片 ZIP 包含原件及 Live Photo MOV，中文重名不覆盖且独立解压/CRC/SHA-1 验证通过', async () => {
+  const u = await user(),
+    pair = pairId(),
+    motion = await seed(u, liveMov(pair), 'video/quicktime', {
+      pair,
+      type: 'VIDEO',
+      visibility: 'hidden',
+    }),
+    live = await seed(u, liveHeic(pair), 'image/heic', {
+      pair,
+      video: motion.id,
+      filename: '旅行.heic',
+    }),
+    one = await seed(u, undefined, undefined, { filename: '同名.jpg' }),
+    two = await seed(u, undefined, undefined, { filename: '同名.jpg' });
+  const prepared = await prepareZip(u, { ids: [one.id, two.id, live.id] });
+  assert.equal(prepared.status, 200, await prepared.clone().text());
+  const plan = await prepared.json();
+  assert.equal(plan.photos, 3);
+  assert.equal(plan.files, 4);
+  assert.equal(plan.parts.length, 1);
+  assert.doesNotMatch(JSON.stringify(plan), /object_key|checksum|session_id|entries/);
+  const part = plan.parts[0],
+    attempt = randomUUID(),
+    response = await call(part.downloadPath + '?attempt=' + attempt, u);
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.match(response.headers.get('content-type'), /application\/zip/);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const bytes = await response.arrayBuffer();
+  assert.equal(bytes.byteLength, Number(response.headers.get('content-length')));
+  const files = inspectZip(bytes);
+  assert.equal(files.length, 4);
+  assert.equal(new Set(files.map((x) => x.name.toLowerCase())).size, 4);
+  assert.ok(files.some((x) => x.name === '旅行.heic'));
+  assert.ok(files.some((x) => x.name === '旅行.mov'));
+  assert.ok(files.some((x) => x.name === '同名.jpg'));
+  assert.ok(files.some((x) => x.name === '同名 (2).jpg'));
+  assert.deepEqual(
+    files.map((x) => x.sha1).sort(),
+    [one, two, live, motion].map((x) => createHash('sha1').update(x.content).digest('hex')).sort(),
+  );
+  const status = await (await call(`${root}/downloads/${part.id}`, u)).json();
+  assert.equal(status.state, 'complete');
+  assert.equal(status.completedFiles, 4);
+  assert.equal(status.runId, attempt);
+});
+test('整本相册下载覆盖未加载照片，1001 项自动分包，权限/范围/会话与过期错误可定位', async () => {
+  const u = await user(),
+    other = await user(),
+    ids = [];
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, n) => {
+        const id = randomUUID();
+        ids.push(id);
+        const date = '2026-11-11T00:00:00.000Z';
+        return db
+          .prepare(
+            "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,0)",
+          )
+          .bind(id, u.id, id, id, `未加载-${at + n}.jpg`, date, date, date);
+      }),
+    );
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '整本相册', assetIds: ids.slice(0, 1000) })
+  ).json();
+  await call(`/api/albums/${album.id}/assets`, u, 'PUT', { ids: ids.slice(1000) });
+  const plan = await (await prepareZip(u, { albumId: album.id })).json();
+  assert.equal(plan.photos, 1001);
+  assert.equal(plan.files, 1001);
+  assert.equal(plan.parts.length, 2);
+  const snapshots = await db
+    .prepare('SELECT entries FROM web_download_jobs WHERE owner_id=?')
+    .bind(u.id)
+    .all();
+  assert.equal(
+    new Set(snapshots.results.flatMap((row) => JSON.parse(row.entries).map((x) => x.id))).size,
+    1001,
+  );
+  const part = plan.parts[0];
+  assert.equal((await call(part.downloadPath + '?attempt=' + randomUUID(), other)).status, 404);
+  assert.equal((await call(`${root}/downloads/${part.id}`, other)).status, 404);
+  assert.equal((await prepareZip(other, { albumId: album.id })).status, 404);
+  for (const input of [
+    { ids: [] },
+    { ids: [ids[0]], albumId: album.id },
+    { ids: [ids[0], ids[0]] },
+    { ids: [randomUUID()] },
+  ]) {
+    const r = await prepareZip(u, input);
+    assert.ok([400, 404].includes(r.status));
+    assert.ok((await r.json()).errors[0].path.length);
+  }
+  assert.equal((await prepareZip(null, { ids: [ids[0]] })).status, 401);
+  assert.equal(
+    (
+      await call(
+        root + '/downloads',
+        u,
+        'POST',
+        { ids: [ids[0]] },
+        { Origin: 'https://other.invalid' },
+      )
+    ).status,
+    403,
+  );
+  const replacement = await user();
+  await db.prepare('UPDATE web_download_jobs SET expires_ms=0 WHERE id=?').bind(part.id).run();
+  assert.equal((await call(`${root}/downloads/${part.id}`, u)).status, 410);
+  assert.equal((await call(`${root}/downloads/${part.id}`, replacement)).status, 404);
+});
+test('ZIP 原件缺失/等长损坏明确失败，图库变化拒绝旧快照，回收站所选仍可下载', async () => {
+  const u = await user(),
+    a = await seed(u),
+    b = await seed(u);
+  const plan = await (await prepareZip(u, { ids: [a.id] })).json(),
+    part = plan.parts[0];
+  await bucket.delete(a.key);
+  const missing = await call(part.downloadPath + '?attempt=' + randomUUID(), u);
+  assert.equal(missing.status, 503);
+  assert.match((await missing.json()).message, /原件暂不可读取/);
+  assert.equal((await (await call(`${root}/downloads/${part.id}`, u)).json()).state, 'failed');
+  await bucket.put(a.key, Buffer.alloc(a.content.length, 1), {
+    sha1: createHash('sha1').update(Buffer.alloc(a.content.length, 1)).digest(),
+  });
+  const corrupt = await call(part.downloadPath + '?attempt=' + randomUUID(), u);
+  assert.equal(corrupt.status, 503);
+  assert.match((await corrupt.json()).message, /校验不符/);
+  const fresh = await (await prepareZip(u, { ids: [b.id] })).json();
+  await call('/api/assets', u, 'PUT', { ids: [b.id], isFavorite: true });
+  assert.equal(
+    (await call(fresh.parts[0].downloadPath + '?attempt=' + randomUUID(), u)).status,
+    409,
+  );
+  await call('/api/assets', u, 'DELETE', { ids: [b.id] });
+  const trashed = await (await prepareZip(u, { ids: [b.id] })).json();
+  assert.equal(
+    inspectZip(
+      await (
+        await call(trashed.parts[0].downloadPath + '?attempt=' + randomUUID(), u)
+      ).arrayBuffer(),
+    ).length,
+    1,
+  );
+});
+
+test('ZIP 逐块校验识别无原生 SHA-1 的等长损坏，传输中取消不会留下成功任务', async () => {
+  const u = await user(),
+    file = await seed(u);
+  await db.prepare('UPDATE assets SET r2_sha1_verified=0 WHERE id=?').bind(file.id).run();
+  await bucket.put(file.key, Buffer.alloc(file.content.length, 7));
+  const part = (await (await prepareZip(u, { ids: [file.id] })).json()).parts[0];
+  const response = await call(part.downloadPath + '?attempt=' + randomUUID(), u, 'GET', undefined, {
+    Connection: 'close',
+  });
+  assert.equal(response.status, 200);
+  await assert.rejects(response.arrayBuffer());
+  const status = await (await call(`${root}/downloads/${part.id}`, u)).json();
+  assert.equal(status.state, 'failed');
+  assert.match(status.error, /校验不符/);
+  assert.equal(status.completedFiles, 0);
+  const large = await seed(u, Buffer.alloc(19_000_000, 5));
+  const task = (await (await prepareZip(u, { ids: [large.id] })).json()).parts[0];
+  const streamed = await call(task.downloadPath + '?attempt=' + randomUUID(), u, 'GET', undefined, {
+    Connection: 'close',
+  });
+  const reader = streamed.body.getReader();
+  await reader.read();
+  assert.equal((await call(`${root}/downloads/${task.id}`, u, 'DELETE')).status, 204);
+  await reader.cancel().catch(() => undefined);
+  const cancelled = await (await call(`${root}/downloads/${task.id}`, u)).json();
+  assert.equal(cancelled.state, 'cancelled');
+});
+
 async function browserUpload(u, bytes, name, fields = {}, headers = {}) {
   const form = new FormData();
   form.append('assetData', new File([bytes], name));

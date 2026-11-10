@@ -31,6 +31,9 @@ const labels: Record<string, string> = {
   livePhotoVideoId: '动态照片配对',
   visibility: '照片类型',
   'x-immich-checksum': '文件校验',
+  albumId: '相册',
+  downloadId: '下载任务',
+  attempt: '下载尝试',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {

@@ -4,6 +4,7 @@ import { accounts, changePassword, webBootstrap } from './accounts';
 import { gallery, webMedia } from './gallery';
 import { upload } from '../poc/assets';
 import { sameOrigin } from './common';
+import { downloads } from './downloads';
 
 export async function webRoute(
   request: Request,
@@ -21,8 +22,14 @@ export async function webRoute(
   const admin = path.match(
     /^\/api\/immich-cf\/admin\/users(?:\/([^/]+)(?:\/(reset-password|sessions))?)?$/,
   );
-  const methods =
-    path === '/api/immich-cf/web/bootstrap' || path === '/api/immich-cf/web/assets'
+  const download = path.match(/^\/api\/immich-cf\/web\/downloads(?:\/([^/]+)(?:\/(archive))?)?$/);
+  const methods = download
+    ? download[2]
+      ? ['GET']
+      : download[1]
+        ? ['GET', 'DELETE']
+        : ['POST']
+    : path === '/api/immich-cf/web/bootstrap' || path === '/api/immich-cf/web/assets'
       ? ['GET']
       : path === '/api/immich-cf/web/password' || path === '/api/immich-cf/web/upload'
         ? ['POST']
@@ -52,17 +59,19 @@ export async function webRoute(
         for (const key of new URL(request.url).searchParams.keys())
           throw new HttpError(400, `${key}：上传不接受查询参数，请移除`, key);
       }
-      response = admin
-        ? await accounts(request, env, identity)
-        : media
-          ? await webMedia(request, env, identity, media[1]!, media[2]!, ctx)
-          : path === '/api/immich-cf/web/upload'
-            ? await upload(request, env, identity)
-            : path === '/api/immich-cf/web/password'
-              ? await changePassword(request, env, identity)
-              : path === '/api/immich-cf/web/assets'
-                ? await gallery(request, env, identity)
-                : await webBootstrap(request, env, identity);
+      response = download
+        ? await downloads(request, env, identity, download[1], !!download[2], ctx)
+        : admin
+          ? await accounts(request, env, identity)
+          : media
+            ? await webMedia(request, env, identity, media[1]!, media[2]!, ctx)
+            : path === '/api/immich-cf/web/upload'
+              ? await upload(request, env, identity)
+              : path === '/api/immich-cf/web/password'
+                ? await changePassword(request, env, identity)
+                : path === '/api/immich-cf/web/assets'
+                  ? await gallery(request, env, identity)
+                  : await webBootstrap(request, env, identity);
     }
   } catch (error) {
     if (error instanceof HttpError)
