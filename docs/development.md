@@ -1,6 +1,6 @@
 # 开发与环境说明
 
-当前环境策略以[三环境开发与发布](environments.md)为准：dev 已开启，test/prod 逐级晋升。
+当前环境策略以[三环境开发与发布](environments.md)为准：dev/test/prod 均已发布，后续仍按 dev → test → prod 逐级晋升。
 
 ## 目录
 
@@ -35,11 +35,11 @@ wrangler.json                   生产、dev、test 配置
 
 ## 远程资源配置
 
-`wrangler.json` 顶层是生产；dev/test 显式声明各自绑定与变量，避免误用生产存储。dev 已配置真实账户和 D1 ID；生产与 test 的 D1 ID 仍为末尾 000、002 的占位值，远程部署前必须替换。R2 桶保持私有。`pnpm dev` 使用 dev 远程资源；`pnpm dev:local` 才通过 `--local` 使用模拟资源；ID 变更后请重新执行本地迁移。
+`wrangler.json` 的 dev/test/prod 显式声明各自绑定与变量，三个环境均已配置真实 D1 ID，避免误用其他环境存储。R2 桶保持私有。`pnpm dev` 使用 dev 远程资源；`pnpm dev:local` 才通过 `--local` 使用模拟资源；ID 变更后请重新执行本地迁移。
 
-正式进入远程 PoC 时，按选定环境逐项创建 D1/R2、记录真实资源 ID、替换配置，再应用该环境迁移并部署。开发用 `--env dev`，验收用 `--env test`；生产使用顶层配置（`--env` 的值为空字符串）。不要在未指定环境时进行试验性远程操作。
+正式进入远程 PoC 时，按选定环境逐项创建 D1/R2、记录真实资源 ID、替换配置，再应用该环境迁移并部署。开发用 `--env dev`，验收用 `--env test`；生产显式使用 `--env prod`（推荐 `pnpm deploy:prod`），不要用空环境配置覆盖生产。不要在未指定环境时进行试验性远程操作。
 
-开发环境已于 2026-10-13 首次部署，详见[部署记录](deployment-dev.md)。生产和 test 尚未部署。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见需求文档第 4、13 节。
+开发环境已于 2026-10-13 首次部署，详见[部署记录](deployment-dev.md)。生产和 test 已于 2026-11-10 首次部署，详见[发布记录](test-prod-deployment.md)。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见需求文档第 4、13 节。
 
 ## 配置与秘密
 

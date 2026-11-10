@@ -1,5 +1,7 @@
 # immich-cf
 
+测试与生产环境已于 2026-11-10 首次发布，地址、登录方式及验证结果见 [部署记录](docs/test-prod-deployment.md)。
+
 - [P2 只读存储对账](docs/p2-storage-audit.md)：分页观察原图异常与保留预约，不执行清理。
 
 基于 Cloudflare Workers / D1 / R2、以完全不修改官方 Immich App 为硬约束的兼容服务端验证项目。
@@ -81,11 +83,11 @@ pnpm check
 | D1     | immich-cf-db     | immich-cf-db-dev    | immich-cf-db-test    |
 | R2     | immich-cf-media  | immich-cf-media-dev | immich-cf-media-test |
 
-生产不添加 `-prod` 后缀。dev 已绑定真实 D1/R2 资源并部署；生产和 test 的 D1 ID 仍为占位值，尚未创建对应远程资源。
+生产不添加 `-prod` 后缀。dev、test、prod 均已绑定各自真实 D1/R2 并发布，数据和登录会话隔离。
 
 开发环境健康检查：<https://immich-cf-api-dev.fun.workers.dev/healthz>。资源、验证结果和后续部署步骤见[开发环境部署记录](docs/deployment-dev.md)。
 
-项目版本 `0.1.0` 是自身版本。远程 dev 已开启 P1，仅已实现路由开放；test/prod 尚未发布；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。
+项目版本 `0.1.0` 是自身版本。dev/test/prod 已开启现有功能，仅已实现路由开放；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。
 
 - [P1 显式 reset 对齐](docs/p1-explicit-reset.md)：直接快照、并发隔离、失败恢复与验收。
 

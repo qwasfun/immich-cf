@@ -1,0 +1,839 @@
+{
+  "sourceCommit": "271f850b437d93a6ccc82f231287955f642dea1f",
+  "checkedAt": "2026-11-10T12:04:25.710Z",
+  "localTests": {
+    "total": 236,
+    "passed": 236,
+    "failed": 0,
+    "skipped": 0
+  },
+  "contractOperations": 279,
+  "contractSources": 53,
+  "controlPlane": {
+    "checkedAt": "2026-11-10T12:04:25.704Z",
+    "environments": [
+      {
+        "environment": "test",
+        "worker": "immich-cf-api-test",
+        "database": "a1140d40-c9c7-4155-8aaf-6273724caf03",
+        "bucket": "immich-cf-media-test",
+        "version": "7827c6bd-c60e-4266-8617-4f55dfd3abb8",
+        "counts": {
+          "migrations": 30,
+          "users": 2,
+          "activeUsers": 1,
+          "administrators": 1,
+          "assets": 0,
+          "albums": 0,
+          "sessions": 0,
+          "uploadReservations": 0,
+          "copyReservations": 0,
+          "pendingPurge": 0,
+          "pendingPurgeObjects": 0
+        },
+        "deployment": {
+          "id": "072cae33-8389-4507-8d72-c44185e848df",
+          "createdOn": "2026-11-10T11:53:33.124856Z",
+          "versions": [
+            {
+              "version_id": "7827c6bd-c60e-4266-8617-4f55dfd3abb8",
+              "percentage": 100
+            }
+          ]
+        },
+        "cron": ["*/5 * * * *"],
+        "publicBucketDomainEnabled": false,
+        "bindings": [
+          {
+            "name": "APP_ENV",
+            "type": "plain_text",
+            "value": "test"
+          },
+          {
+            "name": "APP_VERSION",
+            "type": "plain_text",
+            "value": "0.1.0"
+          },
+          {
+            "name": "ENABLE_LIVE_PHOTO",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "ENABLE_P1_POC",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "IMAGES",
+            "type": "images"
+          },
+          {
+            "name": "IMAGES_FREE_CONFIRMED",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "IMMICH_CF_DB",
+            "type": "d1",
+            "database": "a1140d40-c9c7-4155-8aaf-6273724caf03"
+          },
+          {
+            "name": "IMMICH_CF_MEDIA",
+            "type": "r2_bucket",
+            "bucket": "immich-cf-media-test"
+          },
+          {
+            "name": "WEB_ASSETS",
+            "type": "assets"
+          }
+        ]
+      },
+      {
+        "environment": "prod",
+        "worker": "immich-cf-api",
+        "database": "cc80e056-5b06-46ed-9a1f-2e6fd86a96ba",
+        "bucket": "immich-cf-media",
+        "version": "b1ff3893-ebf5-4944-9554-ca05e1e57913",
+        "counts": {
+          "migrations": 30,
+          "users": 2,
+          "activeUsers": 1,
+          "administrators": 1,
+          "assets": 0,
+          "albums": 0,
+          "sessions": 0,
+          "uploadReservations": 0,
+          "copyReservations": 0,
+          "pendingPurge": 0,
+          "pendingPurgeObjects": 0
+        },
+        "deployment": {
+          "id": "7b12bf82-9a00-4310-8271-59d0525ff495",
+          "createdOn": "2026-11-10T12:00:55.50248Z",
+          "versions": [
+            {
+              "version_id": "b1ff3893-ebf5-4944-9554-ca05e1e57913",
+              "percentage": 100
+            }
+          ]
+        },
+        "cron": ["*/5 * * * *"],
+        "publicBucketDomainEnabled": false,
+        "bindings": [
+          {
+            "name": "APP_ENV",
+            "type": "plain_text",
+            "value": "production"
+          },
+          {
+            "name": "APP_VERSION",
+            "type": "plain_text",
+            "value": "0.1.0"
+          },
+          {
+            "name": "ENABLE_LIVE_PHOTO",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "ENABLE_P1_POC",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "IMAGES",
+            "type": "images"
+          },
+          {
+            "name": "IMAGES_FREE_CONFIRMED",
+            "type": "plain_text",
+            "value": "true"
+          },
+          {
+            "name": "IMMICH_CF_DB",
+            "type": "d1",
+            "database": "cc80e056-5b06-46ed-9a1f-2e6fd86a96ba"
+          },
+          {
+            "name": "IMMICH_CF_MEDIA",
+            "type": "r2_bucket",
+            "bucket": "immich-cf-media"
+          },
+          {
+            "name": "WEB_ASSETS",
+            "type": "assets"
+          }
+        ]
+      }
+    ]
+  },
+  "environments": {
+    "test": {
+      "workerVersion": "7827c6bd-c60e-4266-8617-4f55dfd3abb8",
+      "target": "test",
+      "checkedAt": "2026-11-10T11:54:14.397Z",
+      "complete": true,
+      "checks": [
+        {
+          "label": "web-login-html",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-asset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-asset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/healthz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/.well-known/immich",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/api/server/ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/api/server/version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "anonymous-web-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "anonymous-admin-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "initial-admin-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "initial-admin-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "admin-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "specific-field-error",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "find-own-probe",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-isolated-probe",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "isolated-probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "normal-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "normal-admin-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "upload-release-fixture.jpg",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-fixture.png",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-public.MOV",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-public.HEIC",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "gallery-hides-motion",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpeg",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-jpeg-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-jpeg-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-png-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-png-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-heic",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-heic-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-heic-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-motion-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "admin-cross-owner-media-denied",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "official-sync-stream",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-sync-ack",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "favorite-write",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "favorite-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-create",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "album-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-photo-trash",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "trash-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-photo-restore",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleanup-own-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-own-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "resume-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-probe-gallery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "disable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "disabled-session-rejected",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "admin-logout",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "privateSamplesUploaded": false,
+      "deviceVerified": false,
+      "cleanup": true,
+      "physicalCleanupDone": true,
+      "physicalCleanupChecks": [
+        {
+          "label": "admin-login",
+          "status": 201
+        },
+        {
+          "label": "find-own-fixture-account",
+          "status": 200
+        },
+        {
+          "label": "enable-own-fixture-account",
+          "status": 204
+        },
+        {
+          "label": "own-fixture-login",
+          "status": 201
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200
+        },
+        {
+          "label": "disable-own-fixture-account",
+          "status": 204
+        },
+        {
+          "label": "admin-logout",
+          "status": 200
+        }
+      ]
+    },
+    "prod": {
+      "workerVersion": "b1ff3893-ebf5-4944-9554-ca05e1e57913",
+      "target": "prod",
+      "checkedAt": "2026-11-10T12:01:12.332Z",
+      "complete": true,
+      "checks": [
+        {
+          "label": "web-login-html",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-asset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-asset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/healthz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/.well-known/immich",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/api/server/ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "/api/server/version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "anonymous-web-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "anonymous-admin-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "initial-admin-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "initial-admin-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "admin-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "specific-field-error",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "find-own-probe",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-isolated-probe",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "isolated-probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "normal-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "normal-admin-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "upload-release-fixture.jpg",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-fixture.png",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-public.MOV",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-release-public.HEIC",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "gallery-hides-motion",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpeg",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-jpeg-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-jpeg-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-png-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-png-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-heic",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-heic-thumbnail",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "images-heic-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-motion-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "admin-cross-owner-media-denied",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "official-sync-stream",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-sync-ack",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "favorite-write",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "favorite-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-create",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "album-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-photo-trash",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "trash-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "live-photo-restore",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleanup-own-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-own-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "own-authorized-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-authorized-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-authorized-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-authorized-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-probe-gallery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "disable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "disabled-session-rejected",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "admin-logout",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "privateSamplesUploaded": false,
+      "deviceVerified": false,
+      "physicalCleanupDone": true,
+      "cleanup": true
+    }
+  },
+  "isolation": {
+    "checkedAt": "2026-11-10T12:03:40.162Z",
+    "complete": true,
+    "checks": [
+      {
+        "target": "test",
+        "label": "login-own-admin",
+        "status": 201
+      },
+      {
+        "target": "prod",
+        "label": "login-own-admin",
+        "status": 201
+      },
+      {
+        "target": "test",
+        "label": "own-bearer-accepted",
+        "status": 200
+      },
+      {
+        "target": "test",
+        "label": "own-cookie-accepted",
+        "status": 200
+      },
+      {
+        "target": "test",
+        "label": "other-environment-bearer-rejected",
+        "status": 401
+      },
+      {
+        "target": "test",
+        "label": "other-environment-cookie-rejected",
+        "status": 401
+      },
+      {
+        "target": "prod",
+        "label": "own-bearer-accepted",
+        "status": 200
+      },
+      {
+        "target": "prod",
+        "label": "own-cookie-accepted",
+        "status": 200
+      },
+      {
+        "target": "prod",
+        "label": "other-environment-bearer-rejected",
+        "status": 401
+      },
+      {
+        "target": "prod",
+        "label": "other-environment-cookie-rejected",
+        "status": 401
+      },
+      {
+        "target": "test",
+        "label": "logout-own-admin",
+        "status": 200
+      },
+      {
+        "target": "prod",
+        "label": "logout-own-admin",
+        "status": 200
+      }
+    ]
+  }
+}

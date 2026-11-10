@@ -1,18 +1,18 @@
 # dev → test → prod 开发与发布
 
-更新：2026-10-14。开发使用 dev，验收环境统一命名 test（替代旧规划 staging），生产资源不加 prod 后缀。环境间只晋升代码和迁移，不复制用户、密码、会话或媒体。
+更新：2026-11-10。开发使用 dev，验收环境统一命名 test（替代旧规划 staging），生产资源不加 prod 后缀。环境间只晋升代码和迁移，不复制用户、密码、会话或媒体。
 
 ## 客户端地址与资源
 
-| 环境 | 客户端服务器地址                           | Worker / D1 / R2                                              | 当前状态                       |
-| ---- | ------------------------------------------ | ------------------------------------------------------------- | ------------------------------ |
-| dev  | https://immich-cf-api-dev.fun.workers.dev  | immich-cf-api-dev / immich-cf-db-dev / immich-cf-media-dev    | 已发布并开启 P1 入口           |
-| test | https://immich-cf-api-test.fun.workers.dev | immich-cf-api-test / immich-cf-db-test / immich-cf-media-test | 规划地址；资源尚未创建、未发布 |
-| prod | https://immich-cf-api.fun.workers.dev      | immich-cf-api / immich-cf-db / immich-cf-media                | 规划地址；资源尚未创建、未发布 |
+| 环境 | 客户端服务器地址                           | Worker / D1 / R2                                              | 当前状态                 |
+| ---- | ------------------------------------------ | ------------------------------------------------------------- | ------------------------ |
+| dev  | https://immich-cf-api-dev.fun.workers.dev  | immich-cf-api-dev / immich-cf-db-dev / immich-cf-media-dev    | 已发布并开启 P1 入口     |
+| test | https://immich-cf-api-test.fun.workers.dev | immich-cf-api-test / immich-cf-db-test / immich-cf-media-test | 已发布，独立数据库与媒体 |
+| prod | https://immich-cf-api.fun.workers.dev      | immich-cf-api / immich-cf-db / immich-cf-media                | 已发布，独立数据库与媒体 |
 
 官方 App 填写根地址即可，不需要自行加 `/api`。切换环境使用 App 现有服务器/账号入口；各环境分别登录，禁止复用 token。用户、图库、备份状态和同步检查点独立，首次切换后的本地缓存/重同步行为仍须 iOS 3.3.1 build 23 真机验收，不能把开发测试数据当作生产备份。
 
-dev 测试邮箱为 `dev@immich-cf.test`，随机密码保存在本机忽略目录 `work/dev-access.txt`，不纳入 Git。当前仅有发现、登录、会话与空库 Sync；上传、媒体和完整 App 初始化未完成，不能用于正式备份。
+dev 测试邮箱为 `dev@immich-cf.test`，随机密码保存在本机忽略目录 `work/dev-access.txt`，不纳入 Git。现有功能包含网页图库、账号管理、JPEG/PNG/HEIC 上传与预览、Live Photo 配对和 Sync；完整真机、容量与灾备验收仍按阶段文档推进。test/prod 初始登录信息仅保存在本机忽略文件 `work/test-prod-initial-access.txt`。
 
 ## 本地调试
 
@@ -50,9 +50,9 @@ pnpm deploy:prod
 
 发布脚本要求当前分支与目标一致；test 的 HEAD 必须已在 dev 历史中，prod 必须已在 test 历史中。未填写真实 D1 ID 时拒绝发布；不会替你自动合并、建资源或修改密码。临时回退不能擅自回滚数据库，迁移保持向后兼容，破坏性变更单独规划。
 
-GitHub `Promote environment` 工作流为手动触发，不因推送自动发布。仓库需配置 dev/test/prod GitHub Environments 及各自 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人；本次没有配置或获取这些 secrets，也没有推送分支。工作流 checkout 目标分支，跑完整检查后使用同一发布脚本。配置在本地提交不等于远程 CI 已启用。
+GitHub `Promote environment` 工作流为手动触发，不因推送自动发布。仓库需配置 dev/test/prod GitHub Environments 及各自 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人；本次通过已有本机 OAuth 和 CLI 发布，并已推送三个环境分支；没有新增或获取 deployment secrets。工作流 checkout 目标分支，跑完整检查后使用同一发布脚本。推送会运行 Checks；手动部署工作流仍依赖各环境的 secret 和 Environment 配置。
 
-test/prod 当前 `ENABLE_P1_POC=false`，不会随 dev 入口启用自动开放。待阶段验收后，明确修改对应环境开关并晋升；这些基础配置应在 dev 分支维护，确保三个分支可快进。
+2026-11-10 首次晋升已显式为 test/prod 启用现有功能、Live Photo、Images 免费预览与每 5 分钟 Cron。基础配置继续在 dev 分支维护，确保三个分支可快进；资源、版本和验收边界见[测试与生产发布记录](test-prod-deployment.md)。
 
 ## 2026-10-14 部署与验证
 
