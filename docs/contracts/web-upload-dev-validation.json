@@ -1,0 +1,213 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-10T19:16:06.978Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "existing-account-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "existing-account-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-html",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-asset-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-asset-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-normal-account",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "isolated-account-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "anonymous-upload-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "cross-origin-cookie-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "cookie-jpeg-upload",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "same-content-retry",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cookie-png-upload",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "live-missing-motion-field",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "live-motion-first",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "live-photo-paired",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "live-photo-retry",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gallery-three-logical-items",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-logical-usage",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-jpeg",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-png",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-heic",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-motion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-media-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "create-target-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "add-uploaded-photos-to-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-upload-results",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "specific-container-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-date-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "failure-does-not-add-assets",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "purge-only-probe-originals",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "delete-only-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-empty-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-probe-account",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "existing-account-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-created-operator-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "existingAccountUsageUnchanged": true,
+  "cleaned": true,
+  "logicalItems": 3,
+  "originalsVerified": 4,
+  "physicalCleanupConfirmed": true
+}
