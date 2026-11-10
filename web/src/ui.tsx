@@ -57,6 +57,11 @@ const shapes: Record<string, ReactNode> = {
       <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
     </>
   ),
+  upload: (
+    <>
+      <path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5" />
+    </>
+  ),
   check: <path d="m5 12 4 4L19 6" />,
   info: (
     <>

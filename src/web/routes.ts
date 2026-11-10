@@ -2,6 +2,8 @@ import { authenticate } from '../poc/auth';
 import { HttpError } from '../poc/http';
 import { accounts, changePassword, webBootstrap } from './accounts';
 import { gallery, webMedia } from './gallery';
+import { upload } from '../poc/assets';
+import { sameOrigin } from './common';
 
 export async function webRoute(
   request: Request,
@@ -22,7 +24,7 @@ export async function webRoute(
   const methods =
     path === '/api/immich-cf/web/bootstrap' || path === '/api/immich-cf/web/assets'
       ? ['GET']
-      : path === '/api/immich-cf/web/password'
+      : path === '/api/immich-cf/web/password' || path === '/api/immich-cf/web/upload'
         ? ['POST']
         : media
           ? ['GET', 'HEAD']
@@ -45,15 +47,22 @@ export async function webRoute(
       );
     } else {
       const identity = await authenticate(request, env.IMMICH_CF_DB);
+      if (path === '/api/immich-cf/web/upload') {
+        sameOrigin(request);
+        for (const key of new URL(request.url).searchParams.keys())
+          throw new HttpError(400, `${key}：上传不接受查询参数，请移除`, key);
+      }
       response = admin
         ? await accounts(request, env, identity)
         : media
           ? await webMedia(request, env, identity, media[1]!, media[2]!, ctx)
-          : path === '/api/immich-cf/web/password'
-            ? await changePassword(request, env, identity)
-            : path === '/api/immich-cf/web/assets'
-              ? await gallery(request, env, identity)
-              : await webBootstrap(request, env, identity);
+          : path === '/api/immich-cf/web/upload'
+            ? await upload(request, env, identity)
+            : path === '/api/immich-cf/web/password'
+              ? await changePassword(request, env, identity)
+              : path === '/api/immich-cf/web/assets'
+                ? await gallery(request, env, identity)
+                : await webBootstrap(request, env, identity);
     }
   } catch (error) {
     if (error instanceof HttpError)

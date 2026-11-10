@@ -24,11 +24,49 @@ const labels: Record<string, string> = {
   to: '拍摄结束时间',
   type: '照片类型',
   order: '排序',
+  assetData: '照片文件',
+  filename: '文件名',
+  fileCreatedAt: '照片时间',
+  fileModifiedAt: '文件修改时间',
+  livePhotoVideoId: '动态照片配对',
+  visibility: '照片类型',
+  'x-immich-checksum': '文件校验',
 };
 function readable(message: string) {
-  return message.replace(/^([a-zA-Z]+)([：:])/, (all, key: string) =>
-    labels[key] ? labels[key] + '：' : all,
-  );
+  return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {
+    const keys = key.split('/');
+    return keys.every((key) => labels[key])
+      ? keys.map((key) => labels[key]).join('、') + '：'
+      : all;
+  });
+}
+export function responseError(error: unknown, status: number, url: string): ApiError {
+  const body = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+  const messages = Array.isArray(body.errors)
+    ? body.errors
+        .map((entry: { message?: string; path?: string[] }) => {
+          const message = String(entry?.message ?? '');
+          const field = Array.isArray(entry?.path) ? entry.path[0] : undefined;
+          return message &&
+            field &&
+            labels[field] &&
+            !message.includes('：') &&
+            !message.includes(':')
+            ? `${labels[field]}：${message}`
+            : message;
+        })
+        .filter(Boolean)
+    : [];
+  const message = [
+    ...new Set(
+      messages.length ? messages : [body.message || `请求未完成（${status}），请稍后重试`],
+    ),
+  ]
+    .map((message) => readable(String(message)))
+    .join('；');
+  if (status === 401 && url !== '/api/auth/login')
+    window.dispatchEvent(new CustomEvent('session-expired', { detail: message }));
+  return new ApiError(message, status);
 }
 export async function api<T = unknown>(
   url: string,
@@ -53,21 +91,7 @@ export async function api<T = unknown>(
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      const messages = Array.isArray(error.errors)
-        ? error.errors.map((e: { message?: string }) => e.message).filter(Boolean)
-        : [];
-      const message = [
-        ...new Set(
-          messages.length
-            ? messages
-            : [error.message || `请求未完成（${response.status}），请稍后重试`],
-        ),
-      ]
-        .map((m) => readable(String(m)))
-        .join('；');
-      if (response.status === 401 && url !== '/api/auth/login')
-        window.dispatchEvent(new CustomEvent('session-expired', { detail: message }));
-      throw new ApiError(message, response.status);
+      throw responseError(error, response.status, url);
     }
     if (response.status === 204) return undefined as T;
     return (blob ? await response.blob() : await response.json()) as T;
@@ -111,7 +135,14 @@ export interface Bootstrap {
   user: { id: string; email: string; name: string };
   canManageAccounts: boolean;
   usage: { logicalAssets: number; logicalBytes: number; photos: number; trashed: number };
-  limits: { assetLimit: number };
+  limits: { assetLimit: number; upload: UploadLimits };
+}
+export interface UploadLimits {
+  photoBytes: number;
+  motionBytes: number;
+  photoExtensions: string[];
+  maxPixels: number;
+  maxEdge: number;
 }
 export interface Account {
   id: string;

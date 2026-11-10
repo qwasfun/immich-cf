@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { getPlatformProxy, unstable_dev } from 'wrangler';
@@ -143,9 +143,160 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
     data = await r.json();
   assert.equal(data.canManageAccounts, true);
   assert.equal(data.limits.assetLimit, 10000);
+  assert.equal(data.support.upload, true);
+  assert.equal(data.limits.upload.photoBytes, 20_000_000);
+  assert.equal(data.limits.upload.motionBytes, 64 * 1024 ** 2);
   assert.equal(data.user.id, u.id);
   assert.doesNotMatch(JSON.stringify(data), /password_hash|token_hash|object_key/);
   assert.equal((await (await call('/api/users/me', u)).json()).isAdmin, false);
+});
+
+async function browserUpload(u, bytes, name, fields = {}, headers = {}) {
+  const form = new FormData();
+  form.append('assetData', new File([bytes], name));
+  form.append('fileCreatedAt', '2026-11-11T00:00:00.000Z');
+  form.append('fileModifiedAt', '2026-11-11T00:00:00.000Z');
+  for (const [key, value] of Object.entries(fields)) form.set(key, value);
+  const request = new Request('http://localhost', { method: 'POST', body: form });
+  return worker.fetch(root + '/upload', {
+    method: 'POST',
+    headers: {
+      Origin: origin,
+      ...(u ? { Cookie: `immich_access_token=${u.token}` } : {}),
+      'Content-Type': request.headers.get('Content-Type'),
+      'x-immich-checksum': createHash('sha1').update(bytes).digest('hex'),
+      ...headers,
+    },
+    body: await request.arrayBuffer(),
+  });
+}
+
+test('浏览器 Cookie 同源上传 JPEG/PNG、内容去重、私有读取和相册添加，错误校验和不写资产', async () => {
+  const u = await user(),
+    foreign = await user(),
+    jpeg = await readFile('tests/fixtures/small.jpg'),
+    png = await readFile('tests/fixtures/small.png');
+  const r = await browserUpload(u, jpeg, '浏览器原件.jpg');
+  assert.equal(r.status, 201, await r.clone().text());
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+  const photo = await r.json();
+  assert.equal(photo.status, 'created');
+  const again = await browserUpload(u, jpeg, '改名后的同一原件.jpg');
+  assert.equal(again.status, 200);
+  assert.deepEqual(await again.json(), { id: photo.id, status: 'duplicate' });
+  const p = await browserUpload(u, png, '浏览器原件.png');
+  assert.equal(p.status, 201);
+  const page = await (await call(root + '/assets', u)).json();
+  assert.equal(page.items.length, 2);
+  assert.equal(
+    page.items.find((item) => item.id === photo.id).fileCreatedAt,
+    '2026-11-11T00:00:00.000Z',
+  );
+  assert.deepEqual(
+    Buffer.from(await (await call(`${root}/assets/${photo.id}/download`, u)).arrayBuffer()),
+    jpeg,
+  );
+  assert.equal((await call(`${root}/assets/${photo.id}/download`, foreign)).status, 404);
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '浏览器上传相册' })
+  ).json();
+  assert.equal(
+    (await call(`/api/albums/${album.id}/assets`, u, 'PUT', { ids: [photo.id] })).status,
+    200,
+  );
+  assert.equal(
+    (await (await call(`${root}/assets?view=album&albumId=${album.id}`, u)).json()).items.length,
+    1,
+  );
+  const bad = await browserUpload(
+    u,
+    jpeg,
+    'checksum.jpg',
+    {},
+    { 'x-immich-checksum': '0'.repeat(40) },
+  );
+  assert.equal(bad.status, 400);
+  assert.equal((await bad.json()).errors[0].path[0], 'x-immich-checksum');
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(u.id).first()).n,
+    2,
+  );
+});
+
+test('浏览器上传拒绝跨站/无来源/未登录；校验错误定位文件和时间，重复原件不消耗额外名额', async () => {
+  const u = await user(),
+    jpeg = await readFile('tests/fixtures/small.jpg'),
+    png = await readFile('tests/fixtures/small.png');
+  assert.equal((await browserUpload(null, jpeg, 'anonymous.jpg')).status, 401);
+  assert.equal(
+    (await browserUpload(u, jpeg, 'cross-site.jpg', {}, { Origin: 'https://other.invalid' }))
+      .status,
+    403,
+  );
+  assert.equal((await browserUpload(u, jpeg, 'no-origin.jpg', {}, { Origin: '' })).status, 403);
+  assert.equal((await call(root + '/upload', u)).status, 405);
+  const badDate = await browserUpload(u, jpeg, 'invalid-date.jpg', { fileCreatedAt: 'not-a-date' });
+  assert.equal(badDate.status, 400);
+  assert.equal((await badDate.json()).errors[0].path[0], 'fileCreatedAt');
+  const badFile = await browserUpload(u, Buffer.from('invalid-image'), 'invalid.jpg');
+  assert.equal(badFile.status, 400);
+  assert.equal((await badFile.json()).errors[0].path[0], 'assetData');
+  assert.equal((await browserUpload(u, jpeg, 'valid.jpg')).status, 201);
+  try {
+    await db.prepare('UPDATE asset_quota_config SET logical_limit=1 WHERE id=1').run();
+    assert.equal((await browserUpload(u, jpeg, 'duplicate.jpg')).status, 200);
+    const over = await browserUpload(u, png, 'new.png');
+    assert.equal(over.status, 409);
+    assert.match((await over.json()).message, /名额|上限/);
+  } finally {
+    await db.prepare('UPDATE asset_quota_config SET logical_limit=10000 WHERE id=1').run();
+  }
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM assets WHERE owner_id=?').bind(u.id).first()).n,
+    1,
+  );
+});
+
+test('浏览器先上传 MOV 再配对 HEIC，同组重试仅一逻辑资产，孤立视频和错误配对明确拒绝', async () => {
+  const u = await user(),
+    pair = pairId(),
+    motion = liveMov(pair),
+    still = liveHeic(pair);
+  const isolated = await browserUpload(u, motion, 'pair.mov');
+  assert.equal(isolated.status, 400);
+  assert.equal((await isolated.json()).errors[0].path[0], 'visibility');
+  const missing = await browserUpload(u, still, 'pair.heic');
+  assert.equal(missing.status, 400);
+  assert.equal((await missing.json()).errors[0].path[0], 'livePhotoVideoId');
+  const m = await browserUpload(u, motion, 'pair.mov', { visibility: 'hidden' });
+  assert.equal(m.status, 201);
+  const video = await m.json();
+  const wrong = await browserUpload(u, liveHeic(pairId()), 'pair.heic', {
+    livePhotoVideoId: video.id,
+  });
+  assert.equal(wrong.status, 400);
+  assert.equal((await wrong.json()).errors[0].path[0], 'livePhotoVideoId');
+  const p = await browserUpload(u, still, 'pair.heic', { livePhotoVideoId: video.id });
+  assert.equal(p.status, 201);
+  const photo = await p.json();
+  const repeat = await browserUpload(u, still, 'pair.heic', { livePhotoVideoId: video.id });
+  assert.equal(repeat.status, 200);
+  assert.equal((await repeat.json()).id, photo.id);
+  const bootstrap = await (await call(root + '/bootstrap', u)).json();
+  assert.equal(bootstrap.usage.logicalAssets, 1);
+  const page = await (await call(root + '/assets', u)).json();
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].livePhotoVideoId, video.id);
+  assert.deepEqual(
+    Buffer.from(await (await call(`${root}/assets/${photo.id}/download`, u)).arrayBuffer()),
+    still,
+  );
+  assert.deepEqual(
+    Buffer.from(
+      await (await call(`${root}/assets/${photo.id}/download?component=motion`, u)).arrayBuffer(),
+    ),
+    motion,
+  );
 });
 test('1001 张跨日期照片稳定分页、收藏/回收站/相册筛选、游标隔离与变化冲突', async () => {
   const u = await user(),

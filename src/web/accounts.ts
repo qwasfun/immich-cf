@@ -3,6 +3,9 @@ import { authenticate, cookies, type Identity } from '../poc/auth';
 import { requireOperator } from '../poc/admin';
 import { body, HttpError, invalid, uuid7 } from '../poc/http';
 import { decode, encode, field, only, pageSize, sameOrigin, uuid } from './common';
+import { MAX_PHOTO, MAX_MOTION } from '../poc/media-format';
+import { MAX_IMAGE } from '../poc/multipart';
+import { MAX_IMAGE_EDGE, MAX_IMAGE_PIXELS } from '../poc/image-limits';
 
 function name(value: unknown) {
   if (
@@ -223,9 +226,22 @@ export async function webBootstrap(request: Request, env: Env, identity: Identit
     user: { id: identity.id, email: identity.email, name: identity.name },
     canManageAccounts: results[1]!.results.length > 0,
     usage: { ...results[0]!.results[0], ...results[3]!.results[0] },
-    limits: { ...results[2]!.results[0], logicalAssetsIncludeTrashAndReservations: true },
+    limits: {
+      ...results[2]!.results[0],
+      logicalAssetsIncludeTrashAndReservations: true,
+      upload: {
+        photoBytes: String(env.ENABLE_LIVE_PHOTO) === 'true' ? MAX_PHOTO : MAX_IMAGE,
+        motionBytes: String(env.ENABLE_LIVE_PHOTO) === 'true' ? MAX_MOTION : 0,
+        photoExtensions:
+          String(env.ENABLE_LIVE_PHOTO) === 'true'
+            ? ['jpg', 'jpeg', 'png', 'heic', 'heif']
+            : ['jpg', 'jpeg', 'png'],
+        maxPixels: MAX_IMAGE_PIXELS,
+        maxEdge: MAX_IMAGE_EDGE,
+      },
+    },
     support: {
-      upload: false,
+      upload: true,
       share: false,
       previewFormats: ['image/jpeg', 'image/png', 'image/heic'],
       livePhotoPlayback: 'browser-dependent',

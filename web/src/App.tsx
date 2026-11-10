@@ -5,6 +5,7 @@ import type { Bootstrap } from './api';
 import { Albums, Gallery } from './Gallery';
 import { AdminAccounts, MyAccount } from './Accounts';
 import { ErrorBox, Icon, Logo } from './ui';
+import { Upload } from './Upload';
 
 function Login({ loggedIn, message }: { loggedIn: () => void; message: string }) {
   const [error, setError] = useState(''),
@@ -117,6 +118,7 @@ export function App() {
     [path, setPath] = useState(window.location.pathname),
     [refresh, setRefresh] = useState(0),
     [mobile, setMobile] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   function navigate(next: string) {
     window.history.pushState({}, '', next);
     setPath(next);
@@ -142,6 +144,7 @@ export function App() {
   useEffect(() => {
     void initialize();
     const expired = (e: Event) => {
+      setUploadOpen(false);
       setBoot(null);
       setReady(true);
       setMessage((e as CustomEvent<string>).detail || '会话已失效，请重新登录');
@@ -312,6 +315,14 @@ export function App() {
             </span>
           </div>
           <div>
+            <button
+              className="upload-trigger"
+              aria-label="上传照片"
+              onClick={() => setUploadOpen(true)}
+            >
+              <Icon name="upload" size={18} />
+              <span>上传</span>
+            </button>
             <button aria-label="刷新照片库" onClick={() => changed('已请求刷新')}>
               <Icon name="refresh" size={17} />
               <span>刷新</span>
@@ -323,6 +334,7 @@ export function App() {
               onClick={async () => {
                 try {
                   await api('/api/auth/logout', 'POST');
+                  setUploadOpen(false);
                   setBoot(null);
                   setMessage('已退出登录');
                   navigate('/login');
@@ -372,6 +384,15 @@ export function App() {
           )}
         </main>
       </div>
+      {uploadOpen && (
+        <Upload
+          key={boot.user.id}
+          limits={boot.limits.upload}
+          albumId={albumId}
+          close={() => setUploadOpen(false)}
+          changed={changed}
+        />
+      )}
     </div>
   );
 }
