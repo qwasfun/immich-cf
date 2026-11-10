@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-11-10T17:41:05.491Z",
+  "target": "dev",
+  "complete": true,
+  "checks": [
+    {
+      "label": "health",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-html",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-static-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-static-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-gallery-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "bootstrap-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-default",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-oldest",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filter-static",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filter-live",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filter-jpeg",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filter-png",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filter-heic",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "view-favorites",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "view-favorites-jpeg",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "view-trash",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "view-trash-jpeg",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filename-search",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "date-exact-millisecond",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cursor-first-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cursor-sort-mismatch",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "field-error-q",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "field-error-type",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "field-error-order",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "field-error-from",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "field-error-from/to",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "duplicate-filter-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "bootstrap-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-created-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "mediaModified": false,
+  "logicalPhotos": 24,
+  "usageUnchanged": true
+}
