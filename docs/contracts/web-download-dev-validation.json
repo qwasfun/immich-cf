@@ -1,0 +1,397 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-10T20:05:02.347Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "existing-account-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "existing-account-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-html",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-asset-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-asset-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-normal-account",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "isolated-account-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-jpeg",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-png",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-motion",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-paired-photo",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "anonymous-plan-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "cross-origin-plan-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "specific-selection-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "prepare-selected-photos",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-plan-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "cross-owner-task-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "cross-owner-zip-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "anonymous-zip-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "same-owner-second-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "other-session-task-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "other-session-zip-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "selected-originals-zip",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "selected-originals-zip-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "prepare-entire-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "whole-album-originals-zip",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "whole-album-originals-zip-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cancel-own-task",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cancelled-task-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cancelled-task-retry",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cancelled-task-retry-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "prepare-before-library-change",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-library-change",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "reject-stale-library-snapshot",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "purge-only-probe-originals",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "delete-only-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "finish-probe-purge-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-created-operator-session",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "cleanup-operator-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "find-only-current-probe",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "reset-only-generated-probe-credential",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resume-only-authorized-probe-purges",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "resumed-probe-empty",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-resumed-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "resumed-probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "cleanup-operator-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-cleanup-operator",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "existingAccountUsageUnchanged": true,
+  "cleaned": true,
+  "archives": [
+    {
+      "label": "selected-originals-zip",
+      "originalFiles": 4,
+      "bytes": 6932128,
+      "crcVerified": true,
+      "sha1Verified": true
+    },
+    {
+      "label": "whole-album-originals-zip",
+      "originalFiles": 4,
+      "bytes": 6932128,
+      "crcVerified": true,
+      "sha1Verified": true
+    },
+    {
+      "label": "cancelled-task-retry",
+      "originalFiles": 4,
+      "bytes": 6932128,
+      "crcVerified": true,
+      "sha1Verified": true
+    }
+  ],
+  "logicalItems": 3,
+  "originalsVerified": 4,
+  "physicalCleanupConfirmed": true,
+  "cleanupResumed": true
+}
