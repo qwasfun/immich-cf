@@ -23,7 +23,7 @@
     {
       "binding": "IMMICH_CF_DB",
       "database_name": "immich-cf-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "cc80e056-5b06-46ed-9a1f-2e6fd86a96ba",
       "migrations_dir": "migrations"
     }
   ],
@@ -79,16 +79,26 @@
     },
     "test": {
       "name": "immich-cf-api-test",
+      "assets": {
+        "directory": "./dist/web",
+        "binding": "WEB_ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": true
+      },
+      "images": { "binding": "IMAGES" },
+      "triggers": { "crons": ["*/5 * * * *"] },
       "vars": {
         "APP_ENV": "test",
         "APP_VERSION": "0.1.0",
-        "ENABLE_P1_POC": "false"
+        "ENABLE_P1_POC": "true",
+        "ENABLE_LIVE_PHOTO": "true",
+        "IMAGES_FREE_CONFIRMED": "true"
       },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
           "database_name": "immich-cf-db-test",
-          "database_id": "00000000-0000-0000-0000-000000000002",
+          "database_id": "a1140d40-c9c7-4155-8aaf-6273724caf03",
           "migrations_dir": "migrations"
         }
       ],
@@ -101,16 +111,26 @@
     },
     "prod": {
       "name": "immich-cf-api",
+      "assets": {
+        "directory": "./dist/web",
+        "binding": "WEB_ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": true
+      },
+      "images": { "binding": "IMAGES" },
+      "triggers": { "crons": ["*/5 * * * *"] },
       "vars": {
         "APP_ENV": "production",
         "APP_VERSION": "0.1.0",
-        "ENABLE_P1_POC": "false"
+        "ENABLE_P1_POC": "true",
+        "ENABLE_LIVE_PHOTO": "true",
+        "IMAGES_FREE_CONFIRMED": "true"
       },
       "d1_databases": [
         {
           "binding": "IMMICH_CF_DB",
           "database_name": "immich-cf-db",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "cc80e056-5b06-46ed-9a1f-2e6fd86a96ba",
           "migrations_dir": "migrations"
         }
       ],

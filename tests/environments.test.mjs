@@ -11,7 +11,12 @@ test('dev 远程绑定与 test/prod 隔离；生产名称无 prod 后缀', () =>
     names.add(env.name);
     databases.add(env.d1_databases[0].database_name);
     buckets.add(env.r2_buckets[0].bucket_name);
-    assert.equal(env.vars.ENABLE_P1_POC, name === 'dev' ? 'true' : 'false');
+    assert.equal(env.vars.ENABLE_P1_POC, 'true');
+    assert.equal(env.vars.ENABLE_LIVE_PHOTO, 'true');
+    assert.equal(env.vars.IMAGES_FREE_CONFIRMED, 'true');
+    assert.equal(env.images.binding, 'IMAGES');
+    assert.deepEqual(env.triggers.crons, ['*/5 * * * *']);
+    assert.ok(!env.d1_databases[0].database_id.startsWith('00000000-'));
     for (const binding of [...env.d1_databases, ...env.r2_buckets])
       assert.equal(binding.remote === true, name === 'dev');
   }
