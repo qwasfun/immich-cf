@@ -1,0 +1,142 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T05:16:15.351Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "login-dev-account",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-photos",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "months-shanghai",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "months-los-angeles",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unchanged-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "seek-month",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "walk-previous",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "walk-next",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "oldest-first",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-favorites",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filtered-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "owned-albums",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-months-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "specific-timezone-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "invalid-anchor-denied",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "missing-album-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "trash-months-unavailable",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-created-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "mediaWrites": false,
+  "usageUnchanged": true,
+  "albumChecked": true,
+  "photoCount": 24,
+  "monthCount": 4
+}
