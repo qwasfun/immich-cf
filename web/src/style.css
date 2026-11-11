@@ -834,6 +834,154 @@ main {
   padding: 2px 8px;
   flex-shrink: 0;
 }
+.map-filters {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.map-filters .field {
+  width: min(100%, 340px);
+  margin: 0;
+}
+.map-search {
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.map-search > summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  color: #465169;
+  font-weight: 600;
+}
+.map-search .photo-filters {
+  margin: 0;
+  border: 0;
+}
+.map-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 20px 0 10px;
+}
+.map-status-row p {
+  margin: 0;
+  color: var(--muted);
+}
+.photo-map-frame {
+  position: relative;
+  border: 1px solid #cbd6e8;
+  border-radius: 16px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.photo-map-canvas {
+  height: 520px;
+  width: 100%;
+  background: #eaf0f7;
+  background-image:
+    linear-gradient(#cad6e655 1px, transparent 1px),
+    linear-gradient(90deg, #cad6e655 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.photo-map-canvas .leaflet-control-attribution {
+  max-width: 100%;
+  white-space: normal;
+  font-size: 11px;
+}
+.photo-map-canvas .photo-map-pin {
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #4468d8;
+  color: white;
+  box-shadow: 0 2px 12px #25304455;
+  display: grid;
+  place-items: center;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+.photo-map-canvas .photo-map-pin:hover,
+.photo-map-canvas .photo-map-pin:focus-visible {
+  background: #2c4bb1;
+  outline: 3px solid #acc2ff;
+}
+.photo-map-canvas .leaflet-control-zoom a {
+  color: #334b8e;
+}
+.map-place {
+  position: absolute;
+  bottom: 26px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  padding: 16px;
+  box-shadow: 0 4px 18px #25304433;
+}
+.map-place .map-place-close {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 3px;
+  min-height: 24px;
+  min-width: 24px;
+  border: 0;
+  flex: none;
+}
+.map-place-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.map-place p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.map-place-copy {
+  flex: 1;
+  min-width: 150px;
+}
+.map-provider {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  margin: 16px 0;
+}
+.map-provider label {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.map-provider p {
+  margin: 0;
+}
+@media (max-width: 540px) {
+  .photo-map-canvas {
+    height: 420px;
+  }
+  .map-status-row > button {
+    width: 100%;
+  }
+  .map-place > button {
+    flex: 1;
+  }
+  .map-provider {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
 .memory-controls form,
 .memory-days,
 .memory-card-copy {

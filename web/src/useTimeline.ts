@@ -2,6 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, ApiError, web, type Page, type Photo } from './api';
 import { emptyPhotoQuery, photoQueryParams, type PhotoQuery } from '../../src/web/gallery-query';
 import { readTimeline, saveTimeline, type TimelineAnchor } from './timeline-state';
+import { boundsKey, type GeoBounds, type MapView } from '../../src/geo';
+
+export interface MapGalleryScope {
+  bounds: GeoBounds;
+  mapView: MapView;
+  query?: PhotoQuery;
+}
 
 export interface Month {
   key: string;
@@ -22,6 +29,7 @@ export function useTimeline(
   owner: string,
   entry: string,
   memory?: { date: string; year: number; timeZone: string },
+  location?: MapGalleryScope,
 ) {
   const enabled = view !== 'trash';
   const memoryParams = memory
@@ -32,9 +40,14 @@ export function useTimeline(
         timeZone: memory.timeZone,
       })
     : '';
-  const path = view + ':' + albumId + memoryParams;
-  const [saved] = useState(() => (enabled ? readTimeline(owner, entry, path) : null));
-  const [query, setQuery] = useState<PhotoQuery>(saved?.query ?? { ...emptyPhotoQuery });
+  const locationParams = location
+    ? '&' + new URLSearchParams({ mapView: location.mapView, bounds: boundsKey(location.bounds) })
+    : '';
+  const path = view + ':' + albumId + memoryParams + locationParams;
+  const [saved] = useState(() => (enabled ? readTimeline(owner, entry, path, !!location) : null));
+  const [query, setQuery] = useState<PhotoQuery>(
+    saved?.query ?? location?.query ?? { ...emptyPhotoQuery },
+  );
   const [items, setItems] = useState<Photo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [previousCursor, setPreviousCursor] = useState<string | null>(null);
@@ -82,7 +95,7 @@ export function useTimeline(
   latest.current = { replace, more, checkVersion };
   const timeZone = memory?.timeZone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
   const queryKey = photoQueryParams(query).toString();
-  const scope = `view=${view}&${queryKey}${albumId ? '&albumId=' + albumId : ''}${memoryParams}`;
+  const scope = `view=${view}&${queryKey}${albumId ? '&albumId=' + albumId : ''}${memoryParams}${locationParams}`;
   const overviewPath = `${web}/timeline?${scope}${memory ? '' : '&timeZone=' + encodeURIComponent(timeZone)}`;
 
   function capture(): TimelineAnchor | null {
@@ -271,7 +284,7 @@ export function useTimeline(
       generation.current++;
       control.current.abort();
     };
-  }, [view, albumId, queryKey, timeZone]);
+  }, [view, albumId, queryKey, timeZone, memoryParams, locationParams]);
   const previousRefresh = useRef(refresh);
   useEffect(() => {
     if (previousRefresh.current === refresh) return;

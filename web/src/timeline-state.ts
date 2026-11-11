@@ -39,7 +39,12 @@ export function timelineEntry() {
   window.history.replaceState({ ...window.history.state, timelineEntry: key }, '');
   return key;
 }
-export function readTimeline(owner: string, entry: string, path: string): TimelineSaved | null {
+export function readTimeline(
+  owner: string,
+  entry: string,
+  path: string,
+  exactEntry = false,
+): TimelineSaved | null {
   const key = prefix + owner + ':' + entry + ':' + path;
   const latest = prefix + owner + ':latest:' + path;
   try {
@@ -51,7 +56,8 @@ export function readTimeline(owner: string, entry: string, path: string): Timeli
     } catch {
       /* Use the in-memory entries when storage is disabled. */
     }
-    const saved = memory.get(key) ?? stored ?? memory.get(latest) ?? storedLatest;
+    const saved =
+      memory.get(key) ?? stored ?? (exactEntry ? null : (memory.get(latest) ?? storedLatest));
     if (!saved || !saved.query || typeof saved.query !== 'object') return null;
     if (
       !['q', 'from', 'to', 'type', 'order'].every((name) => typeof saved.query[name] === 'string')

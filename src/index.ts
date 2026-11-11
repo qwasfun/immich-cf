@@ -80,10 +80,17 @@ export default {
       ) ||
         /^\/albums(?:\/[a-f0-9-]{36})?\/?$/.test(pathname) ||
         /^\/memories(?:\/\d{4}-\d{2}-\d{2}(?:\/[1-9]\d{0,3})?)?\/?$/.test(pathname) ||
+        /^\/map(?:\/(?:library|photos|favorites|archive)\/[-+0-9.eE,]{1,160}|\/album\/[a-f0-9-]{36}\/[-+0-9.eE,]{1,160})?\/?$/.test(
+          pathname.replace(/%2c/gi, ',').replace(/%2b/gi, '+'),
+        ) ||
         pathname.startsWith('/assets/') ||
         pathname === '/favicon.svg')
     ) {
-      const asset = await env.WEB_ASSETS.fetch(request);
+      // Serve the SPA document directly for coordinate routes: asset path normalization
+      // can otherwise redirect repeatedly between literal and percent-encoded commas.
+      const asset = await env.WEB_ASSETS.fetch(
+        /^\/map(?:\/|$)/.test(pathname) ? new Request(new URL('/', request.url), request) : request,
+      );
       if (
         pathname.startsWith('/assets/') &&
         asset.headers.get('Content-Type')?.includes('text/html')
@@ -96,7 +103,7 @@ export default {
       if (isSharePage) response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
       response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:${isSharePage ? '' : ' https://tile.openstreetmap.org'}; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
       );
       response.headers.set(
         'Cache-Control',

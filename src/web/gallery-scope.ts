@@ -4,6 +4,7 @@ import { uuid } from './common';
 import { photoQuery, photoQueryParams, PhotoQueryError } from './gallery-query';
 import { MemoryDateError, memoryContext, memoryDayRanges, memoryDate } from '../memory-date';
 import { PhotoTimeError } from '../photo-time';
+import { mapScope } from './map-scope';
 
 export function galleryScope(params: URLSearchParams, identity: Identity, extras: string[]) {
   const view = params.get('view') ?? 'photos';
@@ -18,6 +19,7 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
     'tag',
     'rating',
     ...(view === 'memories' ? ['memoryDate', 'memoryYear', 'timeZone'] : []),
+    ...(view === 'map' ? ['mapView', 'bounds'] : []),
     ...extras,
   ];
   for (const key of params.keys()) {
@@ -32,13 +34,23 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
     throw error;
   }
   const album = params.has('albumId') ? uuid(params.get('albumId'), 'albumId') : '';
-  if (!['photos', 'archive', 'library', 'favorites', 'trash', 'album', 'memories'].includes(view))
-    invalid('view', '请选择照片、归档、完整图库、收藏、回收站、相册或回忆');
-  if ((view === 'album') !== !!album)
+  const location = view === 'map' ? mapScope(params) : null;
+  const sourceView = location?.view ?? view;
+  if (
+    !['photos', 'archive', 'library', 'favorites', 'trash', 'album', 'memories', 'map'].includes(
+      view,
+    )
+  )
+    invalid('view', '请选择照片、归档、完整图库、收藏、回收站、相册、回忆或地图');
+  if ((sourceView === 'album') !== !!album)
     invalid('view/albumId', '相册视图必须提供相册 ID；其他视图请移除相册 ID');
-  let where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${view === 'trash' ? 'NOT ' : ''}NULL${view === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
+  let where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${sourceView === 'trash' ? 'NOT ' : ''}NULL${sourceView === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
   const args: (string | number)[] = [identity.id, ...(album ? [album] : [])];
   let memoryKey = '';
+  if (location) {
+    where += ' AND ' + location.where;
+    args.push(...location.args);
+  }
   if (view === 'memories') {
     try {
       const context = memoryContext(params),
@@ -78,8 +90,8 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
       throw error;
     }
   }
-  if (view === 'archive') where += ' AND a.archived=1';
-  else if (view === 'photos' && !query.q && !query.tag && query.rating === 'all')
+  if (sourceView === 'archive') where += ' AND a.archived=1';
+  else if (sourceView === 'photos' && !query.q && !query.tag && query.rating === 'all')
     where += ' AND a.archived=0';
   if (query.tag) {
     where +=
@@ -114,7 +126,7 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
     args,
     view,
     album,
-    queryKey: photoQueryParams(query).toString() + memoryKey,
+    queryKey: photoQueryParams(query).toString() + memoryKey + (location ? '&' + location.key : ''),
     ascending: query.order === 'oldest',
     sort: view === 'trash' ? 'julianday(a.deleted_at)' : 'julianday(a.file_created_at)',
   };

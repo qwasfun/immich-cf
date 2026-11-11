@@ -479,6 +479,9 @@ test('网页入口与深链接可用，API/未知路径不回落 HTML，未登�
     '/',
     '/photos',
     '/archive',
+    '/map',
+    '/map/library/30,120,32,122',
+    '/map/library/30%2C120%2C32%2C122',
     '/memories',
     '/memories/2026-01-01',
     '/memories/2026-01-01/2024',
@@ -503,6 +506,7 @@ test('网页入口与深链接可用，API/未知路径不回落 HTML，未登�
   assert.match(unknown.headers.get('content-type'), /json/);
   assert.equal((await call('/unknown')).status, 404);
   assert.equal((await call('/memories/invalid')).status, 404);
+  assert.equal((await call('/map/invalid')).status, 404);
   assert.equal((await call('/assets/missing-file.js')).status, 404);
   const r = await call(root + '/bootstrap');
   assert.equal(r.status, 401);
@@ -527,6 +531,352 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
 const shares = root + '/shares';
 const shared = root + '/shared';
 const previewOf = (id) => `${shared}/assets/${id}/preview`;
+const mapRead = async (u, suffix = '') => {
+  const response = await call(`${root}/map${suffix ? '?' + suffix : ''}`, u);
+  assert.equal(response.status, 200);
+  return response.json();
+};
+async function locate(photo, latitude, longitude, overrides = {}) {
+  await db
+    .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')
+    .bind(JSON.stringify({ extracted: true, source: { latitude, longitude }, overrides }), photo.id)
+    .run();
+}
+
+test('地图按有效 GPS 读取，手动覆盖优先且显式清除不回退；零坐标、归档和 Live Photo 主体保留', async () => {
+  const u = await user(),
+    other = await user();
+  const zero = await seed(u),
+    edited = await seed(u),
+    cleared = await seed(u),
+    archived = await seed(u),
+    trashed = await seed(u);
+  await locate(zero, 0, 0);
+  await locate(edited, 31, 121, { latitude: -33, longitude: 151 });
+  await locate(cleared, 31, 121, { latitude: null, longitude: null });
+  await locate(archived, 31, 121);
+  await db.prepare('UPDATE assets SET archived=1 WHERE id=?').bind(archived.id).run();
+  await locate(trashed, 31, 121);
+  await db
+    .prepare('UPDATE assets SET deleted_at=? WHERE id=?')
+    .bind(new Date().toISOString(), trashed.id)
+    .run();
+  for (const [latitude, longitude] of [
+    [null, null],
+    [31, null],
+    ['31', 121],
+    [true, 121],
+    [false, 0],
+    [91, 121],
+    [31, -181],
+  ])
+    await locate(await seed(u), latitude, longitude);
+  await locate(await seed(other), 31, 121);
+  const pair = pairId(),
+    video = await seed(u, liveMov(pair), 'video/quicktime', {
+      type: 'VIDEO',
+      visibility: 'hidden',
+      pair,
+    });
+  await locate(video, 31, 121);
+  const still = await seed(u, liveJpeg(pair), 'image/jpeg', { pair, video: video.id });
+  await locate(still, 31, 121);
+  const mapped = await mapRead(u);
+  assert.equal(mapped.total, 4);
+  assert.equal(mapped.visible, 4);
+  assert.equal(
+    mapped.clusters.reduce((sum, group) => sum + group.count, 0),
+    4,
+  );
+  assert.doesNotMatch(
+    JSON.stringify(mapped),
+    /object_key|checksum|filename|password|token|source|overrides/,
+  );
+  const page = await (await call(`${root}/assets?view=map`, u)).json();
+  assert.deepEqual(
+    new Set(page.items.map((p) => p.id)),
+    new Set([zero.id, edited.id, archived.id, still.id]),
+  );
+  const override = await (await call(`${root}/assets?view=map&bounds=-34,150,-32,152`, u)).json();
+  assert.deepEqual(
+    override.items.map((p) => p.id),
+    [edited.id],
+  );
+  assert.equal((await mapRead(other)).total, 1);
+});
+
+test('地图支持收藏、归档、相册和组合筛选，计数/月份/位置照片范围一致且不读取原件', async () => {
+  const u = await user(),
+    other = await user(),
+    a = await seed(u, undefined, undefined, {
+      filename: '海边_100%.jpg',
+      date: '2023-12-31T16:00:00.000Z',
+    }),
+    b = await seed(u, undefined, 'image/png', {
+      filename: '山间.png',
+      date: '2024-01-01T05:00:00.000Z',
+    });
+  await locate(a, 31.2083333, 121.5);
+  await locate(b, 31.2083333, 121.5);
+  await db
+    .prepare('UPDATE assets SET favorite=1,tags=?,rating=5 WHERE id=?')
+    .bind('["旅行"]', a.id)
+    .run();
+  await db.prepare('UPDATE assets SET archived=1 WHERE id=?').bind(b.id).run();
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '位置相册', assetIds: [a.id, b.id] })
+  ).json();
+  for (const [mapView, count] of [
+    ['library', 2],
+    ['photos', 1],
+    ['favorites', 1],
+    ['archive', 1],
+  ])
+    assert.equal((await mapRead(u, 'mapView=' + mapView)).total, count);
+  const suffix = new URLSearchParams({
+    view: 'map',
+    mapView: 'album',
+    albumId: album.id,
+    bounds: '30,120,32,122',
+    tag: '旅行',
+    rating: 'gte4',
+    type: 'jpeg',
+    q: '_100%',
+    from: '2023-12-31T16:00:00.000Z',
+    to: '2024-01-01T16:00:00.000Z',
+    order: 'oldest',
+  }).toString();
+  const map = await mapRead(u, suffix);
+  assert.equal(map.visible, 1);
+  const page = await (await call(`${root}/assets?${suffix}`, u)).json();
+  assert.deepEqual(
+    page.items.map((p) => p.id),
+    [a.id],
+  );
+  const timeline = await (
+    await call(`${root}/timeline?${suffix}&timeZone=Asia%2FShanghai`, u)
+  ).json();
+  assert.equal(timeline.months[0].count, 1);
+  assert.equal(timeline.months[0].key, '2024-01');
+  assert.equal(timeline.version, map.version);
+  assert.equal((await mapRead(u, 'mapView=photos&q=山间')).total, 1);
+  assert.equal((await call(`${root}/map?mapView=album&albumId=${album.id}`, other)).status, 404);
+  await bucket.delete(a.key);
+  await bucket.delete(b.key);
+  assert.equal((await mapRead(u)).total, 2);
+});
+
+test('地图经纬度边界、日期变更线、极点和高精度退化范围在聚合与 SQL 列表中一致', async () => {
+  const u = await user(),
+    photos = [];
+  for (const [latitude, longitude] of [
+    [0, 179.9],
+    [0, -179.8],
+    [0, 180],
+    [0, -180],
+    [90, 0],
+    [-90, 0],
+    [31.123456789, 121.123456789],
+    [0, 0.0000000001],
+  ]) {
+    const photo = await seed(u);
+    await locate(photo, latitude, longitude);
+    photos.push(photo);
+  }
+  for (const [bounds, count] of [
+    ['-1,170,1,-170', 4],
+    ['0,180,0,180', 2],
+    ['0,-180,0,-180', 2],
+    ['90,0,90,0', 1],
+    ['-90,0,-90,0', 1],
+    ['31.123456789,121.123456789,31.123456789,121.123456789', 1],
+    ['0,1e-10,0,1e-10', 1],
+  ]) {
+    const overview = await mapRead(u, 'bounds=' + bounds + '&zoom=19');
+    const page = await (await call(`${root}/assets?view=map&bounds=${bounds}`, u)).json();
+    assert.equal(overview.visible, count, bounds);
+    assert.equal(page.items.length, count, bounds);
+  }
+  const all = await mapRead(u, 'zoom=19');
+  for (const cluster of all.clusters) {
+    const bounds = [
+      cluster.bounds.south,
+      cluster.bounds.west,
+      cluster.bounds.north,
+      cluster.bounds.east,
+    ].join(',');
+    const detail = await (await call(`${root}/assets?view=map&bounds=${bounds}`, u)).json();
+    assert.equal(detail.items.length, cluster.count);
+  }
+});
+
+test('1001 张地图照片完整聚合、60 张双向分页和位置定位，游标隔离位置/范围/账号/筛选及版本', async () => {
+  const u = await user(),
+    other = await user(),
+    ids = [];
+  const record = JSON.stringify({ source: { latitude: 31.2083333, longitude: 121.5 } });
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, offset) => {
+        const id = randomUUID(),
+          date = '2024-01-01T00:00:00.000Z';
+        ids.push(id);
+        return db
+          .prepare(
+            `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,photo_metadata)
+      VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,0,?)`,
+          )
+          .bind(id, u.id, id, id, `map-${at + offset}.jpg`, date, date, date, record);
+      }),
+    );
+  const overview = await mapRead(u, 'bounds=30,120,32,122&zoom=19');
+  assert.equal(overview.total, 1001);
+  assert.equal(overview.visible, 1001);
+  assert.equal(overview.clusters[0].count, 1001);
+  const scope = 'view=map&mapView=library&bounds=30,120,32,122';
+  const first = await (await call(`${root}/assets?${scope}`, u)).json();
+  assert.equal(first.items.length, 60);
+  const id = [...ids].sort().reverse()[500],
+    target = '&anchorTime=2024-01-01T00%3A00%3A00.000Z&anchorId=' + id;
+  const middle = await (await call(`${root}/assets?${scope}${target}`, u)).json();
+  assert.equal(middle.items[0].id, id);
+  const all = [...middle.items];
+  for (const side of ['previous', 'next']) {
+    let cursor = middle[side + 'Cursor'];
+    while (cursor) {
+      const response = await call(
+        `${root}/assets?${scope}&limit=100&cursor=${encodeURIComponent(cursor)}`,
+        u,
+      );
+      assert.equal(response.status, 200);
+      const page = await response.json();
+      if (side === 'previous') all.unshift(...page.items);
+      else all.push(...page.items);
+      cursor = page[side + 'Cursor'];
+    }
+  }
+  assert.deepEqual(
+    all.map((p) => p.id),
+    [...ids].sort().reverse(),
+  );
+  const cursor = '&cursor=' + encodeURIComponent(first.nextCursor);
+  for (const [query, actor] of [
+    ['view=map&bounds=29,120,32,122', u],
+    [scope + '&order=oldest', u],
+    [scope.replace('library', 'favorites'), u],
+    [scope, other],
+    ['view=library', u],
+  ])
+    assert.equal((await call(`${root}/assets?${query}${cursor}`, actor)).status, 400);
+  await db
+    .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')
+    .bind(JSON.stringify({ source: { latitude: 1, longitude: 1 } }), id)
+    .run();
+  assert.equal((await call(`${root}/assets?${scope}${cursor}`, u)).status, 409);
+  const recovered = await (await call(`${root}/assets?${scope}${target}`, u)).json();
+  assert.ok(!recovered.items.some((p) => p.id === id));
+  assert.equal((await mapRead(u, 'bounds=30,120,32,122')).visible, 1000);
+});
+
+test('照片位置修正、清除、归档与删除恢复更新地图，保留原件及照片关联', async () => {
+  const u = await user(),
+    photo = await seed(u, photoJpeg());
+  const read = await (await call(`${root}/assets/${photo.id}/metadata`, u)).json();
+  assert.equal(
+    (
+      await call(`${root}/assets/${photo.id}/metadata/extract`, u, 'POST', {
+        version: read.version,
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await mapRead(u)).total, 1);
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: 'GPS保持', assetIds: [photo.id] })
+  ).json();
+  await call('/api/assets', u, 'PUT', { ids: [photo.id], isFavorite: true });
+  let detail = await (await call(`${root}/assets/${photo.id}/metadata`, u)).json();
+  assert.equal(
+    (
+      await call(`${root}/photo-metadata`, u, 'PATCH', {
+        ids: [photo.id],
+        version: detail.version,
+        latitude: -33.8,
+        longitude: 151.2,
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await mapRead(u, 'bounds=30,120,32,122')).visible, 0);
+  assert.equal((await mapRead(u, 'bounds=-34,151,-33,152')).visible, 1);
+  detail = await (await call(`${root}/assets/${photo.id}/metadata`, u)).json();
+  await call(`${root}/photo-metadata`, u, 'PATCH', {
+    ids: [photo.id],
+    version: detail.version,
+    latitude: null,
+    longitude: null,
+  });
+  assert.equal((await mapRead(u)).total, 0);
+  detail = await (await call(`${root}/assets/${photo.id}/metadata`, u)).json();
+  await call(`${root}/photo-metadata`, u, 'PATCH', {
+    ids: [photo.id],
+    version: detail.version,
+    latitude: 0,
+    longitude: 0,
+  });
+  await call('/api/assets', u, 'PUT', { ids: [photo.id], visibility: 'archive' });
+  assert.equal((await mapRead(u)).total, 1);
+  assert.equal((await mapRead(u, 'mapView=photos')).total, 0);
+  await call('/api/assets', u, 'DELETE', { ids: [photo.id] });
+  assert.equal((await mapRead(u)).total, 0);
+  await call('/api/trash/restore/assets', u, 'POST', { ids: [photo.id] });
+  assert.equal((await mapRead(u)).total, 1);
+  assert.equal((await (await call('/api/assets/' + photo.id, u)).json()).isFavorite, true);
+  assert.equal((await (await call('/api/albums/' + album.id, u)).json()).assetCount, 1);
+  assert.deepEqual(
+    Buffer.from(await (await call(`${root}/assets/${photo.id}/download`, u)).arrayBuffer()),
+    photo.content,
+  );
+});
+
+test('地图只读、匿名保护与字段错误明确，地图底图 CSP 不扩大分享页面权限', async () => {
+  const u = await user();
+  assert.equal((await call(root + '/map', null)).status, 401);
+  const method = await call(root + '/map', u, 'POST', {});
+  assert.equal(method.status, 405);
+  assert.equal(method.headers.get('allow'), 'GET');
+  for (const [query, field] of [
+    ['bounds=1,0,-1,0', 'bounds'],
+    ['bounds=0,0,0,181', 'bounds'],
+    ['bounds=0,0,0,0&bounds=1,1,1,1', 'bounds'],
+    ['view=map&view=map', 'view'],
+    ['view=photos', 'view'],
+    ['zoom=20', 'zoom'],
+    ['zoom=-1', 'zoom'],
+    ['zoom=1.5', 'zoom'],
+    ['mapView=trash', 'mapView'],
+    ['userId=' + u.id, 'userId'],
+    ['mapView=album', 'view/albumId'],
+  ]) {
+    const response = await call(`${root}/map?${query}`, u);
+    assert.equal(response.status, 400, query);
+    const error = await response.json();
+    assert.equal(error.errors[0].path[0], field);
+    assert.match(error.message, /：/);
+  }
+  const mapPage = await call('/map');
+  assert.match(
+    mapPage.headers.get('content-security-policy'),
+    /img-src[^;]+https:\/\/tile.openstreetmap.org/,
+  );
+  assert.doesNotMatch(
+    (await call('/share')).headers.get('content-security-policy'),
+    /openstreetmap/,
+  );
+  assert.match(mapPage.headers.get('content-security-policy'), /connect-src 'self';/);
+  await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(u.id).run();
+  assert.equal((await call(root + '/map', u)).status, 401);
+});
 const memoryOverview = async (u, date = '2026-01-01', timeZone = 'Asia/Shanghai') => {
   const response = await call(
     `${root}/memories?${new URLSearchParams({ memoryDate: date, timeZone })}`,

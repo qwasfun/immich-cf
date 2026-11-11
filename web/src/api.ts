@@ -55,6 +55,9 @@ const labels: Record<string, string> = {
   version: '照片资料版本',
   memoryDate: '回忆日期',
   memoryYear: '回忆年份',
+  bounds: '地图范围',
+  mapView: '位置范围',
+  zoom: '地图缩放',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {

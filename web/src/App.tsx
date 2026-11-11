@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { Component, lazy, Suspense, useEffect, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { api, ApiError, bytes, web } from './api';
 import type { Bootstrap } from './api';
 import { Albums, Gallery } from './Gallery';
@@ -9,6 +9,25 @@ import { Upload } from './Upload';
 import { ManageShares } from './Share';
 import { timelineAccount, timelineEntry } from './timeline-state';
 import { Memories } from './Memories';
+import type { MapView } from '../../src/geo';
+
+const PhotoMap = lazy(() => import('./PhotoMap'));
+class MapBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? (
+      <ErrorBox
+        error="照片地图暂时无法打开，请刷新页面后重试"
+        retry={() => window.location.reload()}
+      />
+    ) : (
+      this.props.children
+    );
+  }
+}
 
 function Login({ loggedIn, message }: { loggedIn: () => void; message: string }) {
   const [error, setError] = useState(''),
@@ -194,7 +213,7 @@ export function App() {
     };
   }, [!!boot]);
   useEffect(() => {
-    document.title = `${path.startsWith('/memories') ? '往年今日' : path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
+    document.title = `${path.startsWith('/map') ? '照片地图' : path.startsWith('/memories') ? '往年今日' : path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
   }, [path]);
   function changed(text: string) {
     setMessage(text);
@@ -227,6 +246,7 @@ export function App() {
     );
   const entries = [
     { path: '/photos', label: '照片', icon: 'photos' },
+    { path: '/map', label: '照片地图', icon: 'map' },
     { path: '/memories', label: '往年今日', icon: 'memories' },
     { path: '/favorites', label: '收藏', icon: 'heart' },
     { path: '/archive', label: '归档', icon: 'archive' },
@@ -236,6 +256,10 @@ export function App() {
   ];
   const albumId = /^\/albums\/([a-f0-9-]{36})$/.exec(path)?.[1];
   const memoryPath = /^\/memories(?:\/(\d{4}-\d{2}-\d{2})(?:\/([1-9]\d{0,3}))?)?$/.exec(path);
+  const mapPath =
+    /^\/map(?:\/(library|photos|favorites|archive|album)\/(?:([a-f0-9-]{36})\/)?([^/]+))?$/.exec(
+      path,
+    );
   return (
     <div className="app-shell">
       {mobile && (
@@ -264,7 +288,8 @@ export function App() {
               className={
                 path === e.path ||
                 (e.path === '/albums' && albumId) ||
-                (e.path === '/memories' && memoryPath)
+                (e.path === '/memories' && memoryPath) ||
+                (e.path === '/map' && mapPath)
                   ? 'active'
                   : ''
               }
@@ -389,7 +414,28 @@ export function App() {
               </button>
             </div>
           )}
-          {memoryPath ? (
+          {mapPath ? (
+            <MapBoundary key={path + ':' + entry}>
+              <Suspense
+                fallback={
+                  <p role="status" className="muted">
+                    正在打开照片地图…
+                  </p>
+                }
+              >
+                <PhotoMap
+                  area={mapPath[3]}
+                  mapView={mapPath[1] as MapView | undefined}
+                  albumId={mapPath[2]}
+                  ownerId={boot.user.id}
+                  entryKey={entry}
+                  refresh={refresh}
+                  changed={changed}
+                  navigate={navigate}
+                />
+              </Suspense>
+            </MapBoundary>
+          ) : memoryPath ? (
             <Memories
               key={path + ':' + entry}
               referenceDate={memoryPath[1]}

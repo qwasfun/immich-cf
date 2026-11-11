@@ -3,6 +3,12 @@ import type { FormEvent, ReactNode, RefObject } from 'react';
 import { api, web } from './api';
 
 const shapes: Record<string, ReactNode> = {
+  map: (
+    <>
+      <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16" />
+      <circle cx="15" cy="10" r="2" />
+    </>
+  ),
   memories: (
     <>
       <path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7" />

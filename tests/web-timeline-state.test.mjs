@@ -25,6 +25,19 @@ class Storage {
     delete this[key];
   }
 }
+test('地图新开区域沿用地图当前筛选，历史条目仍可恢复该区域原筛选', async () => {
+  globalThis.sessionStorage = new Storage();
+  const state = await import(source + '#map-entry');
+  state.timelineAccount('map-owner');
+  const stored = {
+    query: { q: '旧筛选', from: '', to: '', type: 'all', order: 'newest', tag: '', rating: 'all' },
+    anchor: null,
+  };
+  state.saveTimeline('map-owner', 'old-entry', 'map:bounds', stored);
+  assert.deepEqual(state.readTimeline('map-owner', 'old-entry', 'map:bounds', true), stored);
+  assert.equal(state.readTimeline('map-owner', 'new-entry', 'map:bounds', true), null);
+  assert.deepEqual(state.readTimeline('map-owner', 'new-entry', 'map:bounds'), stored);
+});
 const saved = {
   query: { q: '旅行', from: '', to: '', type: 'jpeg', order: 'oldest', tag: '', rating: 'all' },
   anchor: {
