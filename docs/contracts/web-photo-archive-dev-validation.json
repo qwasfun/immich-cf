@@ -1,0 +1,459 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T13:39:40.675Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-deep-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-probe-album-share",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "favorite-before-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "initial-asset-album-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-initial-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "single-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-list",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "main-timeline-hides-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "search-includes-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "picker-includes-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorites-retain-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-month-navigation",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-month-seek",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "repeated-state-is-idempotent",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "stale-version-rejected",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "specific-boolean-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-id-limit",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-origin-rejected",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "anonymous-rejected",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-rejected",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "batch-archive-with-unchanged",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "official-archived-detail",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "official-archive-statistics",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-share-retains-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-zip-includes-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cancel-probe-download-plan",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "copy-archived-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-state-in-incremental-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "trash-archived-photo",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "trash-retains-archive-state",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-archived-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-returns-to-archive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restored-still-hidden-from-main",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "official-single-unarchive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "official-bulk-rearchive",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "batch-unarchive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unarchive-returns-to-main",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "empty-archive-after-unarchive",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-share",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "syncVerified": true,
+  "originalsVerified": 2,
+  "archiveVerified": true,
+  "sourceCommit": "c66fe1b4bbbee7a33b2f78d3f20625ed715f71d5",
+  "workerVersion": "4fb0bfa1-ef9b-4ac5-8261-4642f8652ef0",
+  "migration": "0036_photo_archive.sql",
+  "local": {
+    "check": "passed",
+    "tests": 287,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources",
+    "newIntegrationScenarios": 7,
+    "syntheticPhotos": 1001,
+    "batchSize": 1000,
+    "releaseRehearsalChecks": 71
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated local D1/R2",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 960
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 820,
+        "height": 1180
+      }
+    ],
+    "suites": [
+      {
+        "suite": "archive-desktop",
+        "checks": [
+          "Single archive from viewer updates searchable photo badge",
+          "Archived photo removed from main timeline",
+          "Archive navigation has correct title",
+          "Archive deep link and refresh work",
+          "Single unarchive returns empty archive state",
+          "Batch archive clears completed selection",
+          "Archive supports existing order filters",
+          "Batch unarchive removes all selected archive photos",
+          "Conflict preserves selection",
+          "Explicit retry after refresh applies archive",
+          "Network failure retains photos and selection",
+          "Archive management requests no originals"
+        ]
+      },
+      {
+        "suite": "archive-responsive",
+        "checks": [
+          "390px archive layout has no overflow",
+          "390px mobile navigation reaches archive",
+          "390px date jump panel opens",
+          "390px month seek preserves archive list",
+          "390px viewer exposes unarchive",
+          "390px archive filters survive refresh",
+          "820px archive layout has no overflow",
+          "820px mobile navigation reaches archive",
+          "820px date jump panel opens",
+          "820px month seek preserves archive list",
+          "820px viewer exposes unarchive",
+          "820px archive filters survive refresh"
+        ]
+      }
+    ],
+    "assertions": 24,
+    "realDeviceVerified": false
+  },
+  "limitations": [
+    "Browser interactions used isolated local D1/R2 fixtures; public verification covered HTTP and deployed frontend resources.",
+    "Real iPhone Safari and official Immich App device verification were not performed."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-photo-archive-desktop.png",
+    "tablet": "work/output/playwright/web-photo-archive-820.png",
+    "mobile": "work/output/playwright/web-photo-archive-390.png"
+  }
+}
