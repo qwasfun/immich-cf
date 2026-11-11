@@ -42,9 +42,11 @@ Live Photo 须同时选择一张照片及一份同名 MOV（忽略扩展名和�
 
 在照片、收藏或相册中选择 1～1000 张照片，点击「分享所选」。要分享整本相册，在相册详情点击「分享整本相册」。整本相册链接覆盖当前筛选隐藏和尚未加载的照片，添加和移除成员会同步改变访客可见的照片范围。回收站照片不可分享。
 
-链接有效期可选 1 天、7 天或 30 天，默认 7 天。持有链接的访客可免登录分页查看照片和大图预览。Live Photo 以静态预览显示。链接生成后可复制，左侧「分享管理」显示有效链接并提供撤销。完整链接只在生成时显示，需要重新取得完整链接时可重新生成。
+链接有效期可选 1 天、7 天或 30 天，默认 7 天。创建时可开启「设置访问密码」和「允许下载原件」。两项默认关闭，已有链接也可以在「分享管理」中编辑权限。密码至少 8 个字符，UTF-8 编码后最多 72 字节。完整链接在生成时复制，访问密码可另行告知访客。
 
-访客接口只提供分享标题、到期时间、照片标识与 JPEG 衍生预览。链接的随机访问凭据位于 URL 片段，前端仅在访客请求的 Authorization 头中发送，服务端只存 SHA-256 摘要。访客每次读取都校验分享有效期和照片范围，撤销、删除相册、停用账号会使对应链接失效。每账号最多 100 个有效链接，过期记录由维护调度分批清理。
+访客无需登录账号。有密码的链接需要先解锁，再查看照片和大图预览。允许下载时，大图提供照片原件和配套 Live Photo MOV 的下载按钮。更换密码会让已有解锁失效，关闭下载即时限制后续原件请求。分享管理支持清除密码或撤销整条链接。
+
+密码保存为 bcrypt 摘要。每条链接一分钟内最多验证 5 次密码。解锁凭据最长有效 4 小时且受链接到期时间限制，浏览器仅在当前页面内保留。链接的访问凭据位于 URL 片段，访客通过 Authorization 头发送凭据，服务端只存 SHA-256 摘要。每次读取都会检查链接和照片范围，撤销、删除相册或停用账号会使对应链接失效。每账号最多 100 个有效链接，维护调度分批清理过期记录。
 
 ## 账号与权限
 
@@ -74,9 +76,11 @@ Live Photo 须同时选择一张照片及一份同名 MOV（忽略扩展名和�
 | GET/DELETE `/api/immich-cf/web/downloads/{id}`        | 查询传输状态与进度；同源 DELETE 停止任务                                                    |
 | GET `/api/immich-cf/web/downloads/{id}/archive`       | `attempt` 为 UUID；流式原件 ZIP、明确长度、附件响应，失败可重试                             |
 | GET/POST `/api/immich-cf/web/shares`                  | 列出本人有效链接，或同源提交 `ids` / `albumId` 与 `days` 创建链接                           |
-| DELETE `/api/immich-cf/web/shares/{id}`               | 同源撤销本人的链接                                                                          |
+| PATCH/DELETE `/api/immich-cf/web/shares/{id}`         | 同源更新本人的 `password`、`allowDownload` 或撤销链接                                       |
+| POST `/api/immich-cf/web/shared/unlock`               | 使用 `Authorization: Share …` 提交访问密码，返回临时解锁凭据                                |
 | GET `/api/immich-cf/web/shared`                       | 使用 `Authorization: Share …` 读取访客照片列表，支持 `cursor/limit`                         |
-| GET `/api/immich-cf/web/shared/assets/{id}/preview`   | 使用同一分享凭据读取授权预览，支持 `size=thumbnail/preview`                                 |
+| GET `/api/immich-cf/web/shared/assets/{id}/preview`   | 使用分享凭据读取授权预览，支持 `size=thumbnail/preview`                                     |
+| GET `/api/immich-cf/web/shared/assets/{id}/download`  | 下载已授权照片或配套 MOV，支持 `component=photo/motion`                                     |
 | POST `/api/immich-cf/web/password`                    | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                             |
 | GET/POST `/api/immich-cf/admin/users`                 | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                            |
 | PATCH `/api/immich-cf/admin/users/{id}`               | 每次只改 `name` 或布尔值 `disabled`                                                         |
@@ -110,5 +114,7 @@ pnpm release:dev
 迁移 0031 只新增有界、可过期的网页下载任务表与索引，不复制或修改现有媒体。ZIP 使用固定版本 `client-zip` 2.5.1，配合 Workers `FixedLengthStream` 发送准确长度，运行时逐份读取 R2 原件。
 
 迁移 0032 新增 Web 分享链接表、数量限制和账号停用时的撤销触发器。访客复用现有 JPEG 衍生预览，照片和相册的同步接口继续沿用冻结契约。
+
+迁移 0033 为已有链接补上默认权限，并增加临时解锁凭据、密码尝试限制和密码变更时的失效处理。
 
 验收包括至少 1000 个合成逻辑资产、分页隔离/变化、原件摘要、预览故障/额度、Live Photo、管理员提交竞态、会话撤销、桌面与手机宽度交互。真实 iPhone Safari、设备解码与系统相册恢复独立记录，不用桌面模拟替代。部署结果见 [dev 验收记录](web-v1-dev-deployment.md)。

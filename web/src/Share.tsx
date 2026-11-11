@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, date, web } from './api';
 import { Confirm, Empty, ErrorBox, Icon, Modal } from './ui';
+import { sharePasswordError } from '../../src/web/share-password';
 
 interface ShareLink {
   id: string;
@@ -9,6 +10,71 @@ interface ShareLink {
   photoCount: number | null;
   createdAt: string;
   expiresAt: string;
+  passwordRequired: boolean;
+  allowDownload: boolean;
+}
+
+type Permissions = { protected: boolean; password: string; allowDownload: boolean };
+
+function permissionInput(value: Permissions, keepExisting = false) {
+  const { protected: enabled, password, allowDownload } = value;
+  if (!enabled) return { password: null, allowDownload };
+  if (keepExisting && !password) return { allowDownload };
+  const error = sharePasswordError(password);
+  if (error) throw new Error(error);
+  return { password, allowDownload };
+}
+
+function PermissionFields({
+  value,
+  change,
+  busy,
+  hasPassword = false,
+}: {
+  value: Permissions;
+  change: (value: Permissions) => void;
+  busy: boolean;
+  hasPassword?: boolean;
+}) {
+  return (
+    <>
+      <label className="share-option">
+        <input
+          type="checkbox"
+          checked={value.protected}
+          disabled={busy}
+          onChange={(event) => change({ ...value, protected: event.target.checked, password: '' })}
+        />
+        设置访问密码
+      </label>
+      {value.protected && (
+        <label className="field">
+          访问密码
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={value.password}
+            disabled={busy}
+            onChange={(event) => change({ ...value, password: event.target.value })}
+          />
+          <small>
+            {hasPassword
+              ? '留空保留现有密码。更换后，访客需要重新解锁。'
+              : '至少 8 个字符，UTF-8 编码后最多 72 字节。'}
+          </small>
+        </label>
+      )}
+      <label className="share-option">
+        <input
+          type="checkbox"
+          checked={value.allowDownload}
+          disabled={busy}
+          onChange={(event) => change({ ...value, allowDownload: event.target.checked })}
+        />
+        允许下载原件
+      </label>
+    </>
+  );
 }
 
 export function ShareDialog({
@@ -23,6 +89,11 @@ export function ShareDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [permissions, setPermissions] = useState<Permissions>({
+    protected: false,
+    password: '',
+    allowDownload: false,
+  });
   const url = link ? window.location.origin + link.path : '';
   async function create() {
     setError('');
@@ -32,8 +103,10 @@ export function ShareDialog({
         await api<ShareLink & { path: string }>(`${web}/shares`, 'POST', {
           days,
           ...(albumId ? { albumId } : { ids }),
+          ...permissionInput(permissions),
         }),
       );
+      setPermissions((value) => ({ ...value, password: '' }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -52,6 +125,7 @@ export function ShareDialog({
             <p className="fine-print">
               请现在复制链接。关闭后仍可在「分享管理」撤销。有效至 {date(link.expiresAt)}。
             </p>
+            {link.passwordRequired && <p className="muted">请将访问密码另行告诉访客。</p>}
             {copyMessage && <p role="status">{copyMessage}</p>}
           </>
         ) : (
@@ -61,7 +135,11 @@ export function ShareDialog({
                 ? '包含整本相册的照片，包括尚未加载和筛选隐藏的照片。以后添加或移除照片也会更新分享内容。'
                 : `分享当前所选的 ${ids?.length ?? 0} 张照片。`}
             </p>
-            <p className="notice">任何持有链接的人都可以免登录查看照片预览。</p>
+            <p className="notice">
+              {permissions.protected
+                ? '访客需要输入访问密码才能查看照片。'
+                : '任何持有链接的人都可以免登录查看照片预览。'}
+            </p>
             <label className="field">
               有效期
               <select
@@ -74,6 +152,7 @@ export function ShareDialog({
                 <option value={30}>30 天</option>
               </select>
             </label>
+            <PermissionFields value={permissions} change={setPermissions} busy={busy} />
             <ErrorBox error={error} />
           </>
         )}
@@ -106,11 +185,69 @@ export function ShareDialog({
   );
 }
 
+function EditShare({
+  link,
+  close,
+  saved,
+}: {
+  link: ShareLink;
+  close: () => void;
+  saved: (link: ShareLink) => void;
+}) {
+  const [value, setValue] = useState<Permissions>({
+    protected: link.passwordRequired,
+    password: '',
+    allowDownload: link.allowDownload,
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function save() {
+    setBusy(true);
+    setError('');
+    try {
+      saved(
+        await api<ShareLink>(
+          `${web}/shares/${link.id}`,
+          'PATCH',
+          permissionInput(value, link.passwordRequired),
+        ),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="编辑分享权限" close={close} busy={busy}>
+      <div className="form-body">
+        <p className="muted">{link.title}</p>
+        <PermissionFields
+          value={value}
+          change={setValue}
+          busy={busy}
+          hasPassword={link.passwordRequired}
+        />
+        <ErrorBox error={error} />
+      </div>
+      <footer className="modal-actions">
+        <button onClick={close} disabled={busy}>
+          取消
+        </button>
+        <button className="primary" disabled={busy} onClick={() => void save()}>
+          {busy ? '正在保存…' : '保存设置'}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 export function ManageShares({ refresh }: { refresh: number }) {
   const [links, setLinks] = useState<ShareLink[] | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [revoking, setRevoking] = useState<ShareLink | null>(null);
+  const [editing, setEditing] = useState<ShareLink | null>(null);
   const [notice, setNotice] = useState('');
   useEffect(() => {
     const control = new AbortController();
@@ -157,11 +294,31 @@ export function ManageShares({ refresh }: { refresh: number }) {
                 <small>
                   创建于 {date(link.createdAt)} · 有效至 {date(link.expiresAt)}
                 </small>
+                <small>
+                  {link.passwordRequired ? '密码保护' : '无需密码'} ·{' '}
+                  {link.allowDownload ? '可下载原件' : '仅预览'}
+                </small>
               </div>
-              <button onClick={() => setRevoking(link)}>撤销</button>
+              <div className="share-list-actions">
+                <button onClick={() => setEditing(link)}>编辑权限</button>
+                <button onClick={() => setRevoking(link)}>撤销</button>
+              </div>
             </li>
           ))}
         </ul>
+      )}
+      {editing && (
+        <EditShare
+          link={editing}
+          close={() => setEditing(null)}
+          saved={(link) => {
+            setLinks(
+              (current) => current?.map((item) => (item.id === link.id ? link : item)) ?? null,
+            );
+            setEditing(null);
+            setNotice('分享权限已保存');
+          }}
+        />
       )}
       {revoking && (
         <Confirm

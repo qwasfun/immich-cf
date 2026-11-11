@@ -36,6 +36,8 @@ const labels: Record<string, string> = {
   attempt: '下载尝试',
   days: '有效期',
   shareId: '分享链接',
+  allowDownload: '允许下载原件',
+  component: '原件类型',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {
@@ -69,7 +71,7 @@ export function responseError(error: unknown, status: number, url: string): ApiE
   ]
     .map((message) => readable(String(message)))
     .join('；');
-  if (status === 401 && url !== '/api/auth/login')
+  if (status === 401 && url !== '/api/auth/login' && !url.startsWith('/api/immich-cf/web/shared'))
     window.dispatchEvent(new CustomEvent('session-expired', { detail: message }));
   return new ApiError(message, status);
 }
@@ -78,14 +80,14 @@ export async function api<T = unknown>(
   method = 'GET',
   data?: unknown,
   signal?: AbortSignal,
-  blob = false,
+  blob: boolean | 'attachment' = false,
   shareToken?: string,
 ): Promise<T> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });
   if (signal?.aborted) controller.abort();
-  const timer = window.setTimeout(cancel, 30000);
+  const timer = window.setTimeout(cancel, blob === 'attachment' ? 300000 : 30000);
   try {
     const response = await fetch(url, {
       method,
@@ -103,6 +105,15 @@ export async function api<T = unknown>(
       throw responseError(error, response.status, url);
     }
     if (response.status === 204) return undefined as T;
+    if (blob === 'attachment') {
+      const disposition = response.headers.get('Content-Disposition') ?? '';
+      const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+      const fallback = /filename="([^"]+)"/i.exec(disposition)?.[1] ?? '照片原件';
+      return {
+        data: await response.blob(),
+        name: encoded ? decodeURIComponent(encoded) : fallback,
+      } as T;
+    }
     return (blob ? await response.blob() : await response.json()) as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -112,6 +123,10 @@ export async function api<T = unknown>(
     clearTimeout(timer);
     signal?.removeEventListener('abort', cancel);
   }
+}
+export interface Attachment {
+  data: Blob;
+  name: string;
 }
 export interface Photo {
   id: string;

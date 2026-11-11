@@ -1,15 +1,139 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, date, web } from './api';
+import type { Attachment } from './api';
 import { Empty, ErrorBox, Logo, Modal, Preview } from './ui';
+import { sharePasswordError } from '../../src/web/share-password';
 
 interface SharedPage {
   title: string;
   expiresAt: string;
-  items: { id: string }[];
+  allowDownload: boolean;
+  items: { id: string; hasMotion?: boolean }[];
   nextCursor: string | null;
 }
 
 const unavailable = '分享链接无效、已过期或已撤销，请向分享者索取新链接';
+
+function Unlock({
+  token,
+  unlocked,
+  expire,
+}: {
+  token: string;
+  unlocked: (accessToken: string) => void;
+  expire: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const password = new FormData(event.currentTarget).get('password');
+    const invalid = sharePasswordError(password);
+    setError(invalid);
+    if (invalid || busy) return;
+    setBusy(true);
+    try {
+      const access = await api<{ accessToken: string }>(
+        `${web}/shared/unlock`,
+        'POST',
+        { password },
+        undefined,
+        false,
+        token,
+      );
+      unlocked(access.accessToken);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) expire();
+      else if (e instanceof ApiError && e.status === 409) unlocked('');
+      else setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="panel share-unlock" onSubmit={submit} noValidate>
+      <h1>解锁照片分享</h1>
+      <label className="field">
+        访问密码
+        <input name="password" type="password" autoComplete="current-password" disabled={busy} />
+      </label>
+      <ErrorBox error={error} />
+      <button className="primary" disabled={busy}>
+        {busy ? '正在验证…' : '解锁分享'}
+      </button>
+    </form>
+  );
+}
+
+function SharedDownload({
+  id,
+  hasMotion,
+  credential,
+  lock,
+}: {
+  id: string;
+  hasMotion: boolean;
+  credential: string;
+  lock: () => void;
+}) {
+  const current = useRef<AbortController | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  useEffect(() => () => current.current?.abort(), []);
+  async function save(component: 'photo' | 'motion') {
+    if (current.current) return;
+    const controller = new AbortController();
+    current.current = controller;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const file = await api<Attachment>(
+        `${web}/shared/assets/${id}/download?component=${component}`,
+        'GET',
+        undefined,
+        controller.signal,
+        'attachment',
+        credential,
+      );
+      if (controller.signal.aborted) return;
+      const url = URL.createObjectURL(file.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setMessage('已交给浏览器保存');
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      if (e instanceof ApiError && e.status === 401) lock();
+      else setError((e as Error).message);
+    } finally {
+      current.current = null;
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="share-download">
+      <div className="share-list-actions">
+        <button disabled={busy} onClick={() => void save('photo')}>
+          {busy ? '正在下载…' : '下载照片原件'}
+        </button>
+        {hasMotion && (
+          <button disabled={busy} onClick={() => void save('motion')}>
+            下载动态原件
+          </button>
+        )}
+        {busy && <button onClick={() => current.current?.abort()}>取消下载</button>}
+      </div>
+      {message && <p role="status">{message}</p>}
+      <ErrorBox error={error} />
+    </div>
+  );
+}
 
 function SharedGallery({ token }: { token: string }) {
   const [page, setPage] = useState<SharedPage | null>(null);
@@ -19,7 +143,18 @@ function SharedGallery({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<{ id: string; label: string } | null>(null);
   const [expired, setExpired] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [accessToken, setAccessToken] = useState('');
+  const credential = accessToken ? token + '.' + accessToken : token;
+  const lock = useCallback(() => {
+    setPage(null);
+    setOpen(null);
+    setCursor(null);
+    setAccessToken('');
+    setLocked(true);
+  }, []);
   useEffect(() => {
+    if (locked) return;
     const control = new AbortController();
     setError('');
     setLoading(true);
@@ -29,7 +164,7 @@ function SharedGallery({ token }: { token: string }) {
       undefined,
       control.signal,
       false,
-      token,
+      credential,
     )
       .then((next) => {
         if (control.signal.aborted) return;
@@ -40,13 +175,14 @@ function SharedGallery({ token }: { token: string }) {
       .catch((e: Error) => {
         if (control.signal.aborted) return;
         if (e instanceof ApiError && e.status === 404) setExpired(true);
+        else if (e instanceof ApiError && e.status === 401) lock();
         else setError(e.message);
       })
       .finally(() => {
         if (!control.signal.aborted) setLoading(false);
       });
     return () => control.abort();
-  }, [token, cursor, retry]);
+  }, [credential, cursor, retry, locked, lock]);
   useEffect(() => {
     if (!page) return;
     const end = Date.parse(page.expiresAt);
@@ -66,6 +202,17 @@ function SharedGallery({ token }: { token: string }) {
         {unavailable}
       </Empty>
     );
+  if (locked)
+    return (
+      <Unlock
+        token={token}
+        expire={() => setExpired(true)}
+        unlocked={(access) => {
+          setAccessToken(access);
+          setLocked(false);
+        }}
+      />
+    );
   return (
     <>
       {page && (
@@ -74,6 +221,7 @@ function SharedGallery({ token }: { token: string }) {
             <div>
               <h1>{page.title}</h1>
               <p className="muted">有效至 {date(page.expiresAt)}</p>
+              {page.allowDownload && <p className="muted">打开照片可下载原件。</p>}
             </div>
           </div>
           {page.items.length === 0 && <Empty title="暂时没有可查看的照片" />}
@@ -82,7 +230,7 @@ function SharedGallery({ token }: { token: string }) {
               const label = `分享照片 ${index + 1}`;
               return (
                 <article key={id} className="photo-tile">
-                  <Preview id={id} name={label} shareToken={token} />
+                  <Preview id={id} name={label} shareToken={credential} onShareLocked={lock} />
                   <button
                     className="photo-open"
                     aria-label={`查看${label}`}
@@ -105,11 +253,25 @@ function SharedGallery({ token }: { token: string }) {
       )}
       {open && (
         <Modal title={open.label} close={() => setOpen(null)} wide>
-          <div className="viewer-body shared-viewer">
+          <div className="viewer-body">
             <div className="viewer-stage">
-              <Preview id={open.id} name={open.label} shareToken={token} large />
+              <Preview
+                id={open.id}
+                name={open.label}
+                shareToken={credential}
+                onShareLocked={lock}
+                large
+              />
             </div>
           </div>
+          {page?.allowDownload && (
+            <SharedDownload
+              id={open.id}
+              hasMotion={page.items.some((item) => item.id === open.id && item.hasMotion)}
+              credential={credential}
+              lock={lock}
+            />
+          )}
         </Modal>
       )}
     </>

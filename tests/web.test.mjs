@@ -167,6 +167,8 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
 const shares = root + '/shares';
 const shared = root + '/shared';
 const previewOf = (id) => `${shared}/assets/${id}/preview`;
+const originalOf = (id, component = 'photo') =>
+  `${shared}/assets/${id}/download?component=${component}`;
 const shareAuth = (link) => ({ Authorization: 'Share ' + link.path.split('#')[1] });
 
 test('所选照片分享只开放指定预览，令牌只在创建时返回，撤销后访客无法继续读取', async () => {
@@ -224,7 +226,15 @@ test('所选照片分享只开放指定预览，令牌只在创建时返回，�
   assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
   const data = await page.json();
   assert.deepEqual(data.items, [{ id: first.id }]);
-  assert.deepEqual(Object.keys(data).sort(), ['expiresAt', 'items', 'nextCursor', 'title']);
+  assert.deepEqual(Object.keys(data).sort(), [
+    'allowDownload',
+    'expiresAt',
+    'items',
+    'nextCursor',
+    'title',
+  ]);
+  assert.equal(data.allowDownload, false);
+  assert.equal((await call(originalOf(first.id), null, 'GET', undefined, headers)).status, 403);
   const jpeg = await call(previewOf(first.id), null, 'GET', undefined, {
     ...headers,
     'x-test-sync-preview': '1',
@@ -249,6 +259,134 @@ test('所选照片分享只开放指定预览，令牌只在创建时返回，�
   assert.equal((await call(`${shares}/${link.id}`, owner, 'DELETE')).status, 204);
   assert.equal((await call(shared, null, 'GET', undefined, headers)).status, 404);
   assert.equal((await call(previewOf(first.id), null, 'GET', undefined, headers)).status, 404);
+});
+
+test('分享访问密码限制尝试，解锁只授权当前链接，更换密码后已有授权失效', async () => {
+  const owner = await user(),
+    other = await user(true);
+  const photo = await seed(owner);
+  const password = '分享测试-2026';
+  const create = async (config) =>
+    call(shares, owner, 'POST', { ids: [photo.id], days: 7, ...config });
+  for (const [config, field] of [
+    [{ password: 'short' }, 'password'],
+    [{ password: '密'.repeat(25) }, 'password'],
+    [{ allowDownload: 'true' }, 'allowDownload'],
+  ]) {
+    const result = await create(config);
+    assert.equal(result.status, 400);
+    const error = await result.json();
+    assert.deepEqual(error.errors[0].path, [field]);
+    assert.ok(!JSON.stringify(error).includes(String(config.password)));
+  }
+  const result = await create({ password, allowDownload: true });
+  assert.equal(result.status, 201);
+  const link = await result.json();
+  assert.equal(link.passwordRequired, true);
+  assert.equal(link.allowDownload, true);
+  assert.ok(!JSON.stringify(link).includes(password));
+  const stored = await db
+    .prepare('SELECT password_hash FROM web_shares WHERE id=?')
+    .bind(link.id)
+    .first();
+  assert.ok(await bcrypt.compare(password, stored.password_hash));
+  const header = shareAuth(link);
+  const path = shares + '/' + link.id;
+  const update = (options, actor = owner, extra) => call(path, actor, 'PATCH', options, extra);
+  const unlock = (value, extra) =>
+    call(shared + '/unlock', null, 'POST', { password: value }, { ...header, ...extra });
+  const view = (route, headers = header) => call(route, null, 'GET', undefined, headers);
+  for (const route of [shared, previewOf(photo.id), originalOf(photo.id)]) {
+    const response = await view(route);
+    assert.equal(response.status, 401);
+    assert.deepEqual((await response.json()).errors[0].path, ['password']);
+  }
+  assert.equal((await unlock(password, { Origin: 'https://foreign.invalid' })).status, 403);
+  const wrong = await unlock('wrong-password');
+  assert.equal(wrong.status, 403);
+  assert.doesNotMatch(await wrong.text(), /wrong-password/);
+  const unlocked = await unlock(password);
+  assert.equal(unlocked.status, 200);
+  const { accessToken } = await unlocked.json();
+  assert.match(accessToken, /^[a-f0-9]{64}$/);
+  const guest = { Authorization: header.Authorization + '.' + accessToken };
+  const saved = await view(originalOf(photo.id), guest);
+  assert.equal(saved.status, 200);
+  assert.match(saved.headers.get('content-disposition'), /^attachment/);
+  assert.deepEqual(Buffer.from(await saved.arrayBuffer()), Buffer.from(photo.content));
+  const another = await (await create({ password })).json();
+  assert.equal(
+    (await view(shared, { Authorization: shareAuth(another).Authorization + '.' + accessToken }))
+      .status,
+    401,
+  );
+
+  for (let attempt = 0; attempt < 3; attempt++)
+    assert.equal((await unlock('wrong-password')).status, 403);
+  assert.equal((await unlock(password)).status, 429);
+  assert.equal((await update({ allowDownload: false }, other)).status, 404);
+  assert.equal(
+    (await update({ allowDownload: false }, owner, { Origin: 'https://foreign.invalid' })).status,
+    403,
+  );
+  assert.equal((await update({ allowDownload: false })).status, 200);
+  assert.equal((await view(shared, guest)).status, 200);
+  assert.equal((await view(originalOf(photo.id), guest)).status, 403);
+  const nextPassword = 'another-passphrase';
+  const replaced = await update({ password: nextPassword });
+  assert.equal(replaced.status, 200);
+  assert.doesNotMatch(await replaced.text(), /another-passphrase|password_hash/);
+  assert.equal((await view(shared, guest)).status, 401);
+  assert.equal((await unlock(password)).status, 403);
+  assert.equal((await unlock(nextPassword)).status, 200);
+  assert.equal((await update({ password: null })).status, 200);
+  assert.equal((await view(shared)).status, 200);
+  assert.equal((await view(originalOf(photo.id))).status, 403);
+});
+
+test('允许下载时相册访客可保存照片和配套 MOV，移出相册或撤销会阻断下载', async () => {
+  const owner = await user(),
+    foreign = await user();
+  const pair = pairId();
+  const motion = await seed(owner, liveMov(pair), 'video/quicktime', {
+    pair,
+    type: 'VIDEO',
+    visibility: 'hidden',
+    filename: '动态原件.MOV',
+  });
+  const photo = await seed(owner, liveJpeg(pair), 'image/jpeg', { pair, video: motion.id });
+  const outside = await seed(foreign);
+  const album = await (
+    await call('/api/albums', owner, 'POST', {
+      albumName: '下载验收',
+      assetIds: [photo.id],
+    })
+  ).json();
+  const response = await call(shares, owner, 'POST', {
+    albumId: album.id,
+    days: 1,
+    allowDownload: true,
+  });
+  assert.equal(response.status, 201);
+  const link = await response.json();
+  const header = shareAuth(link);
+  const page = await (await call(shared, null, 'GET', undefined, header)).json();
+  assert.equal(page.allowDownload, true);
+  assert.deepEqual(page.items, [{ id: photo.id, hasMotion: true }]);
+  const original = (id, component) =>
+    call(originalOf(id, component), null, 'GET', undefined, header);
+  const file = await original(photo.id, 'motion');
+  assert.equal(file.status, 200);
+  assert.equal(file.headers.get('content-type'), 'video/quicktime');
+  assert.match(file.headers.get('content-disposition'), /filename="photo.mov"/);
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()), Buffer.from(motion.content));
+  assert.equal((await original(motion.id)).status, 404);
+  assert.equal((await original(outside.id)).status, 404);
+  await call(`/api/albums/${album.id}/assets`, owner, 'DELETE', { ids: [photo.id] });
+  assert.equal((await original(photo.id, 'motion')).status, 404);
+  await call(`/api/albums/${album.id}/assets`, owner, 'PUT', { ids: [photo.id] });
+  assert.equal((await call(shares + '/' + link.id, owner, 'DELETE')).status, 204);
+  assert.equal((await original(photo.id)).status, 404);
 });
 
 test('整本相册分享按完整相册分页，实时应用成员和回收变化，过期、删除与停用撤销访问', async () => {

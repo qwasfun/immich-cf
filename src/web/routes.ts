@@ -6,6 +6,7 @@ import { upload } from '../poc/assets';
 import { sameOrigin } from './common';
 import { downloads } from './downloads';
 import { manageShares, sharedPhotos } from './shares';
+import { unlockShare } from './share-access';
 
 export async function webRoute(
   request: Request,
@@ -25,11 +26,15 @@ export async function webRoute(
   );
   const download = path.match(/^\/api\/immich-cf\/web\/downloads(?:\/([^/]+)(?:\/(archive))?)?$/);
   const share = path.match(/^\/api\/immich-cf\/web\/shares(?:\/([^/]+))?$/);
-  const shared = path.match(/^\/api\/immich-cf\/web\/shared(?:\/assets\/([^/]+)\/preview)?$/);
+  const shared = path.match(
+    /^\/api\/immich-cf\/web\/shared(?:\/assets\/([^/]+)\/(preview|download))?$/,
+  );
+  const unlock = path === '/api/immich-cf/web/shared/unlock';
   const webPath = path.slice('/api/immich-cf/web/'.length);
   let methods: string[] = [];
-  if (shared || ['bootstrap', 'assets'].includes(webPath)) methods = ['GET'];
-  else if (share) methods = share[1] ? ['DELETE'] : ['GET', 'POST'];
+  if (unlock) methods = ['POST'];
+  else if (shared || ['bootstrap', 'assets'].includes(webPath)) methods = ['GET'];
+  else if (share) methods = share[1] ? ['DELETE', 'PATCH'] : ['GET', 'POST'];
   else if (download) {
     if (download[2]) methods = ['GET'];
     else methods = download[1] ? ['GET', 'DELETE'] : ['POST'];
@@ -48,8 +53,10 @@ export async function webRoute(
         { message: `此接口仅支持 ${methods.join('、')}` },
         { status: 405, headers: { Allow: methods.join(', ') } },
       );
+    } else if (unlock) {
+      response = await unlockShare(request, env.IMMICH_CF_DB);
     } else if (shared) {
-      response = await sharedPhotos(request, env, shared[1], ctx);
+      response = await sharedPhotos(request, env, shared[1], shared[2], ctx);
     } else {
       const identity = await authenticate(request, env.IMMICH_CF_DB);
       if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
@@ -83,7 +90,7 @@ export async function webRoute(
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Request-Id', requestId);
-  if (shared || share) {
+  if (shared || share || unlock) {
     response.headers.set('Referrer-Policy', 'no-referrer');
     response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
   }

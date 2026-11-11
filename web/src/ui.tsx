@@ -343,11 +343,13 @@ export function Preview({
   large = false,
   name = '',
   shareToken,
+  onShareLocked,
 }: {
   id: string;
   large?: boolean;
   name?: string;
   shareToken?: string;
+  onShareLocked?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null),
     [visible, setVisible] = useState(large),
@@ -393,6 +395,10 @@ export function Preview({
           return;
         } catch (e) {
           if (controller.signal.aborted) return;
+          if ((e as { status?: number }).status === 401 && onShareLocked) {
+            onShareLocked();
+            return;
+          }
           if (
             retry === 3 ||
             (e as { status?: number }).status !== 503 ||
@@ -420,7 +426,7 @@ export function Preview({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id, large, visible, attempt, shareToken]);
+  }, [id, large, visible, attempt, shareToken, onShareLocked]);
   return (
     <div ref={ref} className={`preview ${large ? 'large' : ''}`}>
       {src ? (
