@@ -10,6 +10,8 @@ import { useTimeline } from './useTimeline';
 import { TimelineNav } from './TimelineNav';
 import type { TimelineAnchor } from './timeline-state';
 import { PhotoMetadataInfo, EditPhotoMetadata, CorrectPhotoTime } from './PhotoMetadata';
+import { PhotoViewer, type ViewerMove } from './PhotoViewer';
+import { usePhotoSelection } from './usePhotoSelection';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -17,11 +19,13 @@ function PhotoCard({
   selected,
   select,
   open,
+  disabled = false,
 }: {
   photo: Photo;
   selected: boolean;
-  select: () => void;
-  open: () => void;
+  select: (shift: boolean) => void;
+  open: (shift: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <article
@@ -30,12 +34,24 @@ function PhotoCard({
       data-photo-time={photo.fileCreatedAt}
     >
       <Preview id={photo.id} name={photo.originalFileName} />
-      <button className="photo-open" aria-label={`查看 ${photo.originalFileName}`} onClick={open} />
+      <button
+        className="photo-open"
+        aria-label={`查看 ${photo.originalFileName}`}
+        disabled={disabled}
+        onClick={(event) => open(event.shiftKey)}
+        onMouseDown={(event) => {
+          if (event.shiftKey) event.preventDefault();
+        }}
+      />
       <button
         className="photo-select"
         aria-label={`${selected ? '取消选择' : '选择'} ${photo.originalFileName}`}
         aria-pressed={selected}
-        onClick={select}
+        disabled={disabled}
+        onClick={(event) => select(event.shiftKey)}
+        onMouseDown={(event) => {
+          if (event.shiftKey) event.preventDefault();
+        }}
       >
         {selected ? <Icon name="check" size={17} /> : <span />}
       </button>
@@ -68,10 +84,10 @@ export function Picker({
   const [items, setItems] = useState<Photo[]>([]),
     [query, setQuery] = useState(emptyPhotoQuery),
     [cursor, setCursor] = useState<string | null>(null),
-    [selected, setSelected] = useState<Set<string>>(new Set()),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(false);
+  const { selected, setSelected, toggle } = usePhotoSelection(items, setError);
   const loadVersion = useRef(0);
   async function load(next?: string) {
     const version = ++loadVersion.current;
@@ -117,8 +133,9 @@ export function Picker({
               key={p.id}
               photo={p}
               selected={selected.has(p.id)}
-              open={() => toggle(p.id)}
-              select={() => toggle(p.id)}
+              open={(shift) => toggle(p.id, shift)}
+              select={(shift) => toggle(p.id, shift)}
+              disabled={busy}
             />
           ))}
         </div>
@@ -161,16 +178,6 @@ export function Picker({
       </footer>
     </Modal>
   );
-  function toggle(id: string) {
-    if (busy) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < 1000) next.add(id);
-      else setError('所选照片：每次最多 1000 项，请分批添加');
-      return next;
-    });
-  }
 }
 
 function AlbumChoice({
@@ -251,8 +258,8 @@ function Viewer({
   edit,
 }: {
   photo: Photo;
-  previous?: () => void;
-  next?: () => void;
+  previous?: ViewerMove;
+  next?: ViewerMove;
   close: () => void;
   favorite: () => void;
   remove: () => void;
@@ -264,78 +271,46 @@ function Viewer({
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
-    [videoError, setVideoError] = useState(false),
-    [startX, setStartX] = useState<number | null>(null);
+    [videoError, setVideoError] = useState(false);
   useEffect(() => {
     setPlay(false);
     setVideoError(false);
   }, [photo.id]);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        previous?.();
-      }
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        next?.();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [previous, next]);
   return (
-    <Modal title={photo.originalFileName} close={close} wide>
-      {(loading || error) && (
-        <div className="viewer-feedback">
-          {loading && <p role="status">正在加载相邻照片…</p>}
-          <ErrorBox error={error} retry={retry} />
-        </div>
-      )}
-      <div className="viewer-body">
-        <div
-          className="viewer-stage"
-          onTouchStart={(e) => setStartX(e.touches[0].clientX)}
-          onTouchEnd={(e) => {
-            if (startX !== null && !play) {
-              const delta = e.changedTouches[0].clientX - startX;
-              if (delta > 70) previous?.();
-              if (delta < -70) next?.();
-            }
-            setStartX(null);
-          }}
-        >
-          {play && photo.livePhotoVideoId ? (
-            <div className="video-wrap">
-              <video
-                key={photo.id}
-                controls
-                playsInline
-                autoPlay
-                preload="metadata"
-                src={`/api/assets/${photo.livePhotoVideoId}/video/playback`}
-                onError={() => setVideoError(true)}
-              />
-              {videoError && (
-                <p role="alert">当前浏览器无法播放此 MOV，请下载原件后使用兼容的播放器查看。</p>
-              )}
-              <button onClick={() => setPlay(false)}>返回照片</button>
-            </div>
-          ) : (
-            <Preview key={photo.id} id={photo.id} large name={photo.originalFileName} />
-          )}
-          {previous && (
-            <button className="viewer-arrow previous" aria-label="上一张" onClick={previous}>
-              <Icon name="left" size={28} />
-            </button>
-          )}
-          {next && (
-            <button className="viewer-arrow next" aria-label="下一张" onClick={next}>
-              <Icon name="right" size={28} />
-            </button>
-          )}
-        </div>
-        {info && (
+    <PhotoViewer
+      id={photo.id}
+      name={photo.originalFileName}
+      close={close}
+      previous={previous}
+      next={next}
+      loading={loading}
+      error={error}
+      retry={retry}
+      onStartSlideshow={() => {
+        setInfo(false);
+        setPlay(false);
+      }}
+      video={
+        play && photo.livePhotoVideoId ? (
+          <div className="video-wrap">
+            <video
+              key={photo.id}
+              controls
+              playsInline
+              autoPlay
+              preload="metadata"
+              src={`/api/assets/${photo.livePhotoVideoId}/video/playback`}
+              onError={() => setVideoError(true)}
+            />
+            {videoError && (
+              <p role="alert">当前浏览器无法播放此 MOV，请下载原件后使用兼容的播放器查看。</p>
+            )}
+            <button onClick={() => setPlay(false)}>返回照片</button>
+          </div>
+        ) : undefined
+      }
+      sidebar={
+        info ? (
           <aside className="photo-info">
             <h3>照片信息</h3>
             <dl>
@@ -366,48 +341,57 @@ function Viewer({
             </dl>
             <PhotoMetadataInfo key={photo.id + ':' + photo.fileCreatedAt} id={photo.id} />
           </aside>
-        )}
-      </div>
-      <div className="viewer-actions">
-        {!photo.isTrashed && (
-          <>
-            <button onClick={favorite} className={photo.isFavorite ? 'is-favorite' : ''}>
-              <Icon name="heart" />
-              {photo.isFavorite ? '取消收藏' : '收藏'}
-            </button>
-            <button onClick={addAlbum}>
-              <Icon name="album" />
-              加入相册
-            </button>
-            <button onClick={edit}>编辑资料</button>
-            <button onClick={remove}>
-              <Icon name="trash" />
-              删除
-            </button>
-          </>
-        )}
-        <a className="button" href={photo.downloadPath}>
-          <Icon name="download" />
-          下载原件
-        </a>
-        {photo.livePhotoVideoId && (
-          <>
-            <button onClick={() => setPlay(true)}>
-              <Icon name="play" />
-              播放动态
-            </button>
-            <a className="button" href={`${photo.downloadPath}?component=motion`}>
-              <Icon name="download" />
-              下载 MOV
-            </a>
-          </>
-        )}
-        <button onClick={() => setInfo((v) => !v)} aria-pressed={info}>
-          <Icon name="info" />
-          详情
-        </button>
-      </div>
-    </Modal>
+        ) : undefined
+      }
+      actions={(act) => (
+        <>
+          {!photo.isTrashed && (
+            <>
+              <button
+                onClick={() => act(favorite)}
+                className={photo.isFavorite ? 'is-favorite' : ''}
+              >
+                <Icon name="heart" />
+                {photo.isFavorite ? '取消收藏' : '收藏'}
+              </button>
+              <button onClick={() => act(addAlbum)}>
+                <Icon name="album" />
+                加入相册
+              </button>
+              <button onClick={() => act(edit)}>编辑资料</button>
+              <button onClick={() => act(remove)}>
+                <Icon name="trash" />
+                删除
+              </button>
+            </>
+          )}
+          <a className="button" href={photo.downloadPath} onClick={() => act(() => undefined)}>
+            <Icon name="download" />
+            下载原件
+          </a>
+          {photo.livePhotoVideoId && (
+            <>
+              <button onClick={() => act(() => setPlay(true))}>
+                <Icon name="play" />
+                播放动态
+              </button>
+              <a
+                className="button"
+                href={`${photo.downloadPath}?component=motion`}
+                onClick={() => act(() => undefined)}
+              >
+                <Icon name="download" />
+                下载 MOV
+              </a>
+            </>
+          )}
+          <button onClick={() => act(() => setInfo((v) => !v))} aria-pressed={info}>
+            <Icon name="info" />
+            详情
+          </button>
+        </>
+      )}
+    />
   );
 }
 
@@ -429,8 +413,9 @@ export function Gallery({
   const timeline = useTimeline(view, albumId, refresh, ownerId, entryKey);
   const { items, query, cursor, previousCursor, loading, error, setError } = timeline;
   const viewerAnchor = useRef<TimelineAnchor | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set()),
-    [opened, setOpened] = useState<Photo | null>(null),
+  const viewerRequest = useRef(0);
+  const { selected, setSelected, toggle } = usePhotoSelection(items, setError);
+  const [opened, setOpened] = useState<Photo | null>(null),
     [album, setAlbum] = useState<Album | null>(null),
     [dialog, setDialog] = useState(''),
     [targets, setTargets] = useState<string[]>([]),
@@ -444,6 +429,7 @@ export function Gallery({
           ? '回收站'
           : (album?.albumName ?? '相册');
   useEffect(() => {
+    viewerRequest.current++;
     let live = true;
     if (albumId)
       api<Album>(`/api/albums/${albumId}`)
@@ -458,6 +444,7 @@ export function Gallery({
     };
   }, [albumId, refresh]);
   useEffect(() => {
+    viewerRequest.current++;
     setOpened(null);
     setSelected(new Set());
   }, [query]);
@@ -480,35 +467,35 @@ export function Gallery({
     return () => observer.disconnect();
   }, [selected.size > 0]);
   async function moveViewer(side: 'previous' | 'next') {
-    if (!opened || loading) return;
+    if (!opened || loading) return false;
+    const request = ++viewerRequest.current;
     const index = items.findIndex((photo) => photo.id === opened.id);
     const candidate = items[index + (side === 'previous' ? -1 : 1)];
     if (candidate) {
       setOpened(candidate);
-      return;
+      return true;
     }
     const page = await timeline.more(side);
+    if (request !== viewerRequest.current) return false;
     const photo = side === 'previous' ? page.at(-1) : page[0];
-    if (photo) setOpened(photo);
+    if (photo) {
+      setOpened(photo);
+      return true;
+    }
+    return false;
   }
   function openPhoto(photo: Photo) {
+    viewerRequest.current++;
     viewerAnchor.current = timeline.captureAnchor();
     setOpened(photo);
   }
   function closePhoto() {
+    viewerRequest.current++;
     setOpened(null);
     timeline.restoreAnchor(viewerAnchor.current);
   }
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < 1000) next.add(id);
-      else setError('所选照片：每次最多 1000 项，请分批操作');
-      return next;
-    });
-  }
   function ask(kind: string, ids = [...selected]) {
+    viewerRequest.current++;
     setTargets(ids);
     setDialog(kind);
   }
@@ -699,6 +686,9 @@ export function Gallery({
           </button>
         )}
       </div>
+      <p className="selection-keyboard-hint">
+        按住 Shift 点击照片或选择按钮，可连续增选或取消当前已加载区间。
+      </p>
       <ErrorBox error={error} retry={timeline.retry} />
       <div ref={timeline.before} className="timeline-edge">
         {previousCursor && timeline.enabled && (
@@ -730,8 +720,9 @@ export function Gallery({
                 key={p.id}
                 photo={p}
                 selected={selected.has(p.id)}
-                select={() => toggle(p.id)}
-                open={() => openPhoto(p)}
+                select={(shift) => toggle(p.id, shift)}
+                open={(shift) => (shift ? toggle(p.id, true) : openPhoto(p))}
+                disabled={busy}
               />
             ))}
           </div>
@@ -779,14 +770,14 @@ export function Gallery({
           previous={
             !loading &&
             (items.findIndex((p) => p.id === opened.id) > 0 || (timeline.enabled && previousCursor))
-              ? () => void moveViewer('previous')
+              ? () => moveViewer('previous')
               : undefined
           }
           next={
             !loading &&
             (items.findIndex((p) => p.id === opened.id) < items.length - 1 ||
               (timeline.enabled && cursor))
-              ? () => void moveViewer('next')
+              ? () => moveViewer('next')
               : undefined
           }
           favorite={() => void favorite([opened.id], !opened.isFavorite)}

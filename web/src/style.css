@@ -992,6 +992,113 @@ main {
   justify-content: center;
   touch-action: pan-y;
 }
+.photo-canvas {
+  position: absolute;
+  inset: 12px 56px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: zoom-in;
+}
+.photo-canvas.zoomed {
+  cursor: grab;
+}
+.photo-canvas.zoomed:active {
+  cursor: grabbing;
+}
+.canvas-image {
+  position: absolute;
+  transform-origin: center;
+}
+.photo-canvas.zoomed .canvas-image {
+  will-change: transform;
+}
+.viewer-stage .photo-canvas .preview img {
+  padding: 0;
+  max-height: none;
+  pointer-events: none;
+}
+.viewer-arrow {
+  z-index: 2;
+}
+.viewer-shell:fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  background: #151b25;
+  color: #eef1f8;
+}
+.viewer-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ffffff16;
+  color: #c6d0e1;
+}
+.viewer-tools button,
+.viewer-tools select {
+  background: #263143;
+  color: #edf2fa;
+  border: 1px solid #435168;
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.viewer-tools button:disabled {
+  opacity: 0.45;
+}
+.viewer-tools button[aria-pressed='true'] {
+  background: #3655a0;
+  border-color: #789cff;
+}
+.viewer-tools output {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+}
+.viewer-interval {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+.viewer-shortcuts {
+  margin-left: auto;
+  font-size: 11px;
+  color: #b3bfd1;
+}
+.selection-keyboard-hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0 0 16px;
+}
+@media (max-width: 700px) {
+  .photo-canvas {
+    inset: 6px 30px;
+  }
+  .viewer-tools {
+    padding: 6px 8px;
+    gap: 5px;
+  }
+  .viewer-tools button,
+  .viewer-tools select {
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .viewer-shortcuts {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .selection-keyboard-hint {
+    display: none;
+  }
+}
 .viewer-stage .preview {
   background: transparent;
 }

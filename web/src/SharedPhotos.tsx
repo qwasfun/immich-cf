@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, date, web } from './api';
 import type { Attachment } from './api';
-import { Empty, ErrorBox, Logo, Modal, Preview } from './ui';
+import { Empty, ErrorBox, Logo, Preview } from './ui';
+import { PhotoViewer } from './PhotoViewer';
 import { sharePasswordError } from '../../src/web/share-password';
 
 interface SharedPage {
@@ -137,7 +138,6 @@ function SharedDownload({
 
 function SharedGallery({ token }: { token: string }) {
   const [page, setPage] = useState<SharedPage | null>(null);
-  const [cursor, setCursor] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -146,31 +146,30 @@ function SharedGallery({ token }: { token: string }) {
   const [locked, setLocked] = useState(false);
   const [accessToken, setAccessToken] = useState('');
   const credential = accessToken ? token + '.' + accessToken : token;
+  const more = useRef<{ control: AbortController; promise: Promise<SharedPage | null> } | null>(
+    null,
+  );
+  const currentPage = useRef(page);
+  currentPage.current = page;
+  const moveEpoch = useRef(0);
   const lock = useCallback(() => {
     setPage(null);
     setOpen(null);
-    setCursor(null);
     setAccessToken('');
     setLocked(true);
   }, []);
   useEffect(() => {
-    if (locked) return;
+    if (locked || expired) return;
     const control = new AbortController();
+    moveEpoch.current++;
+    more.current?.control.abort();
+    more.current = null;
     setError('');
     setLoading(true);
-    api<SharedPage>(
-      `${web}/shared${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`,
-      'GET',
-      undefined,
-      control.signal,
-      false,
-      credential,
-    )
+    api<SharedPage>(`${web}/shared`, 'GET', undefined, control.signal, false, credential)
       .then((next) => {
         if (control.signal.aborted) return;
-        setPage((previous) =>
-          cursor && previous ? { ...next, items: [...previous.items, ...next.items] } : next,
-        );
+        setPage(next);
       })
       .catch((e: Error) => {
         if (control.signal.aborted) return;
@@ -181,8 +180,80 @@ function SharedGallery({ token }: { token: string }) {
       .finally(() => {
         if (!control.signal.aborted) setLoading(false);
       });
-    return () => control.abort();
-  }, [credential, cursor, retry, locked, lock]);
+    return () => {
+      control.abort();
+      more.current?.control.abort();
+      moveEpoch.current++;
+    };
+  }, [credential, retry, locked, expired, lock]);
+  useEffect(() => {
+    if (open && page && !page.items.some((item) => item.id === open.id)) setOpen(null);
+  }, [page]);
+  async function loadMore(): Promise<SharedPage | null> {
+    if (more.current) return more.current.promise;
+    const prior = currentPage.current;
+    if (!prior?.nextCursor || loading) return null;
+    const control = new AbortController();
+    setLoading(true);
+    setError('');
+    const promise = (async () => {
+      try {
+        const next = await api<SharedPage>(
+          `${web}/shared?cursor=${encodeURIComponent(prior.nextCursor!)}`,
+          'GET',
+          undefined,
+          control.signal,
+          false,
+          credential,
+        );
+        if (control.signal.aborted) return null;
+        const known = new Set(prior.items.map((item) => item.id)),
+          combined = {
+            ...next,
+            items: [...prior.items, ...next.items.filter((item) => !known.has(item.id))],
+          };
+        currentPage.current = combined;
+        setPage(combined);
+        return combined;
+      } catch (e) {
+        if (!control.signal.aborted) {
+          if (e instanceof ApiError && e.status === 404) setExpired(true);
+          else if (e instanceof ApiError && e.status === 401) lock();
+          else setError((e as Error).message);
+        }
+        return null;
+      } finally {
+        if (!control.signal.aborted) {
+          more.current = null;
+          setLoading(false);
+        }
+      }
+    })();
+    more.current = { control, promise };
+    return promise;
+  }
+  async function moveOpen(direction: number) {
+    if (!open || !currentPage.current || loading) return false;
+    const epoch = ++moveEpoch.current,
+      index = currentPage.current.items.findIndex((item) => item.id === open.id);
+    const updated =
+      index + direction >= currentPage.current.items.length
+        ? await loadMore()
+        : currentPage.current;
+    if (epoch !== moveEpoch.current || !updated) return false;
+    const candidate = updated.items[index + direction];
+    if (!candidate) return false;
+    setOpen({ id: candidate.id, label: `分享照片 ${index + direction + 1}` });
+    return true;
+  }
+  function closeViewer() {
+    moveEpoch.current++;
+    setOpen(null);
+  }
+  function retryPage() {
+    if (page?.nextCursor) void loadMore();
+    else setRetry((value) => value + 1);
+  }
   useEffect(() => {
     if (!page) return;
     const end = Date.parse(page.expiresAt);
@@ -234,7 +305,10 @@ function SharedGallery({ token }: { token: string }) {
                   <button
                     className="photo-open"
                     aria-label={`查看${label}`}
-                    onClick={() => setOpen({ id, label })}
+                    onClick={() => {
+                      moveEpoch.current++;
+                      setOpen({ id, label });
+                    }}
                   />
                 </article>
               );
@@ -242,37 +316,52 @@ function SharedGallery({ token }: { token: string }) {
           </div>
         </>
       )}
-      <ErrorBox error={error} retry={() => setRetry((value) => value + 1)} />
+      <ErrorBox error={error} retry={retryPage} />
       {loading && <p role="status">正在加载分享照片…</p>}
       {page?.nextCursor && !error && (
         <div className="shared-load">
-          <button disabled={loading} onClick={() => setCursor(page.nextCursor)}>
+          <button disabled={loading} onClick={() => void loadMore()}>
             加载更多
           </button>
         </div>
       )}
       {open && (
-        <Modal title={open.label} close={() => setOpen(null)} wide>
-          <div className="viewer-body">
-            <div className="viewer-stage">
-              <Preview
-                id={open.id}
-                name={open.label}
-                shareToken={credential}
-                onShareLocked={lock}
-                large
-              />
-            </div>
-          </div>
-          {page?.allowDownload && (
-            <SharedDownload
-              id={open.id}
-              hasMotion={page.items.some((item) => item.id === open.id && item.hasMotion)}
-              credential={credential}
-              lock={lock}
-            />
-          )}
-        </Modal>
+        <PhotoViewer
+          id={open.id}
+          name={open.label}
+          close={closeViewer}
+          shareToken={credential}
+          onShareLocked={lock}
+          loading={loading}
+          error={error}
+          retry={retryPage}
+          previous={
+            page && page.items.findIndex((item) => item.id === open.id) > 0
+              ? () => moveOpen(-1)
+              : undefined
+          }
+          next={
+            page &&
+            (page.items.findIndex((item) => item.id === open.id) < page.items.length - 1 ||
+              page.nextCursor)
+              ? () => moveOpen(1)
+              : undefined
+          }
+          actions={
+            page?.allowDownload
+              ? (act) => (
+                  <div onClickCapture={() => act(() => undefined)}>
+                    <SharedDownload
+                      id={open.id}
+                      hasMotion={page.items.some((item) => item.id === open.id && item.hasMotion)}
+                      credential={credential}
+                      lock={lock}
+                    />
+                  </div>
+                )
+              : undefined
+          }
+        />
       )}
     </>
   );

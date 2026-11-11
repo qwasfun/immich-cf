@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import type { FormEvent, ReactNode, RefObject } from 'react';
 import { api, web } from './api';
 
 const shapes: Record<string, ReactNode> = {
@@ -154,14 +154,21 @@ export function Modal({
   children,
   wide = false,
   busy = false,
+  contentRef,
+  contentClassName,
+  onEscape,
 }: {
   title: string;
   close: () => void;
   children: ReactNode;
   wide?: boolean;
   busy?: boolean;
+  contentRef?: RefObject<HTMLDivElement | null>;
+  contentClassName?: string;
+  onEscape?: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const dialog = ref.current!;
     dialog.showModal();
@@ -171,17 +178,18 @@ export function Modal({
     <dialog
       ref={ref}
       className={wide ? 'modal wide' : 'modal'}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
-        if (!busy) close();
+        if (!busy) (onEscape ?? close)();
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !busy) close();
       }}
     >
-      <div className="modal-inner">
+      <div ref={contentRef} className={`modal-inner ${contentClassName ?? ''}`}>
         <header>
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button className="icon-button" aria-label="关闭" disabled={busy} onClick={close}>
             <Icon name="close" />
           </button>
@@ -348,13 +356,19 @@ export function Preview({
   name = '',
   shareToken,
   onShareLocked,
+  onReady,
+  onPreviewError,
 }: {
   id: string;
   large?: boolean;
   name?: string;
   shareToken?: string;
   onShareLocked?: () => void;
+  onReady?: (width: number, height: number) => void;
+  onPreviewError?: () => void;
 }) {
+  const notifications = useRef({ onReady, onPreviewError });
+  notifications.current = { onReady, onPreviewError };
   const ref = useRef<HTMLDivElement>(null),
     [visible, setVisible] = useState(large),
     [attempt, setAttempt] = useState(0),
@@ -424,7 +438,10 @@ export function Preview({
         }
       }
     }).catch((e) => {
-      if (!controller.signal.aborted) setError(e.message);
+      if (!controller.signal.aborted) {
+        setError(e.message);
+        notifications.current.onPreviewError?.();
+      }
     });
     return () => {
       controller.abort();
@@ -437,11 +454,19 @@ export function Preview({
         <img
           src={src}
           alt={name}
+          draggable={false}
+          onLoad={(event) =>
+            notifications.current.onReady?.(
+              event.currentTarget.naturalWidth,
+              event.currentTarget.naturalHeight,
+            )
+          }
           onError={() => {
             setSrc('');
             setError(
               shareToken ? '预览图片无法显示，请重试' : '预览图片无法显示，请重试或下载原件',
             );
+            notifications.current.onPreviewError?.();
           }}
         />
       ) : error ? (
