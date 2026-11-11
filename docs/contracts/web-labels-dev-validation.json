@@ -1,0 +1,519 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T14:13:23.599Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-probe-share",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "favorite-before-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "current-library-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-before-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-before-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "initial-rating-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-initial-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "single-tags-and-rating",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "normalized-tag-rating-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "batch-append-preserves-existing",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "combined-library-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filtered-month-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filtered-month-seek",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "exact-rating-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unrated-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "own-tag-suggestions",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "repeated-state-is-idempotent",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "stale-version-rejected",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "invalid-rating",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "null-tag-list-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-limit",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-origin-rejected",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "anonymous-inspect-rejected",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-snapshot",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-rejected",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "private-label-fixture",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-catalog-empty",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "literal-catalog-query",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "share-omits-owner-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "incremental-rating-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-rated-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "trash-labeled-photo",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "trash-label-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-labeled-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restored-label-retained",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "remove-selected-label",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "removed-label-no-results",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "replace-tags-and-clear-rating",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleared-rating-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "clear-all-tags",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleared-tag-index",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unrated-after-clear",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-selected-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "index-cleanup-fixture",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-after-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-share",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-index-empty-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "syncVerified": true,
+  "originalsVerified": 2,
+  "labelsVerified": true,
+  "sourceCommit": "464bb1d044c2ac51bef34023491f55e4d41b46e0",
+  "workerVersion": "cab67478-8592-4f7e-9914-6b4bee48210a",
+  "migration": "0037_photo_labels.sql",
+  "local": {
+    "check": "passed",
+    "tests": 295,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources",
+    "newIntegrationScenarios": 8,
+    "syntheticPhotos": 1001,
+    "batchSize": 1000,
+    "releaseRehearsalChecks": 84
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated local D1/R2",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 820,
+        "height": 1180
+      }
+    ],
+    "suites": [
+      {
+        "suite": "labels-desktop",
+        "checks": [
+          "Single editor normalizes tag input",
+          "Single save updates rating badge",
+          "Tag and minimum rating combine with filename search",
+          "Tag filter survives refresh",
+          "Rating filter survives refresh",
+          "Batch editor defaults to append",
+          "Empty bulk submission identifies fields and correction",
+          "Batch append preserves existing tags",
+          "Batch rating applies to selected photos",
+          "Batch remove completes",
+          "Version conflict requires refresh without losing form",
+          "Explicit refresh and resubmit succeed",
+          "Clear mode explains overwrite",
+          "Failure preserves selected photos",
+          "Unknown write result blocks blind retry",
+          "Clearing tags and rating removes badges"
+        ]
+      },
+      {
+        "suite": "labels-responsive",
+        "checks": [
+          "390px combined filters have no overflow",
+          "390px rating filter survives refresh",
+          "390px existing tags are editable",
+          "390px save and cancel remain visible",
+          "390px long tags do not overflow",
+          "390px cancel keeps gallery and filters",
+          "820px combined filters have no overflow",
+          "820px rating filter survives refresh",
+          "820px existing tags are editable",
+          "820px save and cancel remain visible",
+          "820px long tags do not overflow",
+          "820px cancel keeps gallery and filters"
+        ]
+      }
+    ],
+    "assertions": 28,
+    "realDeviceVerified": false
+  },
+  "limitations": [
+    "Browser interaction used isolated local D1/R2 fixtures; public verification covered HTTP and deployed frontend resources.",
+    "Flat Web tags do not implement official hierarchical tag APIs or official App tag synchronization.",
+    "Real iPhone Safari and official Immich App device verification were not performed."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-labels-desktop.png",
+    "tablet": "work/output/playwright/web-photo-labels-820.png",
+    "mobile": "work/output/playwright/web-photo-labels-390.png"
+  }
+}
