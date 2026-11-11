@@ -233,12 +233,20 @@ test('照片资料修改同步官方 EXIF 与本地拍摄时间，重定位跟�
   assert.equal(seek.items[0].id, photo.id);
   assert.equal((await call(root + '/assets?cursor=' + oldPage.nextCursor, u)).status, 409);
   const syncResponse = await call('/api/sync/stream', u, 'POST', {
-    types: ['AssetsV2', 'AssetExifsV1', 'AlbumAssetExifsV1'],
+    types: ['AssetsV2', 'AssetExifsV1', 'AlbumAssetsV2', 'AlbumAssetExifsV1'],
     reset: true,
   });
   assert.equal(syncResponse.status, 200);
   const events = (await syncResponse.text()).trim().split('\n').map(JSON.parse);
   const exif = events.find((e) => e.type === 'AssetExifV1' && e.data.assetId === photo.id);
+  assert.ok(
+    events.findIndex((e) => e.type === 'AssetV2' && e.data.id === photo.id) < events.indexOf(exif),
+  );
+  assert.ok(
+    events.some((e) => e.type === 'AlbumAssetCreateV2' && e.data.id === photo.id) &&
+      events.findIndex((e) => e.type === 'AlbumAssetCreateV2' && e.data.id === photo.id) <
+        events.findIndex((e) => e.type === 'AlbumAssetExifCreateV1' && e.data.assetId === photo.id),
+  );
   assert.equal(exif.data.description, '新描述');
   assert.equal(exif.data.dateTimeOriginal, updated.fileCreatedAt);
   assert.equal(exif.data.timeZone, 'Asia/Shanghai');

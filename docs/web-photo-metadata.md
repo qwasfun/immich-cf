@@ -37,7 +37,7 @@ PATCH 可选字段：`description`、成对的 `latitude/longitude`（可同时�
 
 所有写入在 D1 事务中再次核对会话、账号启用状态、图库版本和全部照片权限；任一项失败则整批不写。版本变化返回 409，需重新打开窗口核对后保存，不能盲目重复相对偏移。提交错误返回具体 `errors[].path/message`，不在错误或日志中回显描述、GPS、App 私有标识或令牌。
 
-迁移 `0034_photo_details.sql` 为 assets 增加独立 `photo_metadata/local_date_time`，旧记录默认空值，不回填时间。资料变化更新业务时间、资产同步序号及图库版本。官方资产详情返回 EXIF 信息；`AssetExifV1`、`AlbumAssetExifCreateV1/UpdateV1` 沿用冻结 v3.3.1 字段、ACK 和读取守卫，`localDateTime` 按已知拍摄时区表示当地日期。App 的 opaque `mobile-app` 元数据保持独立。分批账号导出包含新增资料与当地时间；原件 ZIP 仍导出原始文件。
+迁移 `0034_photo_details.sql` 为 assets 增加独立 `photo_metadata/local_date_time`，旧记录默认空值，不回填时间。资料变化更新业务时间、资产同步序号及图库版本。官方资产详情返回 EXIF 信息；`AssetExifV1`、`AlbumAssetExifCreateV1/UpdateV1` 沿用冻结 v3.3.1 字段、ACK 和读取守卫，先发送照片记录、再发送 EXIF，`localDateTime` 按已知拍摄时区表示当地日期。App 的 opaque `mobile-app` 元数据保持独立。分批账号导出包含新增资料与当地时间；原件 ZIP 仍导出原始文件。
 
 ## 验证边界
 

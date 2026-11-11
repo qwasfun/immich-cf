@@ -50,35 +50,6 @@ export async function* libraryEventPages(
     fps: null,
     profileDescription: null,
   });
-  if (types.includes('AssetExifsV1'))
-    yield* query(
-      'AssetExifV1',
-      `SELECT ${exifColumns} FROM assets WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq`,
-      exif,
-      'sync_seq',
-      500,
-    );
-  if (types.includes('AlbumAssetExifsV1')) {
-    yield* query(
-      'AlbumAssetExifCreateV1',
-      `SELECT ${exifColumns
-        .split(',')
-        .map((c) => 'a.' + c)
-        .join(
-          ',',
-        )},l.sync_seq link_seq FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.owner_id=? AND a.photo_metadata<>'{}' AND l.sync_seq>? AND l.sync_seq<=? ORDER BY l.sync_seq`,
-      exif,
-      'link_seq',
-      500,
-    );
-    yield* query(
-      'AlbumAssetExifUpdateV1',
-      `SELECT ${exifColumns} FROM assets a WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY sync_seq`,
-      exif,
-      'sync_seq',
-      500,
-    );
-  }
   if (types.includes('AssetsV2')) {
     yield* query(
       'AssetV2',
@@ -112,6 +83,36 @@ export async function* libraryEventPages(
           ',',
         )} FROM assets a WHERE a.owner_id=? AND a.sync_seq>? AND a.sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY a.sync_seq`,
       asset,
+    );
+  }
+  // Clients must receive each asset before applying its EXIF information.
+  if (types.includes('AssetExifsV1'))
+    yield* query(
+      'AssetExifV1',
+      `SELECT ${exifColumns} FROM assets WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq`,
+      exif,
+      'sync_seq',
+      500,
+    );
+  if (types.includes('AlbumAssetExifsV1')) {
+    yield* query(
+      'AlbumAssetExifCreateV1',
+      `SELECT ${exifColumns
+        .split(',')
+        .map((c) => 'a.' + c)
+        .join(
+          ',',
+        )},l.sync_seq link_seq FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.owner_id=? AND a.photo_metadata<>'{}' AND l.sync_seq>? AND l.sync_seq<=? ORDER BY l.sync_seq`,
+      exif,
+      'link_seq',
+      500,
+    );
+    yield* query(
+      'AlbumAssetExifUpdateV1',
+      `SELECT ${exifColumns} FROM assets a WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY sync_seq`,
+      exif,
+      'sync_seq',
+      500,
     );
   }
   if (types.includes('AlbumsV2')) {
