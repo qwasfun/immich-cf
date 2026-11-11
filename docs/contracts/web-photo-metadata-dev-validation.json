@@ -1,0 +1,286 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T06:36:45.559Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-isolated-metadata-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-isolated-metadata-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-isolated-metadata-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "read-jpeg-source-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-no-offset-png-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "native-upload-preserves-submitted-time",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "initial-exif-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-initial-exif-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "read-current-photo-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-description-gps-and-dst-time",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-edited-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "official-asset-exif-details",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "incremental-exif-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "stale-version-rejected",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "read-second-before-shift",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "batch-relative-time-preserves-intervals",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-shifted-first",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-shifted-second",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "batch-identical-time",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-absolute-time-result",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "reextract-keeps-manual-overrides",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "clear-library-location",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleared-gps-is-null",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "invalid-latitude",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "incomplete-coordinates",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "dst-gap-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "invalid-timezone",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "anonymous-metadata-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "cross-owner-read-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "operator-gallery-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-edit-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "cross-origin-edit-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "seek-after-time-correction",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "corrected-month-counts",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-bytes-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-bytes-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-bytes-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "delete-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-operator-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "sourceCommit": "91e4e2fb789fdd44388ca1788f5e0a3d3b86d4d4",
+  "workerVersion": "b609afa7-b786-47bb-a5b3-1cc81641914c",
+  "realDeviceVerified": false,
+  "originalsVerified": 3,
+  "metadataAndTimeVerified": true
+}
