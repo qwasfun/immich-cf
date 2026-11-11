@@ -1,0 +1,268 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T10:38:57.817Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "login-dev-account",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-photos",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "months-shanghai",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "months-los-angeles",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unchanged-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "seek-month",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "walk-previous",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "walk-next",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "oldest-first",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-favorites",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "filtered-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "owned-albums",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "list-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-months",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-months-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "specific-timezone-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "invalid-anchor-denied",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "missing-album-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "trash-months-unavailable",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-created-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "mediaWrites": false,
+  "usageUnchanged": true,
+  "albumChecked": true,
+  "photoCount": 24,
+  "monthCount": 4,
+  "sourceCommit": "9689c411b53e3d4e091b51a7c7e4e32c09422f68",
+  "workerVersion": "a89c7d19-4fa7-45cd-900d-a32873737de3",
+  "migrationChange": false,
+  "local": {
+    "check": "passed",
+    "tests": 274,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources"
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated local D1/R2",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 960
+      },
+      {
+        "width": 820,
+        "height": 1180
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "touchEmulated": true
+      }
+    ],
+    "syntheticPhotos": 1001,
+    "suites": [
+      {
+        "suite": "desktop-viewer",
+        "checks": [
+          "Shift forward inclusive and no viewer",
+          "Shift body click keeps grid",
+          "Shift deselect target range preserves others",
+          "Double click zooms to 200%",
+          "Mouse drag pans enlarged photo",
+          "Zoom capped at 400%",
+          "Arrow pans without flipping when zoomed",
+          "Navigation resets zoom",
+          "System fullscreen on inner viewer",
+          "Slideshow advances after loaded photo",
+          "Manual zoom pauses slideshow",
+          "Escape first restores fit",
+          "Escape then closes viewer"
+        ]
+      },
+      {
+        "suite": "pagination-and-pause",
+        "checks": [
+          "Cursor failure preserves current photo",
+          "Cursor failure preserves loaded page",
+          "Cursor failure pauses slideshow",
+          "Slideshow resumes across loaded page boundary",
+          "Window blur pauses playback",
+          "Opening details pauses playback",
+          "Shift Space range activation"
+        ]
+      },
+      {
+        "suite": "details-keyboard-end",
+        "checks": [
+          "Details pauses running slideshow",
+          "Shift Space selects inclusive range",
+          "Final photo stops slideshow without looping",
+          "Fullscreen refusal gives actionable message"
+        ]
+      },
+      {
+        "suite": "touch-viewer",
+        "checks": [
+          "390px viewer has no horizontal overflow",
+          "Touch double tap zooms to 200%",
+          "Touch drag pans zoomed photo",
+          "Two-finger pinch enlarges photo",
+          "Swipe flips only while fitted",
+          "Mobile timeline date panel still opens"
+        ]
+      },
+      {
+        "suite": "shared-viewer",
+        "checks": [
+          "Local fixture share created without original download permission",
+          "Guest fixture has multiple pages",
+          "Guest viewer can zoom",
+          "Guest download controls follow permission",
+          "Guest slideshow loads next page at boundary",
+          "Guest zoom and slideshow request no originals"
+        ]
+      },
+      {
+        "suite": "album-favorites-tablet",
+        "checks": [
+          "Album picker supports Shift body selection",
+          "Album viewer supports zoom",
+          "Favorites viewer supports zoom",
+          "820px tablet viewer has no horizontal overflow"
+        ]
+      },
+      {
+        "suite": "fullscreen-preview-fault",
+        "checks": [
+          "Closing viewer leaves fullscreen",
+          "Fullscreen close restores grid scroll",
+          "Failed preview disables playback until retry",
+          "Preview retry restores controls"
+        ]
+      },
+      {
+        "suite": "close-pending",
+        "checks": ["Closing during page request prevents late viewer reopen"]
+      }
+    ],
+    "assertions": 45,
+    "realDeviceVerified": false
+  },
+  "limitations": [
+    "Browser assertions used isolated local D1/R2 fixtures. Public verification covered HTTP and deployed frontend resources.",
+    "Real iPhone Safari gestures, fullscreen and official Immich App were not tested this round."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-viewer-desktop.png",
+    "tablet": "work/output/playwright/web-viewer-tablet.png",
+    "mobile": "work/output/playwright/web-viewer-mobile.png"
+  }
+}
