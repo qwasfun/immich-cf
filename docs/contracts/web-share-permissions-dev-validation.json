@@ -1,0 +1,496 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T02:04:42.651Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "dev-operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "share-web-route",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "share-web-route",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-test-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-public-test-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "anonymous-create-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "cross-origin-create-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "password-field-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cross-owner-album-create-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "create-protected-selected-link",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-whole-album-link",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "owner-list-without-link-secrets",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-revoke-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "guest-no-key-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "locked-list-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "locked-preview-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "locked-original-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "wrong-password-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "unlock-protected-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unlocked-selected-list",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "guest-jpeg-thumbnail",
+      "status": 503,
+      "expected": [200, 503]
+    },
+    {
+      "label": "guest-jpeg-thumbnail",
+      "status": 200,
+      "expected": [200, 503]
+    },
+    {
+      "label": "guest-download-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "unshared-photo-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "original-with-share-key-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "add-member-to-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "guest-whole-album-first-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "default-album-download-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "guest-whole-album-next-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "remove-member-from-album",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "guest-album-reflects-removal",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "removed-album-preview-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "cross-owner-config-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "turn-off-original-download",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "already-unlocked-download-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "already-unlocked-preview-list-still-allowed",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "replace-link-password",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "old-access-token-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "old-password-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "new-password-unlocks",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-access-token-allowed",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "clear-link-password",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleared-password-opens-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "protect-existing-album-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-album-now-locked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "unlock-edited-album-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "guest-download-album-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "revoke-selected-link",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "revoked-selected-list-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "revoked-selected-preview-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "revoke-album-link",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "revoked-album-link-denied",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "delete-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "check-probe-purge-completion",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-operator-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true
+}
