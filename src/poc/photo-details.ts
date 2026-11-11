@@ -71,7 +71,7 @@ export function photoExifDto(row: Asset) {
     model: source.model ?? null,
     orientation: source.orientation ?? null,
     projectionType: null,
-    rating: null,
+    rating: row.rating ?? null,
     timeZone: record.timeZone,
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { emptyPhotoQuery, photoQuery, photoQueryParams } from '../../src/web/gallery-query';
 import type { PhotoQuery } from '../../src/web/gallery-query';
 import { ErrorBox, Icon } from './ui';
+import { TagSuggestions } from './PhotoLabels';
 
 function dateInput(iso: string, end = false) {
   if (!iso) return '';
@@ -54,6 +55,8 @@ export function PhotoFilters({
           from = String(data.get('from') ?? ''),
           to = String(data.get('to') ?? ''),
           type = String(data.get('type') ?? 'all'),
+          tag = String(data.get('tag') ?? ''),
+          rating = String(data.get('rating') ?? 'all'),
           order = String(data.get('order') ?? 'newest');
         setError('');
         try {
@@ -75,6 +78,8 @@ export function PhotoFilters({
               to: end?.toISOString() ?? '',
               type,
               order,
+              tag,
+              rating,
             }),
           );
           apply(query);
@@ -149,6 +154,41 @@ export function PhotoFilters({
           >
             <option value="newest">最新在前</option>
             <option value="oldest">最早在前</option>
+          </select>
+        </label>
+        <label className="field" htmlFor={`${id}-tag`}>
+          标签
+          <input
+            id={`${id}-tag`}
+            name="tag"
+            list={`${id}-tags`}
+            value={draft.tag}
+            maxLength={64}
+            onChange={(e) => setDraft({ ...draft, tag: e.target.value })}
+            placeholder="标签名称，精确匹配"
+          />
+          <TagSuggestions id={`${id}-tags`} query={draft.tag} />
+        </label>
+        <label className="field" htmlFor={`${id}-rating`}>
+          评分筛选
+          <select
+            id={`${id}-rating`}
+            name="rating"
+            value={draft.rating}
+            onChange={(e) => setDraft({ ...draft, rating: e.target.value })}
+          >
+            <option value="all">全部评分</option>
+            <option value="none">未评分</option>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <option key={value} value={value}>
+                仅 {value} 星
+              </option>
+            ))}
+            {[1, 2, 3, 4, 5].map((value) => (
+              <option key={'gte' + value} value={'gte' + value}>
+                {value} 星及以上
+              </option>
+            ))}
           </select>
         </label>
         <div className="filter-actions">

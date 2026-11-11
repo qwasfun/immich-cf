@@ -43,7 +43,7 @@ export async function* libraryEventPages(
   }
   const asset = (row: Record<string, unknown>) => assetDto(row as unknown as Asset);
   const exifColumns =
-    'id,bytes,photo_metadata,file_created_at,file_modified_at,width,height,sync_seq';
+    'id,bytes,photo_metadata,rating,file_created_at,file_modified_at,width,height,sync_seq';
   const exif = (row: Record<string, unknown>) => ({
     assetId: row.id,
     ...photoExifDto(row as unknown as Asset),
@@ -89,7 +89,7 @@ export async function* libraryEventPages(
   if (types.includes('AssetExifsV1'))
     yield* query(
       'AssetExifV1',
-      `SELECT ${exifColumns} FROM assets WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq`,
+      `SELECT ${exifColumns} FROM assets WHERE owner_id=? AND (photo_metadata<>'{}' OR rating_touched=1) AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq`,
       exif,
       'sync_seq',
       500,
@@ -102,14 +102,14 @@ export async function* libraryEventPages(
         .map((c) => 'a.' + c)
         .join(
           ',',
-        )},l.sync_seq link_seq FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.owner_id=? AND a.photo_metadata<>'{}' AND l.sync_seq>? AND l.sync_seq<=? ORDER BY l.sync_seq`,
+        )},l.sync_seq link_seq FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.owner_id=? AND (a.photo_metadata<>'{}' OR a.rating_touched=1) AND l.sync_seq>? AND l.sync_seq<=? ORDER BY l.sync_seq`,
       exif,
       'link_seq',
       500,
     );
     yield* query(
       'AlbumAssetExifUpdateV1',
-      `SELECT ${exifColumns} FROM assets a WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY sync_seq`,
+      `SELECT ${exifColumns} FROM assets a WHERE owner_id=? AND (photo_metadata<>'{}' OR rating_touched=1) AND sync_seq>? AND sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY sync_seq`,
       exif,
       'sync_seq',
       500,

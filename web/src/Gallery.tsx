@@ -14,6 +14,7 @@ import { PhotoViewer, type ViewerMove } from './PhotoViewer';
 import { usePhotoSelection } from './usePhotoSelection';
 import { AlbumTransfer, type AlbumSnapshot } from './AlbumTransfer';
 import { albumList, type AlbumOrder } from './album-list';
+import { EditPhotoLabels } from './PhotoLabels';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -58,6 +59,11 @@ function PhotoCard({
         {selected ? <Icon name="check" size={17} /> : <span />}
       </button>
       <div className="photo-badges">
+        {photo.rating !== null && (
+          <span className="rating-badge" aria-label={`评分 ${photo.rating} 星`}>
+            ★ {photo.rating}
+          </span>
+        )}
         {photo.isArchived && (
           <span className="archive-badge">
             <Icon name="archive" size={12} />
@@ -206,6 +212,7 @@ function Viewer({
   busy = false,
   inAlbum = false,
   archive,
+  labels,
 }: {
   photo: Photo;
   previous?: ViewerMove;
@@ -224,6 +231,7 @@ function Viewer({
   busy?: boolean;
   inAlbum?: boolean;
   archive: () => void;
+  labels: () => void;
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
@@ -276,6 +284,10 @@ function Viewer({
               <dd>{date(photo.fileCreatedAt)}</dd>
               <dt>归档状态</dt>
               <dd>{photo.isArchived ? '已归档' : '未归档'}</dd>
+              <dt>标签</dt>
+              <dd className="photo-label-summary">{photo.tags.join('、') || '未设置'}</dd>
+              <dt>评分</dt>
+              <dd>{photo.rating === null ? '未评分' : `${photo.rating} 星`}</dd>
               <dt>尺寸</dt>
               <dd>
                 {photo.width} × {photo.height}
@@ -327,6 +339,9 @@ function Viewer({
                 </button>
               )}
               <button onClick={() => act(edit)}>编辑资料</button>
+              <button disabled={busy || loading} onClick={() => act(labels)}>
+                标签与评分
+              </button>
               <button disabled={busy || loading} onClick={() => act(archive)}>
                 <Icon name="archive" />
                 {photo.isArchived ? '取消归档' : '归档照片'}
@@ -611,8 +626,8 @@ export function Gallery({
         disabled={busy}
         trash={view === 'trash'}
       />
-      {view === 'photos' && query.q && (
-        <p className="fine-print">文件名搜索也包含已归档照片，卡片会标记归档状态。</p>
+      {view === 'photos' && (query.q || query.tag || query.rating !== 'all') && (
+        <p className="fine-print">文件名、标签或评分筛选也包含已归档照片，卡片会标记归档状态。</p>
       )}
       {timeline.enabled && (
         <TimelineNav
@@ -673,6 +688,9 @@ export function Gallery({
               )}
               <button disabled={busy || loading} onClick={() => ask('correct-time')}>
                 修正拍摄时间
+              </button>
+              <button disabled={busy || loading} onClick={() => ask('labels')}>
+                标签与评分
               </button>
               {albumId && <button onClick={() => ask('remove-album')}>移出相册</button>}
               {albumId && selected.size === 1 && (
@@ -825,8 +843,10 @@ export function Gallery({
           cover={albumId ? () => void setCover(opened.id) : undefined}
           isCover={album?.albumThumbnailAssetId === opened.id}
           archive={() => void archivePhotos([opened.id], !opened.isArchived)}
+          labels={() => ask('labels', [opened.id])}
         />
       )}
+      {dialog === 'labels' && <EditPhotoLabels ids={targets} close={close} changed={done} />}
       {dialog === 'edit-photo' && (
         <EditPhotoMetadata
           id={targets[0]!}

@@ -151,6 +151,8 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
   return Response.json({
     items: page.map((row) => ({
       ...assetDetailDto(row),
+      tags: JSON.parse(row.tags || '[]'),
+      rating: row.rating ?? null,
       bytes: row.bytes,
       previewPath: `/api/immich-cf/web/assets/${row.id}/preview`,
       downloadPath: `/api/immich-cf/web/assets/${row.id}/download`,

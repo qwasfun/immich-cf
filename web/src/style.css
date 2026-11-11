@@ -463,6 +463,30 @@ main {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.label-chips button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  background: #eef2ff;
+  border: 1px solid #d5dffc;
+  border-radius: 16px;
+  padding: 5px 10px;
+  color: #3654a4;
+}
+.label-rating {
+  margin-top: 20px;
+}
+.photo-label-summary {
+  overflow-wrap: anywhere;
+}
+.photo-badges .rating-badge {
+  color: #ffe3a6;
+}
 .photo-metadata-info dd {
   overflow-wrap: anywhere;
 }

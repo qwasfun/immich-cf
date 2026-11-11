@@ -12,6 +12,7 @@ import { photoMetadata } from './photo-metadata';
 import { PhotoTimeError, photoTimeZone } from '../photo-time';
 import { webAlbums, transferAlbums } from './album-organization';
 import { photoArchive } from './archive';
+import { labels, tagSuggestions } from './photo-labels';
 
 export async function webRoute(
   request: Request,
@@ -41,6 +42,9 @@ export async function webRoute(
   if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
   else if (webPath === 'photo-metadata') methods = ['PATCH'];
   else if (webPath === 'archive') methods = ['PATCH'];
+  else if (webPath === 'labels') methods = ['PATCH'];
+  else if (webPath === 'labels/inspect') methods = ['POST'];
+  else if (webPath === 'tags') methods = ['GET'];
   else if (webPath === 'album-transfer') methods = ['POST'];
   else if (webPath === 'albums') methods = ['GET'];
   else if (unlock) methods = ['POST'];
@@ -79,6 +83,10 @@ export async function webRoute(
       else if (webPath === 'photo-metadata') response = await photoMetadata(request, env, identity);
       else if (webPath === 'archive')
         response = await photoArchive(request, env.IMMICH_CF_DB, identity);
+      else if (webPath === 'labels' || webPath === 'labels/inspect')
+        response = await labels(request, env.IMMICH_CF_DB, identity, webPath === 'labels/inspect');
+      else if (webPath === 'tags')
+        response = await tagSuggestions(request, env.IMMICH_CF_DB, identity);
       else if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
       else if (download)
         response = await downloads(request, env, identity, download[1], !!download[2], ctx);

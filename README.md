@@ -1,5 +1,7 @@
 # immich-cf
 
+Web 支持[照片标签与评分](docs/web-photo-labels.md)：单张/批量标签操作、1～5 星评分与组合筛选。
+
 Web 支持[照片归档管理](docs/web-photo-archive.md)：单张/整批归档与取消、独立归档列表和年月定位。
 
 Web 新增[相册整理](docs/web-albums.md)：名称/描述查找、四种排序、整批复制/移动和大图快捷设封面。

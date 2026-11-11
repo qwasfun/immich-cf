@@ -22,7 +22,7 @@ interface Cursor {
 const sizes = { assets: 50, albums: 20, relations: 2000, complete: 0 };
 const revisionSql = `SELECT COALESCE((SELECT revision FROM asset_owner_revisions WHERE owner_id=?),0) assetRevision,COALESCE((SELECT revision FROM album_owner_revisions WHERE owner_id=?),0) albumRevision`;
 const assetColumns =
-  'id,filename,mime,bytes,checksum,width,height,file_created_at,file_modified_at,created_at,updated_at,deleted_at,favorite,archived,metadata,sync_seq,media_type,visibility,duration,live_photo_video_id,photo_metadata,local_date_time';
+  'id,filename,mime,bytes,checksum,width,height,file_created_at,file_modified_at,created_at,updated_at,deleted_at,favorite,archived,tags,rating,rating_touched,metadata,sync_seq,media_type,visibility,duration,live_photo_video_id,photo_metadata,local_date_time';
 const bounds = (value: unknown, max: number): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= max;
 const encode = (cursor: Cursor) =>

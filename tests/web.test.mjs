@@ -2479,3 +2479,484 @@ test('照片归档按冻结可见性字段兼容官方单张/批量写入、统�
   assert.equal((await archiveList(u)).length, 0);
   assert.equal((await archiveList(u, 'album', '&albumId=' + album.id)).length, 2);
 });
+
+const inspectLabels = async (u, ids) =>
+  await (await call(root + '/labels/inspect', u, 'POST', { ids })).json();
+const writeLabels = async (u, ids, changes, version, headers = {}) =>
+  call(
+    root + '/labels',
+    u,
+    'PATCH',
+    { ids, ...changes, version: version ?? (await inspectLabels(u, ids)).version },
+    headers,
+  );
+const taggedPhotos = async (u, params) =>
+  await (await call(root + '/assets?view=library&' + params, u)).json();
+test('照片标签评分单张保存、标签规范去重、组合筛选与导出，原件及其他资料保持', async () => {
+  const u = await user(true),
+    a = await seed(u),
+    before = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.id).first();
+  const response = await writeLabels(u, [a.id], {
+    tagAction: 'replace',
+    tags: [' 旅行 ', 'Ｔｒａｖｅｌ', 'travel', '家庭'],
+    rating: 4,
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  const item = (await taggedPhotos(u, 'tag=TRAVEL&rating=gte3')).items[0];
+  assert.equal(item.id, a.id);
+  assert.deepEqual(item.tags, ['Travel', '家庭', '旅行']);
+  assert.equal(item.rating, 4);
+  assert.equal(
+    (await taggedPhotos(u, 'tag=' + encodeURIComponent('旅行') + '&rating=4')).items.length,
+    1,
+  );
+  assert.equal((await taggedPhotos(u, 'rating=none')).items.length, 0);
+  const current = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.id).first();
+  for (const field of [
+    'object_key',
+    'checksum',
+    'bytes',
+    'file_created_at',
+    'file_modified_at',
+    'metadata',
+    'photo_metadata',
+    'archived',
+    'favorite',
+  ])
+    assert.deepEqual(current[field], before[field], field);
+  assert.deepEqual(Buffer.from(await (await bucket.get(a.key)).arrayBuffer()), a.content);
+  const exported = await (await call('/api/immich-cf/admin/export/page?userId=' + u.id, u)).json();
+  assert.equal(exported.page.items[0].rating, 4);
+  assert.deepEqual(JSON.parse(exported.page.items[0].tags), item.tags);
+  const snapshot = await inspectLabels(u, [a.id]);
+  assert.deepEqual(snapshot.commonTags, item.tags);
+  assert.equal(snapshot.rating, 4);
+  const noop = await writeLabels(
+    u,
+    [a.id],
+    { tagAction: 'add', tags: ['travel'], rating: 4 },
+    snapshot.version,
+  );
+  assert.equal((await noop.json()).changed, 0);
+  assert.equal((await inspectLabels(u, [a.id])).version, snapshot.version);
+});
+test('照片标签评分批量追加/移除/替换/清空与不修改评分，超限整批拒绝', async () => {
+  const u = await user(),
+    a = await seed(u),
+    b = await seed(u);
+  await writeLabels(u, [a.id], { tagAction: 'replace', tags: ['A', '共有'], rating: 2 });
+  await writeLabels(u, [b.id], { tagAction: 'replace', tags: ['B', '共有'], rating: 5 });
+  let summary = await inspectLabels(u, [a.id, b.id]);
+  assert.deepEqual(summary.commonTags, ['共有']);
+  assert.equal(summary.ratingMixed, true);
+  assert.equal(
+    (await writeLabels(u, [a.id, b.id], { tagAction: 'add', tags: ['新标签'] })).status,
+    200,
+  );
+  let list = (await taggedPhotos(u, 'tag=' + encodeURIComponent('新标签'))).items;
+  assert.equal(list.length, 2);
+  assert.equal(list.find((p) => p.id === a.id).rating, 2);
+  assert.equal(list.find((p) => p.id === b.id).rating, 5);
+  await writeLabels(u, [a.id, b.id], { tagAction: 'remove', tags: ['共有'] });
+  assert.equal((await taggedPhotos(u, 'tag=' + encodeURIComponent('共有'))).items.length, 0);
+  await writeLabels(u, [a.id, b.id], { tagAction: 'replace', tags: ['统一'], rating: 3 });
+  summary = await inspectLabels(u, [a.id, b.id]);
+  assert.equal(summary.ratingMixed, false);
+  assert.equal(summary.rating, 3);
+  assert.deepEqual(summary.commonTags, ['统一']);
+  await writeLabels(u, [a.id], {
+    tagAction: 'replace',
+    tags: Array.from({ length: 20 }, (_, n) => '标签' + n),
+  });
+  const before = await inspectLabels(u, [a.id, b.id]),
+    failed = await writeLabels(u, [a.id, b.id], {
+      tagAction: 'add',
+      tags: ['超过上限'],
+      rating: 5,
+    });
+  assert.equal(failed.status, 400);
+  assert.match((await failed.json()).message, /20/);
+  assert.equal((await inspectLabels(u, [a.id, b.id])).version, before.version);
+  assert.equal(
+    (await writeLabels(u, [a.id, b.id], { tagAction: 'clear', rating: null })).status,
+    200,
+  );
+  assert.deepEqual((await inspectLabels(u, [a.id, b.id])).commonTags, []);
+  assert.equal((await inspectLabels(u, [a.id, b.id])).rating, null);
+});
+test('照片标签评分字段错误、字面特殊标签和跨账号/跨站/回收/隐藏组件隔离', async () => {
+  const u = await user(),
+    other = await user(),
+    a = await seed(u),
+    foreign = await seed(other),
+    trash = await seed(u),
+    hidden = await seed(u, liveMov(pairId()), 'video/quicktime', {
+      type: 'VIDEO',
+      visibility: 'hidden',
+    });
+  await call('/api/assets', u, 'DELETE', { ids: [trash.id] });
+  const version = (await inspectLabels(u, [a.id])).version;
+  for (const [patch, key, status] of [
+    [{ rating: 0 }, 'rating', 400],
+    [{ rating: '5' }, 'rating', 400],
+    [{ rating: 6 }, 'rating', 400],
+    [{ tags: ['x'] }, 'tagAction', 400],
+    [{ tagAction: 'unknown' }, 'tagAction', 400],
+    [{ tagAction: 'add', tags: [] }, 'tags', 400],
+    [{ tagAction: 'replace', tags: ['秘密输入'.repeat(10)] }, 'tags', 400],
+    [{ tagAction: 'clear', tags: ['x'] }, 'tags', 400],
+    [{ tagAction: 'replace', tags: null }, 'tags', 400],
+    [{ ids: Array(1001).fill(a.id) }, 'ids', 400],
+    [{ ids: [a.id, foreign.id] }, 'ids', 404],
+    [{ ids: [a.id, trash.id] }, 'ids', 404],
+    [{ ids: [a.id, hidden.id] }, 'ids', 404],
+  ]) {
+    const r = await call(root + '/labels', u, 'PATCH', {
+      ids: [a.id],
+      rating: 4,
+      version,
+      ...patch,
+    });
+    assert.equal(r.status, status);
+    const error = await r.json();
+    assert.equal(error.errors[0].path[0], key);
+    assert.doesNotMatch(error.message, /秘密输入/);
+  }
+  assert.equal(
+    (
+      await call(
+        root + '/labels',
+        u,
+        'PATCH',
+        { ids: [a.id], rating: 4, version },
+        { Origin: 'https://foreign.invalid' },
+      )
+    ).status,
+    403,
+  );
+  assert.equal((await call(root + '/labels/inspect', null, 'POST', { ids: [a.id] })).status, 401);
+  await writeLabels(u, [a.id], {
+    tagAction: 'add',
+    tags: ['100%_literal', "O'Brien/标签", '😀'.repeat(32)],
+  });
+  assert.equal(
+    (await taggedPhotos(u, 'tag=' + encodeURIComponent('100%_literal'))).items.length,
+    1,
+  );
+  assert.equal((await taggedPhotos(u, 'tag=' + encodeURIComponent('100%'))).items.length, 0);
+  assert.equal(
+    (await (await call(root + '/tags?q=' + encodeURIComponent('%_'), u)).json()).items.length,
+    1,
+  );
+  for (const [query, key] of [
+    ['tag=x&tag=y', 'tag'],
+    ['rating=0', 'rating'],
+    ['rating=gte6', 'rating'],
+    ['tag=' + encodeURIComponent('😀'.repeat(33)), 'tag'],
+  ]) {
+    const r = await call(root + '/assets?' + query, u);
+    assert.equal(r.status, 400);
+    assert.equal((await r.json()).errors[0].path[0], key);
+  }
+  assert.equal((await (await call(root + '/tags', other)).json()).items.length, 0);
+});
+test('照片标签评分在提交前撤销/过期/停用/版本变化时保持全部原状态', async () => {
+  for (const action of ['revoke', 'expire', 'disable', 'stale']) {
+    const u = await user(),
+      a = await seed(u),
+      b = await seed(u),
+      album = await makeAlbum(u),
+      version = (await inspectLabels(u, [a.id, b.id])).version;
+    const r = await writeLabels(
+      u,
+      [a.id, b.id],
+      { tagAction: 'add', tags: ['待保存'], rating: 5 },
+      version,
+      {
+        'x-test-label-commit': action,
+        'x-test-transfer-session': u.sessionId,
+        'x-test-transfer-target': album.id,
+      },
+    );
+    assert.equal(r.status, action === 'stale' ? 409 : 401, action);
+    const rows = (
+      await db.prepare('SELECT tags,rating FROM assets WHERE owner_id=?').bind(u.id).all()
+    ).results;
+    assert.ok(rows.every((p) => p.tags === '[]' && p.rating === null));
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM photo_label_guards').first()).n, 0);
+  }
+});
+test('照片标签评分中途失败回滚资产、标签索引与同步版本', async () => {
+  const u = await user(),
+    a = await seed(u),
+    b = await seed(u),
+    before = await inspectLabels(u, [a.id, b.id]);
+  await db
+    .prepare(
+      `CREATE TRIGGER test_labels_failure AFTER UPDATE OF rating ON assets WHEN NEW.owner_id='${u.id}' AND (SELECT COUNT(*) FROM assets WHERE owner_id=NEW.owner_id AND rating=5)=2 BEGIN SELECT RAISE(ABORT,'TEST_LABELS_FAILURE'); END`,
+    )
+    .run();
+  try {
+    assert.equal(
+      (
+        await writeLabels(
+          u,
+          [a.id, b.id],
+          { tagAction: 'add', tags: ['应回滚'], rating: 5 },
+          before.version,
+        )
+      ).status,
+      503,
+    );
+  } finally {
+    await db.prepare('DROP TRIGGER test_labels_failure').run();
+  }
+  assert.equal((await inspectLabels(u, [a.id, b.id])).version, before.version);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM photo_tag_index WHERE owner_id=?').bind(u.id).first())
+      .n,
+    0,
+  );
+  assert.ok(
+    (
+      await db
+        .prepare('SELECT tags,rating,rating_touched FROM assets WHERE owner_id=?')
+        .bind(u.id)
+        .all()
+    ).results.every((p) => p.tags === '[]' && p.rating === null && p.rating_touched === 0),
+  );
+});
+test('照片标签评分1001张图库的1000项批量、组合筛选、月份与分页游标绑定', async () => {
+  const u = await user(),
+    other = await user(),
+    ids = [];
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, n) => {
+        const id = randomUUID();
+        ids.push(id);
+        const date = new Date(
+          Date.UTC(2020 + Math.floor((at + n) / 360), Math.floor((at + n) / 30) % 12, 1),
+        ).toISOString();
+        return db
+          .prepare(
+            "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,?)",
+          )
+          .bind(
+            id,
+            u.id,
+            id,
+            id,
+            'labels-demo-' + (at + n) + '.jpg',
+            date,
+            date,
+            date,
+            (at + n) % 2,
+          );
+      }),
+    );
+  assert.equal(
+    (
+      await writeLabels(u, ids.slice(0, 1000), {
+        tagAction: 'replace',
+        tags: ['全部批量', '旅行'],
+        rating: 4,
+      })
+    ).status,
+    200,
+  );
+  await setArchive(u, ids.slice(0, 2), true);
+  await makeAlbum(u, ids.slice(0, 50), '标签范围');
+  const query = 'tag=' + encodeURIComponent('旅行') + '&rating=gte4',
+    all = [];
+  let cursor, first;
+  do {
+    const r = await call(
+      root + '/assets?limit=60&' + query + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''),
+      u,
+    );
+    assert.equal(r.status, 200);
+    const page = await r.json();
+    first ??= page;
+    all.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  assert.equal(all.length, 1000);
+  assert.equal(new Set(all.map((p) => p.id)).size, 1000);
+  assert.equal((await taggedPhotos(u, 'rating=none')).items.length, 1);
+  const months = await (
+    await call(root + '/timeline?' + query + '&timeZone=Asia%2FShanghai', u)
+  ).json();
+  assert.equal(
+    months.months.reduce((n, m) => n + m.count, 0),
+    1000,
+  );
+  assert.equal((await archiveList(u, 'archive', '&' + query)).length, 2);
+  const favorites = await archiveList(u, 'favorites', '&' + query);
+  assert.ok(favorites.every((p) => p.isFavorite && p.rating === 4));
+  assert.equal(
+    (
+      await call(
+        root + '/assets?' + query + '&cursor=' + encodeURIComponent(first.nextCursor),
+        other,
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await call(
+        root +
+          '/assets?tag=' +
+          encodeURIComponent('旅行') +
+          '&rating=5&cursor=' +
+          encodeURIComponent(first.nextCursor),
+        u,
+      )
+    ).status,
+    400,
+  );
+  const pivot = months.months[Math.floor(months.months.length / 2)];
+  assert.equal(
+    (
+      await (
+        await call(
+          root +
+            '/assets?' +
+            query +
+            '&anchorId=' +
+            pivot.anchorId +
+            '&anchorTime=' +
+            encodeURIComponent(pivot.anchorTime),
+          u,
+        )
+      ).json()
+    ).items[0].id,
+    pivot.anchorId,
+  );
+  await writeLabels(u, [ids[0]], { rating: 5 });
+  assert.equal(
+    (await call(root + '/assets?' + query + '&cursor=' + encodeURIComponent(first.nextCursor), u))
+      .status,
+    409,
+  );
+  assert.equal(
+    (await writeLabels(u, ids.slice(0, 1000), { tagAction: 'clear', rating: null })).status,
+    200,
+  );
+  assert.equal((await taggedPhotos(u, 'tag=' + encodeURIComponent('旅行'))).items.length, 0);
+});
+test('照片标签评分目录有界且归属隔离，评分及清除传递到初始/增量和相册 EXIF Sync', async () => {
+  const u = await user(),
+    a = await seed(u);
+  await makeAlbum(u, [a.id]);
+  const stream = async (reset = false) => {
+    const r = await call('/api/sync/stream', u, 'POST', {
+      types: ['AssetsV2', 'AssetExifsV1', 'AlbumAssetsV2', 'AlbumAssetExifsV1'],
+      reset,
+    });
+    assert.equal(r.status, 200);
+    const events = (await r.text()).trim().split('\n').map(JSON.parse);
+    assert.equal(events.at(-1).type, 'SyncCompleteV1');
+    return events;
+  };
+  const initial = await stream(true);
+  await call('/api/sync/ack', u, 'POST', { acks: initial.map((e) => e.ack) });
+  await writeLabels(u, [a.id], { rating: 4 });
+  let delta = await stream();
+  assert.ok(
+    delta.some((e) => e.type === 'AssetExifV1' && e.data.assetId === a.id && e.data.rating === 4),
+  );
+  assert.ok(
+    delta.some(
+      (e) => e.type === 'AlbumAssetExifUpdateV1' && e.data.assetId === a.id && e.data.rating === 4,
+    ),
+  );
+  await call('/api/sync/ack', u, 'POST', { acks: delta.map((e) => e.ack) });
+  await writeLabels(u, [a.id], { rating: null });
+  delta = await stream();
+  assert.ok(
+    delta.some(
+      (e) => e.type === 'AssetExifV1' && e.data.assetId === a.id && e.data.rating === null,
+    ),
+  );
+  assert.equal((await (await call('/api/assets/' + a.id, u)).json()).exifInfo.rating, null);
+  for (let n = 0; n < 61; n++) {
+    const p = await seed(u);
+    await db
+      .prepare('UPDATE assets SET tags=? WHERE id=?')
+      .bind(JSON.stringify(['目录' + String(n).padStart(2, '0')]), p.id)
+      .run();
+  }
+  const tags = await (await call(root + '/tags', u)).json();
+  assert.equal(tags.items.length, 50);
+  assert.equal(tags.hasMore, true);
+  assert.equal(
+    (await (await call(root + '/tags?q=' + encodeURIComponent('目录00'), u)).json()).items.length,
+    1,
+  );
+});
+test('照片标签评分保留归档/Live Photo/相册/分享，删除恢复保持标签，永久删除清理索引', async () => {
+  const u = await user(),
+    pair = pairId(),
+    motion = await seed(u, liveMov(pair), 'video/quicktime', {
+      pair,
+      type: 'VIDEO',
+      visibility: 'hidden',
+    }),
+    photo = await seed(u, liveHeic(pair), 'image/heic', { pair, video: motion.id }),
+    album = await makeAlbum(u, [photo.id]);
+  await setArchive(u, [photo.id], true);
+  const share = await (
+    await call(shares, u, 'POST', { albumId: album.id, days: 1, allowDownload: true })
+  ).json();
+  await writeLabels(u, [photo.id], { tagAction: 'add', tags: ['动态回忆'], rating: 5 });
+  assert.equal(
+    (await archiveList(u, 'archive', '&tag=' + encodeURIComponent('动态回忆') + '&rating=5'))
+      .length,
+    1,
+  );
+  assert.equal(
+    (await db.prepare('SELECT tags,rating FROM assets WHERE id=?').bind(motion.id).first()).tags,
+    '[]',
+  );
+  assert.equal(
+    (
+      await archiveList(
+        u,
+        'album',
+        '&albumId=' + album.id + '&tag=' + encodeURIComponent('动态回忆'),
+      )
+    ).length,
+    1,
+  );
+  const header = { Authorization: 'Share ' + share.path.split('#')[1] },
+    guest = await (await call(shared, null, 'GET', undefined, header)).json();
+  assert.equal(guest.items[0].id, photo.id);
+  assert.doesNotMatch(JSON.stringify(guest), /动态回忆|rating/);
+  await call('/api/assets', u, 'DELETE', { ids: [photo.id] });
+  assert.equal(
+    (await archiveList(u, 'trash', '&tag=' + encodeURIComponent('动态回忆') + '&rating=5')).length,
+    1,
+  );
+  await call('/api/trash/restore/assets', u, 'POST', { ids: [photo.id] });
+  assert.equal(
+    (await archiveList(u, 'archive', '&tag=' + encodeURIComponent('动态回忆'))).length,
+    1,
+  );
+  for (const p of [photo, motion])
+    assert.deepEqual(Buffer.from(await (await bucket.get(p.key)).arrayBuffer()), p.content);
+  assert.equal(
+    (await call('/api/assets', u, 'DELETE', { ids: [photo.id], force: true })).status,
+    204,
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM photo_tag_index WHERE asset_id=?')
+        .bind(photo.id)
+        .first()
+    ).n,
+    0,
+  );
+});

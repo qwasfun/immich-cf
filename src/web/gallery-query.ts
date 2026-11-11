@@ -1,9 +1,12 @@
+import { tagName, tagKey, PhotoLabelError } from '../photo-labels';
 export interface PhotoQuery {
   q: string;
   from: string;
   to: string;
   type: string;
   order: string;
+  tag: string;
+  rating: string;
 }
 
 export const emptyPhotoQuery: PhotoQuery = {
@@ -12,6 +15,8 @@ export const emptyPhotoQuery: PhotoQuery = {
   to: '',
   type: 'all',
   order: 'newest',
+  tag: '',
+  rating: 'all',
 };
 
 export class PhotoQueryError extends Error {
@@ -31,6 +36,18 @@ export function photoQuery(params: URLSearchParams): PhotoQuery {
     query[key] = params.get(key) ?? query[key];
   }
   query.q = query.q.trim();
+  try {
+    query.tag = query.tag.trim() ? tagKey(tagName(query.tag)) : '';
+  } catch (error) {
+    if (error instanceof PhotoLabelError) throw new PhotoQueryError('tag', error.message);
+    throw error;
+  }
+  if (
+    !['all', 'none', '1', '2', '3', '4', '5', 'gte1', 'gte2', 'gte3', 'gte4', 'gte5'].includes(
+      query.rating,
+    )
+  )
+    throw new PhotoQueryError('rating', '评分筛选：请选择未评分、1～5 星或最低星级');
   if (query.q.length > 100)
     throw new PhotoQueryError('q', '文件名：最多填写 100 个字符，请缩短搜索内容');
   for (const key of ['from', 'to'] as const) {
@@ -61,14 +78,25 @@ const queryLabels: Record<keyof PhotoQuery, string> = {
   to: '拍摄结束时间',
   type: '照片类型',
   order: '排序',
+  tag: '标签',
+  rating: '评分',
 };
 
 export function photoQueryParams(query: PhotoQuery): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key of Object.keys(query) as (keyof PhotoQuery)[])
-    if (query[key] !== emptyPhotoQuery[key]) params.set(key, query[key]);
+  for (const key of Object.keys(emptyPhotoQuery) as (keyof PhotoQuery)[]) {
+    const value = query[key] ?? emptyPhotoQuery[key];
+    if (value !== emptyPhotoQuery[key]) params.set(key, value);
+  }
   return params;
 }
 
 export const hasPhotoFilters = (query: PhotoQuery) =>
-  !!(query.q || query.from || query.to || query.type !== 'all');
+  !!(
+    query.q ||
+    query.from ||
+    query.to ||
+    query.type !== 'all' ||
+    query.tag ||
+    (query.rating && query.rating !== 'all')
+  );

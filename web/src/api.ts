@@ -36,6 +36,10 @@ const labels: Record<string, string> = {
   targetAlbumId: '目标相册',
   mode: '整理方式',
   archived: '归档状态',
+  tags: '标签',
+  tag: '标签',
+  tagAction: '标签操作',
+  rating: '评分',
   downloadId: '下载任务',
   attempt: '下载尝试',
   days: '有效期',
@@ -147,6 +151,8 @@ export interface Photo {
   height: number;
   isFavorite: boolean;
   isArchived: boolean;
+  tags: string[];
+  rating: number | null;
   isTrashed: boolean;
   deletedAt: string | null;
   originalMimeType: string;

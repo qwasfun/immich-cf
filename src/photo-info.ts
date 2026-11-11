@@ -34,4 +34,5 @@ export interface PhotoMetadataData {
   exposureTime: string | null;
   focalLength: number | null;
   iso: number | null;
+  rating: number | null;
 }

@@ -26,7 +26,7 @@ class Storage {
   }
 }
 const saved = {
-  query: { q: '旅行', from: '', to: '', type: 'jpeg', order: 'oldest' },
+  query: { q: '旅行', from: '', to: '', type: 'jpeg', order: 'oldest', tag: '', rating: 'all' },
   anchor: {
     id: 'b230a5f8-adbb-43ba-8696-e93f811af9cd',
     time: '2021-06-10T10:00:00.000Z',
@@ -44,6 +44,13 @@ test('时间线刷新保留同账号位置和筛选，切换账号、退出及�
   reload.timelineAccount('alice');
   assert.deepEqual(reload.readTimeline('alice', 'entry', 'photos:'), saved);
   assert.deepEqual(reload.readTimeline('alice', 'new-navigation-entry', 'photos:'), saved);
+  const legacyQuery = { ...saved.query };
+  delete legacyQuery.tag;
+  delete legacyQuery.rating;
+  first.saveTimeline('alice', 'legacy', 'photos:', { ...saved, query: legacyQuery });
+  const legacy = await import(source + '#legacy');
+  legacy.timelineAccount('alice');
+  assert.deepEqual(legacy.readTimeline('alice', 'legacy', 'photos:').query, saved.query);
   assert.equal(reload.readTimeline('bob', 'entry', 'photos:'), null);
   reload.timelineAccount('bob');
   assert.equal(reload.readTimeline('alice', 'entry', 'photos:'), null);

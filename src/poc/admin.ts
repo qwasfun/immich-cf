@@ -188,7 +188,7 @@ export async function admin(request: Request, env: Env, identity: Identity) {
   const data = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        'SELECT id,filename,mime,bytes,checksum,width,height,file_created_at,file_modified_at,created_at,updated_at,deleted_at,favorite,archived,metadata,sync_seq,media_type,visibility,duration,live_photo_video_id FROM assets WHERE owner_id=? ORDER BY id LIMIT 41',
+        'SELECT id,filename,mime,bytes,checksum,width,height,file_created_at,file_modified_at,created_at,updated_at,deleted_at,favorite,archived,tags,rating,rating_touched,metadata,sync_seq,media_type,visibility,duration,live_photo_video_id FROM assets WHERE owner_id=? ORDER BY id LIMIT 41',
       )
       .bind(owner),
     db

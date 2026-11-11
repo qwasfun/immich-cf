@@ -35,6 +35,9 @@ export interface Asset {
   media_type: 'IMAGE' | 'VIDEO';
   visibility: 'timeline' | 'hidden';
   archived?: number;
+  tags?: string;
+  rating?: number | null;
+  rating_touched?: number;
   duration: string | null;
   pair_id: string | null;
   live_photo_video_id: string | null;
@@ -385,8 +388,10 @@ export function assetDetailDto(row: Asset) {
     originalPath: '',
     originalMimeType: row.mime,
     updatedAt: row.updated_at || row.created_at,
-    hasMetadata: !!row.photo_metadata && row.photo_metadata !== '{}',
-    ...(row.photo_metadata && row.photo_metadata !== '{}' ? { exifInfo: photoExifDto(row) } : {}),
+    hasMetadata: !!row.rating_touched || (!!row.photo_metadata && row.photo_metadata !== '{}'),
+    ...((row.photo_metadata && row.photo_metadata !== '{}') || row.rating_touched
+      ? { exifInfo: photoExifDto(row) }
+      : {}),
     isArchived: !!row.archived,
     isOffline: false,
     isTrashed: !!row.deleted_at,

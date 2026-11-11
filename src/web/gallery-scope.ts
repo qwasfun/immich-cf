@@ -4,7 +4,18 @@ import { uuid } from './common';
 import { photoQuery, photoQueryParams, PhotoQueryError } from './gallery-query';
 
 export function galleryScope(params: URLSearchParams, identity: Identity, extras: string[]) {
-  const allowed = ['view', 'albumId', 'q', 'from', 'to', 'type', 'order', ...extras];
+  const allowed = [
+    'view',
+    'albumId',
+    'q',
+    'from',
+    'to',
+    'type',
+    'order',
+    'tag',
+    'rating',
+    ...extras,
+  ];
   for (const key of params.keys()) {
     if (!allowed.includes(key)) invalid(key, '此查询参数不受支持，请移除');
     if (params.getAll(key).length !== 1) invalid(key, '请只提供一个值');
@@ -25,7 +36,18 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
   let where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${view === 'trash' ? 'NOT ' : ''}NULL${view === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
   const args: (string | number)[] = [identity.id, ...(album ? [album] : [])];
   if (view === 'archive') where += ' AND a.archived=1';
-  else if (view === 'photos' && !query.q) where += ' AND a.archived=0';
+  else if (view === 'photos' && !query.q && !query.tag && query.rating === 'all')
+    where += ' AND a.archived=0';
+  if (query.tag) {
+    where +=
+      ' AND EXISTS(SELECT 1 FROM photo_tag_index t WHERE t.asset_id=a.id AND t.owner_id=a.owner_id AND t.tag_key=?)';
+    args.push(query.tag);
+  }
+  if (query.rating === 'none') where += ' AND a.rating IS NULL';
+  else if (query.rating !== 'all') {
+    where += query.rating.startsWith('gte') ? ' AND a.rating>=?' : ' AND a.rating=?';
+    args.push(Number(query.rating.replace('gte', '')));
+  }
   if (query.q) {
     where += " AND a.filename LIKE ? ESCAPE '\\'";
     args.push('%' + query.q.replace(/[\\%_]/g, '\\$&') + '%');
