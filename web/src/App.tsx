@@ -193,7 +193,7 @@ export function App() {
     };
   }, [!!boot]);
   useEffect(() => {
-    document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
+    document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
   }, [path]);
   function changed(text: string) {
     setMessage(text);
@@ -227,6 +227,7 @@ export function App() {
   const entries = [
     { path: '/photos', label: '照片', icon: 'photos' },
     { path: '/favorites', label: '收藏', icon: 'heart' },
+    { path: '/archive', label: '归档', icon: 'archive' },
     { path: '/albums', label: '相册', icon: 'album' },
     { path: '/shares', label: '分享管理', icon: 'link' },
     { path: '/trash', label: '回收站', icon: 'trash' },
@@ -391,7 +392,7 @@ export function App() {
             ) : (
               <ErrorBox error="管理员权限：当前账号无权管理其他账号" />
             )
-          ) : ['/photos', '/favorites', '/trash'].includes(path) || albumId ? (
+          ) : ['/photos', '/favorites', '/archive', '/trash'].includes(path) || albumId ? (
             <Gallery
               key={path + ':' + entry}
               ownerId={boot.user.id}

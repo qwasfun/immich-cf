@@ -24,6 +24,12 @@ const shapes: Record<string, ReactNode> = {
       <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v6m4-6v6" />
     </>
   ),
+  archive: (
+    <>
+      <rect x="3" y="3" width="18" height="5" rx="1" />
+      <path d="M5 8v13h14V8M9 12h6" />
+    </>
+  ),
   refresh: (
     <>
       <path d="M20 7v5h-5M4 17v-5h5" />

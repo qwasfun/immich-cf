@@ -18,12 +18,14 @@ export function galleryScope(params: URLSearchParams, identity: Identity, extras
   }
   const view = params.get('view') ?? 'photos';
   const album = params.has('albumId') ? uuid(params.get('albumId'), 'albumId') : '';
-  if (!['photos', 'favorites', 'trash', 'album'].includes(view))
-    invalid('view', '请选择全部照片、收藏、回收站或相册');
+  if (!['photos', 'archive', 'library', 'favorites', 'trash', 'album'].includes(view))
+    invalid('view', '请选择照片、归档、完整图库、收藏、回收站或相册');
   if ((view === 'album') !== !!album)
     invalid('view/albumId', '相册视图必须提供相册 ID；其他视图请移除相册 ID');
   let where = `a.owner_id=? AND a.media_type='IMAGE' AND a.visibility='timeline' AND a.deleted_at IS ${view === 'trash' ? 'NOT ' : ''}NULL${view === 'favorites' ? ' AND a.favorite=1' : ''}${album ? ' AND EXISTS(SELECT 1 FROM album_assets l WHERE l.album_id=? AND l.asset_id=a.id AND l.owner_id=a.owner_id)' : ''}`;
   const args: (string | number)[] = [identity.id, ...(album ? [album] : [])];
+  if (view === 'archive') where += ' AND a.archived=1';
+  else if (view === 'photos' && !query.q) where += ' AND a.archived=0';
   if (query.q) {
     where += " AND a.filename LIKE ? ESCAPE '\\'";
     args.push('%' + query.q.replace(/[\\%_]/g, '\\$&') + '%');

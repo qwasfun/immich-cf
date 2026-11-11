@@ -5,7 +5,7 @@ import { galleryScope, galleryState, readGalleryState } from './gallery-scope';
 export async function timeline(request: Request, env: Env, identity: Identity) {
   const params = new URL(request.url).searchParams;
   const scope = galleryScope(params, identity, ['timeZone', 'version']);
-  if (scope.view === 'trash') invalid('view', '年月导航适用于照片、收藏和个人相册');
+  if (scope.view === 'trash') invalid('view', '年月导航适用于照片、归档、收藏和个人相册');
   const timeZone = params.get('timeZone') ?? 'UTC';
   let formatter: Intl.DateTimeFormat;
   try {

@@ -404,6 +404,7 @@ export function useTimeline(
   }
   return {
     enabled,
+    version: state.current.version,
     root,
     before,
     after,

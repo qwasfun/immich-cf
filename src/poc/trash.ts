@@ -157,8 +157,10 @@ export async function assetStatistics(request: Request, db: D1Database, identity
   for (const key of ['isTrashed', 'isFavorite'])
     if (params.has(key) && !['true', 'false'].includes(params.get(key)!))
       invalid(key, '必须为 true 或 false');
-  if (params.has('visibility') && params.get('visibility') !== 'timeline')
-    invalid('visibility', '当前仅支持 timeline');
+  if (params.has('visibility') && !['timeline', 'archive'].includes(params.get('visibility')!))
+    invalid('visibility', '当前支持 timeline 或 archive，请选择时间线或归档');
+  if (params.has('visibility') || (!params.has('isFavorite') && params.get('isTrashed') !== 'true'))
+    where += params.get('visibility') === 'archive' ? ' AND archived=1' : ' AND archived=0';
   where +=
     params.get('isTrashed') === 'true' ? ' AND deleted_at IS NOT NULL' : ' AND deleted_at IS NULL';
   if (params.has('isFavorite')) {

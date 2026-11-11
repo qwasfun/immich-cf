@@ -11,6 +11,7 @@ import { timeline } from './timeline';
 import { photoMetadata } from './photo-metadata';
 import { PhotoTimeError, photoTimeZone } from '../photo-time';
 import { webAlbums, transferAlbums } from './album-organization';
+import { photoArchive } from './archive';
 
 export async function webRoute(
   request: Request,
@@ -39,6 +40,7 @@ export async function webRoute(
   let methods: string[] = [];
   if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
   else if (webPath === 'photo-metadata') methods = ['PATCH'];
+  else if (webPath === 'archive') methods = ['PATCH'];
   else if (webPath === 'album-transfer') methods = ['POST'];
   else if (webPath === 'albums') methods = ['GET'];
   else if (unlock) methods = ['POST'];
@@ -75,6 +77,8 @@ export async function webRoute(
       else if (webPath === 'album-transfer')
         response = await transferAlbums(request, env.IMMICH_CF_DB, identity);
       else if (webPath === 'photo-metadata') response = await photoMetadata(request, env, identity);
+      else if (webPath === 'archive')
+        response = await photoArchive(request, env.IMMICH_CF_DB, identity);
       else if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
       else if (download)
         response = await downloads(request, env, identity, download[1], !!download[2], ctx);

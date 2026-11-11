@@ -4,7 +4,7 @@ import type { SyncLine } from './sync-lines';
 import { photoExifDto } from './photo-details';
 
 const columns =
-  'id,owner_id,checksum,media_type,created_at,file_created_at,file_modified_at,filename,width,height,favorite,visibility,duration,deleted_at,live_photo_video_id,sync_seq,local_date_time';
+  'id,owner_id,checksum,media_type,created_at,file_created_at,file_modified_at,filename,width,height,favorite,archived,visibility,duration,deleted_at,live_photo_video_id,sync_seq,local_date_time';
 // Original metadata and internal R2 references are never loaded for an asset DTO.
 export async function* libraryEventPages(
   db: D1Database,

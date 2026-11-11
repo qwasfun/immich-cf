@@ -75,7 +75,7 @@ export default {
       String(env.ENABLE_P1_POC) === 'true' &&
       env.WEB_ASSETS &&
       ['GET', 'HEAD'].includes(request.method) &&
-      (/^\/(?:login|photos|favorites|trash|account|share|shares|admin\/users)?\/?$/.test(
+      (/^\/(?:login|photos|favorites|archive|trash|account|share|shares|admin\/users)?\/?$/.test(
         pathname,
       ) ||
         /^\/albums(?:\/[a-f0-9-]{36})?\/?$/.test(pathname) ||

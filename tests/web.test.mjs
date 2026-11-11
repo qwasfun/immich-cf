@@ -478,6 +478,7 @@ test('网页入口与深链接可用，API/未知路径不回落 HTML，未登�
   for (const route of [
     '/',
     '/photos',
+    '/archive',
     '/albums',
     '/account',
     '/admin/users',
@@ -2096,4 +2097,385 @@ test('相册整理支持1000张批量移动，无遗漏或重复，隐藏动态�
     });
     assert.equal(response.status, 404);
   }
+});
+
+const archiveVersion = async (u) =>
+  (await (await call(root + '/assets?view=library&limit=1', u)).json()).version;
+const setArchive = async (u, ids, archived, version, headers = {}) =>
+  call(
+    root + '/archive',
+    u,
+    'PATCH',
+    { ids, archived, version: version ?? (await archiveVersion(u)) },
+    headers,
+  );
+const archiveList = async (u, view = 'archive', suffix = '') =>
+  (await (await call(root + '/assets?view=' + view + '&limit=100' + suffix, u)).json()).items;
+
+test('照片归档单张/取消保持原件、收藏和相册，时间线隐藏但搜索/选图及归档可见', async () => {
+  const u = await user(true),
+    a = await seed(u),
+    b = await seed(u),
+    album = await makeAlbum(u, [a.id]);
+  await call('/api/assets/' + a.id, u, 'PUT', { isFavorite: true });
+  const original = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.id).first(),
+    quota = await (await call(root + '/bootstrap', u)).json();
+  const response = await setArchive(u, [a.id], true);
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(await response.json(), { processed: 1, changed: 1, unchanged: 0 });
+  assert.deepEqual(
+    (await archiveList(u)).map((p) => p.id),
+    [a.id],
+  );
+  assert.deepEqual(
+    (await archiveList(u, 'photos')).map((p) => p.id),
+    [b.id],
+  );
+  assert.equal((await archiveList(u, 'favorites')).find((p) => p.id === a.id).isArchived, true);
+  assert.equal((await archiveList(u, 'album', '&albumId=' + album.id))[0].id, a.id);
+  assert.equal((await archiveList(u, 'photos', '&q=private-photo')).length, 2);
+  assert.equal((await archiveList(u, 'library')).length, 2);
+  const detail = await (await call('/api/assets/' + a.id, u)).json();
+  assert.equal(detail.visibility, 'archive');
+  assert.equal(detail.isArchived, true);
+  const row = await db.prepare('SELECT * FROM assets WHERE id=?').bind(a.id).first();
+  for (const key of [
+    'object_key',
+    'checksum',
+    'bytes',
+    'favorite',
+    'file_created_at',
+    'file_modified_at',
+    'metadata',
+    'live_photo_video_id',
+  ])
+    assert.deepEqual(row[key], original[key], key);
+  assert.ok(row.sync_seq > original.sync_seq);
+  assert.equal(
+    (await (await call(root + '/bootstrap', u)).json()).usage.logicalBytes,
+    quota.usage.logicalBytes,
+  );
+  assert.deepEqual(Buffer.from(await (await bucket.get(a.key)).arrayBuffer()), a.content);
+  const exported = await (await call('/api/immich-cf/admin/export/page?userId=' + u.id, u)).json();
+  assert.equal(exported.page.items.find((p) => p.id === a.id).archived, 1);
+  const version = await archiveVersion(u),
+    noop = await setArchive(u, [a.id], true, version);
+  assert.deepEqual(await noop.json(), { processed: 1, changed: 0, unchanged: 1 });
+  assert.equal(await archiveVersion(u), version);
+  assert.equal((await setArchive(u, [a.id], false)).status, 200);
+  assert.equal((await archiveList(u)).length, 0);
+  assert.equal((await archiveList(u, 'photos')).length, 2);
+});
+test('照片归档整批字段/权限校验不部分提交，回收与隐藏动态不可归档', async () => {
+  const u = await user(),
+    foreign = await user(),
+    a = await seed(u),
+    b = await seed(foreign),
+    hidden = await seed(u, liveMov(pairId()), 'video/quicktime', {
+      type: 'VIDEO',
+      visibility: 'hidden',
+    }),
+    trashed = await seed(u);
+  await call('/api/assets', u, 'DELETE', { ids: [trashed.id] });
+  const version = await archiveVersion(u);
+  for (const [patch, status, key] of [
+    [{ ids: [a.id, b.id] }, 404, 'ids'],
+    [{ ids: [a.id, randomUUID()] }, 404, 'ids'],
+    [{ ids: [a.id, hidden.id] }, 404, 'ids'],
+    [{ ids: [a.id, trashed.id] }, 404, 'ids'],
+    [{ ids: [] }, 400, 'ids'],
+    [{ ids: Array(1001).fill(a.id) }, 400, 'ids'],
+    [{ archived: 'true' }, 400, 'archived'],
+    [{ archived: null }, 400, 'archived'],
+    [{ version: 'private-submit-value' }, 400, 'version'],
+    [{ unknown: true }, 400, 'unknown'],
+  ]) {
+    const r = await call(root + '/archive', u, 'PATCH', {
+      ids: [a.id],
+      archived: true,
+      version,
+      ...patch,
+    });
+    assert.equal(r.status, status);
+    const error = await r.json();
+    assert.equal(error.errors[0].path[0], key);
+    assert.doesNotMatch(error.message, /private-submit-value/);
+    assert.equal(
+      (await db.prepare('SELECT archived FROM assets WHERE id=?').bind(a.id).first()).archived,
+      0,
+    );
+  }
+  assert.equal(
+    (await setArchive(u, [a.id], true, version, { Origin: 'https://foreign.invalid' })).status,
+    403,
+  );
+  assert.equal(
+    (await call(root + '/archive', null, 'PATCH', { ids: [a.id], archived: true, version })).status,
+    401,
+  );
+  const duplicate = await setArchive(u, [a.id, a.id.toUpperCase()], true);
+  assert.equal((await duplicate.json()).processed, 1);
+});
+test('照片归档提交时会话撤销/过期/停用或版本变化，整批照片保持原状态', async () => {
+  for (const action of ['revoke', 'expire', 'disable', 'stale']) {
+    const u = await user(),
+      a = await seed(u),
+      b = await seed(u),
+      album = await makeAlbum(u),
+      version = await archiveVersion(u);
+    const result = await setArchive(u, [a.id, b.id], true, version, {
+      'x-test-album-transfer': action,
+      'x-test-transfer-session': u.sessionId,
+      'x-test-transfer-target': album.id,
+    });
+    assert.equal(result.status, action === 'stale' ? 409 : 401, action);
+    assert.equal(
+      (await db.prepare('SELECT SUM(archived) n FROM assets WHERE owner_id=?').bind(u.id).first())
+        .n,
+      0,
+    );
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM photo_archive_guards').first()).n, 0);
+  }
+});
+test('照片归档中途故障回滚已更新照片、同步版本及临时守卫', async () => {
+  const u = await user(),
+    a = await seed(u),
+    b = await seed(u),
+    version = await archiveVersion(u);
+  const before = (
+    await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(u.id).all()
+  ).results;
+  await db
+    .prepare(
+      `CREATE TRIGGER test_archive_rollback AFTER UPDATE OF archived ON assets WHEN NEW.owner_id='${u.id}' AND (SELECT SUM(archived) FROM assets WHERE owner_id=NEW.owner_id)=2 BEGIN SELECT RAISE(ABORT,'TEST_ARCHIVE_ROLLBACK'); END`,
+    )
+    .run();
+  try {
+    assert.equal((await setArchive(u, [a.id, b.id], true, version)).status, 503);
+  } finally {
+    await db.prepare('DROP TRIGGER test_archive_rollback').run();
+  }
+  assert.deepEqual(
+    (await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(u.id).all())
+      .results,
+    before,
+  );
+  assert.equal(await archiveVersion(u), version);
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM photo_archive_guards').first()).n, 0);
+});
+test('照片归档1001张合成图库的1000张整批、日期定位、双向排序、分页去重及版本/账号隔离', async () => {
+  const u = await user(),
+    foreign = await user(),
+    ids = [];
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, n) => {
+        const id = randomUUID();
+        ids.push(id);
+        const date = new Date(
+          Date.UTC(2020 + Math.floor((at + n) / 365), Math.floor((at + n) / 30) % 12, 1),
+        ).toISOString();
+        return db
+          .prepare(
+            "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,?)",
+          )
+          .bind(
+            id,
+            u.id,
+            id,
+            id,
+            'archive-test-' + (at + n) + '.jpg',
+            date,
+            date,
+            date,
+            (at + n) % 2,
+          );
+      }),
+    );
+  assert.equal((await setArchive(u, ids.slice(0, 1000), true)).status, 200);
+  assert.equal((await archiveList(u, 'photos')).length, 1);
+  const total = [];
+  let cursor;
+  let first;
+  do {
+    const r = await call(
+      root +
+        '/assets?view=archive&limit=60' +
+        (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''),
+      u,
+    );
+    assert.equal(r.status, 200);
+    const page = await r.json();
+    first ??= page;
+    total.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  assert.equal(total.length, 1000);
+  assert.equal(new Set(total.map((p) => p.id)).size, 1000);
+  assert.ok(total.every((p) => p.isArchived && p.visibility === 'archive'));
+  assert.equal(
+    (await call(root + '/assets?view=photos&cursor=' + encodeURIComponent(first.nextCursor), u))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await call(
+        root + '/assets?view=archive&cursor=' + encodeURIComponent(first.nextCursor),
+        foreign,
+      )
+    ).status,
+    400,
+  );
+  const overview = await (
+    await call(root + '/timeline?view=archive&timeZone=Asia%2FShanghai', u)
+  ).json();
+  assert.equal(
+    overview.months.reduce((n, m) => n + m.count, 0),
+    1000,
+  );
+  const month = overview.months[Math.floor(overview.months.length / 2)];
+  const sought = await (
+    await call(
+      root +
+        '/assets?view=archive&anchorId=' +
+        month.anchorId +
+        '&anchorTime=' +
+        encodeURIComponent(month.anchorTime),
+      u,
+    )
+  ).json();
+  assert.equal(sought.items[0].id, month.anchorId);
+  assert.ok(sought.previousCursor && sought.nextCursor);
+  const asc = await archiveList(u, 'archive', '&order=oldest');
+  assert.equal(asc[0].id, total.at(-1).id);
+  assert.equal((await archiveList(u, 'archive', '&q=archive-test-1000')).length, 0);
+  assert.ok((await archiveList(u, 'archive', '&type=jpeg')).length > 0);
+  assert.equal((await setArchive(u, [ids[0]], false)).status, 200);
+  assert.equal(
+    (await call(root + '/assets?view=archive&cursor=' + encodeURIComponent(first.nextCursor), u))
+      .status,
+    409,
+  );
+  assert.equal((await setArchive(u, ids.slice(0, 1000), false)).status, 200);
+  assert.equal((await archiveList(u)).length, 0);
+  assert.equal(
+    (await (await call(root + '/timeline?view=photos&timeZone=UTC', u)).json()).months.reduce(
+      (n, m) => n + m.count,
+      0,
+    ),
+    1001,
+  );
+});
+test('照片归档保持 Live Photo 配对、分享下载及相册整理，删除恢复后仍为归档', async () => {
+  const u = await user(),
+    pair = pairId(),
+    motion = await seed(u, liveMov(pair), 'video/quicktime', {
+      pair,
+      type: 'VIDEO',
+      visibility: 'hidden',
+    }),
+    photo = await seed(u, liveHeic(pair), 'image/heic', { pair, video: motion.id }),
+    album = await makeAlbum(u, [photo.id]);
+  const link = await (
+    await call(shares, u, 'POST', { albumId: album.id, days: 1, allowDownload: true })
+  ).json();
+  assert.equal((await setArchive(u, [photo.id], true)).status, 200);
+  assert.equal(
+    (await db.prepare('SELECT archived FROM assets WHERE id=?').bind(motion.id).first()).archived,
+    0,
+  );
+  assert.equal((await archiveList(u, 'archive', '&type=live')).length, 1);
+  const header = { Authorization: 'Share ' + link.path.split('#')[1] };
+  assert.equal(
+    (await (await call(shared, null, 'GET', undefined, header)).json()).items[0].id,
+    photo.id,
+  );
+  for (const [id, component, content] of [
+    [photo.id, 'photo', photo.content],
+    [photo.id, 'motion', motion.content],
+  ]) {
+    const r = await call(root + '/assets/' + id + '/download?component=' + component, u);
+    assert.deepEqual(Buffer.from(await r.arrayBuffer()), content);
+  }
+  const zip = await prepareZip(u, { albumId: album.id });
+  assert.equal(zip.status, 200);
+  assert.equal((await zip.json()).files, 2);
+  const target = await makeAlbum(u);
+  const copied = await organize(u, {
+    ids: [photo.id],
+    targetAlbumId: target.id,
+    sourceAlbumId: album.id,
+    mode: 'copy',
+    version: await archiveVersion(u),
+  });
+  assert.equal(copied.status, 200);
+  await call('/api/assets', u, 'DELETE', { ids: [photo.id] });
+  assert.equal((await archiveList(u)).length, 0);
+  assert.equal((await archiveList(u, 'trash'))[0].isArchived, true);
+  await call('/api/trash/restore/assets', u, 'POST', { ids: [photo.id] });
+  assert.equal((await archiveList(u)).length, 1);
+  assert.equal((await archiveList(u, 'photos')).length, 0);
+  assert.equal((await archiveList(u, 'album', '&albumId=' + album.id)).length, 1);
+  assert.deepEqual(Buffer.from(await (await bucket.get(motion.key)).arrayBuffer()), motion.content);
+});
+test('照片归档按冻结可见性字段兼容官方单张/批量写入、统计及初始/增量 Sync', async () => {
+  const u = await user(),
+    a = await seed(u),
+    b = await seed(u),
+    album = await makeAlbum(u, [a.id, b.id]);
+  const stream = async (reset = false) => {
+    const r = await call('/api/sync/stream', u, 'POST', {
+      types: ['AssetsV2', 'AlbumAssetsV2'],
+      reset,
+    });
+    assert.equal(r.status, 200);
+    const events = (await r.text()).trim().split('\n').map(JSON.parse);
+    assert.equal(events.at(-1).type, 'SyncCompleteV1');
+    return events;
+  };
+  const first = await stream(true);
+  await call('/api/sync/ack', u, 'POST', { acks: first.map((e) => e.ack) });
+  const saved = await call('/api/assets/' + a.id, u, 'PUT', {
+    visibility: 'archive',
+    isFavorite: true,
+  });
+  assert.equal(saved.status, 200);
+  const detail = await saved.json();
+  assert.equal(detail.isArchived, true);
+  assert.equal(detail.visibility, 'archive');
+  assert.equal(detail.isFavorite, true);
+  const delta = await stream();
+  assert.ok(
+    delta.some(
+      (e) => e.type === 'AssetV2' && e.data.id === a.id && e.data.visibility === 'archive',
+    ),
+  );
+  assert.ok(
+    delta.some(
+      (e) =>
+        e.type === 'AlbumAssetUpdateV2' && e.data.id === a.id && e.data.visibility === 'archive',
+    ),
+  );
+  assert.equal(
+    (await (await call('/api/assets/statistics?visibility=archive', u)).json()).total,
+    1,
+  );
+  assert.equal((await (await call('/api/assets/statistics', u)).json()).total, 1);
+  assert.equal((await (await call('/api/assets/statistics?isFavorite=true', u)).json()).total, 1);
+  assert.equal(
+    (await call('/api/assets', u, 'PUT', { ids: [a.id, b.id], visibility: 'archive' })).status,
+    204,
+  );
+  for (const visibility of ['hidden', 'locked', {}, [], null, 42]) {
+    const invalid = await call('/api/assets/' + a.id, u, 'PUT', { visibility });
+    assert.equal(invalid.status, 400);
+    assert.equal((await invalid.json()).errors[0].path[0], 'visibility');
+  }
+  assert.equal(
+    (await call('/api/assets', u, 'PUT', { ids: [a.id, b.id], visibility: 'timeline' })).status,
+    204,
+  );
+  assert.equal((await archiveList(u)).length, 0);
+  assert.equal((await archiveList(u, 'album', '&albumId=' + album.id)).length, 2);
 });

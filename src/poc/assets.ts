@@ -34,6 +34,7 @@ export interface Asset {
   r2_sha1_verified: number;
   media_type: 'IMAGE' | 'VIDEO';
   visibility: 'timeline' | 'hidden';
+  archived?: number;
   duration: string | null;
   pair_id: string | null;
   live_photo_video_id: string | null;
@@ -369,7 +370,7 @@ export function assetDto(row: Asset) {
     height: row.height,
     isFavorite: !!row.favorite,
     isEdited: false,
-    visibility: row.visibility ?? 'timeline',
+    visibility: row.archived ? 'archive' : (row.visibility ?? 'timeline'),
     duration: row.duration ?? null,
     deletedAt: row.deleted_at ?? null,
     libraryId: null,
@@ -386,7 +387,7 @@ export function assetDetailDto(row: Asset) {
     updatedAt: row.updated_at || row.created_at,
     hasMetadata: !!row.photo_metadata && row.photo_metadata !== '{}',
     ...(row.photo_metadata && row.photo_metadata !== '{}' ? { exifInfo: photoExifDto(row) } : {}),
-    isArchived: false,
+    isArchived: !!row.archived,
     isOffline: false,
     isTrashed: !!row.deleted_at,
   };

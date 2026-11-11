@@ -2,7 +2,7 @@
 
 ## 产品范围
 
-中文、适配电脑与手机的私人图库，复用官方 App 使用的账号和数据。导航包含照片、收藏、个人相册、回收站、分享管理和账号设置，运维管理员另有账号管理入口。支持浏览器上传、批量下载和照片分享。暂不提供公开注册、照片编辑、地图、人脸识别或视频转码。
+中文、适配电脑与手机的私人图库，复用官方 App 使用的账号和数据。导航包含照片、收藏、归档、个人相册、回收站、分享管理和账号设置，运维管理员另有账号管理入口。支持浏览器上传、批量下载和照片分享。暂不提供公开注册、照片编辑、地图、人脸识别或视频转码。
 
 网页地址为 dev Worker 根地址：<https://immich-cf-api-dev.fun.workers.dev/>。首次进入使用已有邮箱和密码登录；刷新页面保持 Cookie 会话，退出后不再访问私有媒体。App 服务器地址保持根地址不变。
 
@@ -17,6 +17,8 @@
 JPEG、PNG、HEIC 均按需生成 256/2048 JPEG 衍生图，原件不重编码。Live Photo 只展示照片主体，隐藏配套 MOV；可手动调用已有播放接口，浏览器不能解码时明确提示并提供照片和 MOV 分别下载。分别下载不等于恢复成 iPhone 系统 Live Photo。
 
 相册页支持名称/描述搜索和四种排序，选择栏与大图支持批量复制/移动到其他相册，大图另有快捷封面入口。规则与事务边界见[相册整理](web-albums.md)。
+
+新增[照片归档管理](web-photo-archive.md)：大图和选择栏可归档/取消归档，独立归档列表复用筛选、排序和时间线；相册、收藏、分享与原件保留。
 
 ## 时间线浏览
 
@@ -77,31 +79,31 @@ Live Photo 须同时选择一张照片及一份同名 MOV（忽略扩展名和�
 
 所有接口响应 `Cache-Control: no-store`。登录功能使用现有会话。访客接口使用分享链接的独立访问凭据。
 
-| 接口                                                   | 行为                                                                                        |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| GET `/api/immich-cf/web/bootstrap`                     | 当前用户、网页管理权限、用量和服务端有效限制                                                |
-| POST `/api/immich-cf/web/upload`                       | 同源 multipart 上传；原件校验、去重、Live Photo 配对和名额规则复用官方 App 上传流程         |
-| GET `/api/immich-cf/web/assets`                        | `view=photos/favorites/trash/album`；相册视图必填 `albumId`；支持 `limit/cursor` 和下述筛选 |
-| GET `/api/immich-cf/web/timeline`                      | 照片、收藏或相册的月份数量与定位锚点；支持同样筛选及 `timeZone/version`                     |
-| GET `/api/immich-cf/web/assets/{id}/metadata`          | 本人照片的 EXIF、手动资料、时间来源和版本                                                   |
-| POST `/api/immich-cf/web/assets/{id}/metadata/extract` | 同源提交版本，从原件读取资料；保留手动覆盖和已有拍摄时间                                    |
-| PATCH `/api/immich-cf/web/photo-metadata`              | 同源提交所选照片、版本和资料修改；支持绝对时间或整体分钟偏移                                |
-| GET/HEAD `/api/immich-cf/web/assets/{id}/preview`      | `size=thumbnail/preview`，只返回衍生图；生成中/失败/额度不足返回具体 503                    |
-| GET/HEAD `/api/immich-cf/web/assets/{id}/download`     | `component=photo/motion`，保留原始字节，安全 attachment 文件名                              |
-| POST `/api/immich-cf/web/downloads`                    | 同源 JSON，`ids` 或 `albumId` 二选一；返回当前会话专属分包计划和限制                        |
-| GET/DELETE `/api/immich-cf/web/downloads/{id}`         | 查询传输状态与进度；同源 DELETE 停止任务                                                    |
-| GET `/api/immich-cf/web/downloads/{id}/archive`        | `attempt` 为 UUID；流式原件 ZIP、明确长度、附件响应，失败可重试                             |
-| GET/POST `/api/immich-cf/web/shares`                   | 列出本人有效链接，或同源提交 `ids` / `albumId` 与 `days` 创建链接                           |
-| PATCH/DELETE `/api/immich-cf/web/shares/{id}`          | 同源更新本人的 `password`、`allowDownload` 或撤销链接                                       |
-| POST `/api/immich-cf/web/shared/unlock`                | 使用 `Authorization: Share …` 提交访问密码，返回临时解锁凭据                                |
-| GET `/api/immich-cf/web/shared`                        | 使用 `Authorization: Share …` 读取访客照片列表，支持 `cursor/limit`                         |
-| GET `/api/immich-cf/web/shared/assets/{id}/preview`    | 使用分享凭据读取授权预览，支持 `size=thumbnail/preview`                                     |
-| GET `/api/immich-cf/web/shared/assets/{id}/download`   | 下载已授权照片或配套 MOV，支持 `component=photo/motion`                                     |
-| POST `/api/immich-cf/web/password`                     | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                             |
-| GET/POST `/api/immich-cf/admin/users`                  | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                            |
-| PATCH `/api/immich-cf/admin/users/{id}`                | 每次只改 `name` 或布尔值 `disabled`                                                         |
-| POST `/api/immich-cf/admin/users/{id}/reset-password`  | `password`，撤销目标全部会话                                                                |
-| DELETE `/api/immich-cf/admin/users/{id}/sessions`      | 撤销普通账号全部会话                                                                        |
+| 接口                                                   | 行为                                                                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| GET `/api/immich-cf/web/bootstrap`                     | 当前用户、网页管理权限、用量和服务端有效限制                                                                |
+| POST `/api/immich-cf/web/upload`                       | 同源 multipart 上传；原件校验、去重、Live Photo 配对和名额规则复用官方 App 上传流程                         |
+| GET `/api/immich-cf/web/assets`                        | `view=photos/archive/library/favorites/trash/album`；相册视图必填 `albumId`；支持 `limit/cursor` 和下述筛选 |
+| GET `/api/immich-cf/web/timeline`                      | 照片、收藏或相册的月份数量与定位锚点；支持同样筛选及 `timeZone/version`                                     |
+| GET `/api/immich-cf/web/assets/{id}/metadata`          | 本人照片的 EXIF、手动资料、时间来源和版本                                                                   |
+| POST `/api/immich-cf/web/assets/{id}/metadata/extract` | 同源提交版本，从原件读取资料；保留手动覆盖和已有拍摄时间                                                    |
+| PATCH `/api/immich-cf/web/photo-metadata`              | 同源提交所选照片、版本和资料修改；支持绝对时间或整体分钟偏移                                                |
+| GET/HEAD `/api/immich-cf/web/assets/{id}/preview`      | `size=thumbnail/preview`，只返回衍生图；生成中/失败/额度不足返回具体 503                                    |
+| GET/HEAD `/api/immich-cf/web/assets/{id}/download`     | `component=photo/motion`，保留原始字节，安全 attachment 文件名                                              |
+| POST `/api/immich-cf/web/downloads`                    | 同源 JSON，`ids` 或 `albumId` 二选一；返回当前会话专属分包计划和限制                                        |
+| GET/DELETE `/api/immich-cf/web/downloads/{id}`         | 查询传输状态与进度；同源 DELETE 停止任务                                                                    |
+| GET `/api/immich-cf/web/downloads/{id}/archive`        | `attempt` 为 UUID；流式原件 ZIP、明确长度、附件响应，失败可重试                                             |
+| GET/POST `/api/immich-cf/web/shares`                   | 列出本人有效链接，或同源提交 `ids` / `albumId` 与 `days` 创建链接                                           |
+| PATCH/DELETE `/api/immich-cf/web/shares/{id}`          | 同源更新本人的 `password`、`allowDownload` 或撤销链接                                                       |
+| POST `/api/immich-cf/web/shared/unlock`                | 使用 `Authorization: Share …` 提交访问密码，返回临时解锁凭据                                                |
+| GET `/api/immich-cf/web/shared`                        | 使用 `Authorization: Share …` 读取访客照片列表，支持 `cursor/limit`                                         |
+| GET `/api/immich-cf/web/shared/assets/{id}/preview`    | 使用分享凭据读取授权预览，支持 `size=thumbnail/preview`                                                     |
+| GET `/api/immich-cf/web/shared/assets/{id}/download`   | 下载已授权照片或配套 MOV，支持 `component=photo/motion`                                                     |
+| POST `/api/immich-cf/web/password`                     | `currentPassword/newPassword`，成功后清除 Cookie 并撤销全部会话                                             |
+| GET/POST `/api/immich-cf/admin/users`                  | 分页账号列表（`q/limit/cursor`）；创建字段 `email/name/password`                                            |
+| PATCH `/api/immich-cf/admin/users/{id}`                | 每次只改 `name` 或布尔值 `disabled`                                                                         |
+| POST `/api/immich-cf/admin/users/{id}/reset-password`  | `password`，撤销目标全部会话                                                                                |
+| DELETE `/api/immich-cf/admin/users/{id}/sessions`      | 撤销普通账号全部会话                                                                                        |
 
 照片筛选参数：`q` 为去除首尾空白后最多 100 字符的文件名片段（ASCII 字母不区分大小写）；`from/to` 为规范 UTC ISO 时间（如 `2026-11-01T16:00:00.000Z`），分别为包含/不包含的拍摄时间边界；`type=all/static/live/jpeg/png/heic`；`order=newest/oldest`。筛选字段不得重复，日期和范围错误返回明确字段及修正要求。前后端共用参数校验规则，不回显错误提交值。
 

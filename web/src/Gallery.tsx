@@ -58,6 +58,12 @@ function PhotoCard({
         {selected ? <Icon name="check" size={17} /> : <span />}
       </button>
       <div className="photo-badges">
+        {photo.isArchived && (
+          <span className="archive-badge">
+            <Icon name="archive" size={12} />
+            归档
+          </span>
+        )}
         {photo.livePhotoVideoId && (
           <span>
             <Icon name="play" size={12} />
@@ -97,7 +103,7 @@ export function Picker({
     setError('');
     try {
       const page = await api<Page<Photo>>(
-        `${web}/assets?view=photos&${photoQueryParams(query)}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
+        `${web}/assets?view=library&${photoQueryParams(query)}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
       );
       if (version !== loadVersion.current) return;
       setItems((prev) => (next ? [...prev, ...page.items] : page.items));
@@ -199,6 +205,7 @@ function Viewer({
   isCover = false,
   busy = false,
   inAlbum = false,
+  archive,
 }: {
   photo: Photo;
   previous?: ViewerMove;
@@ -216,6 +223,7 @@ function Viewer({
   isCover?: boolean;
   busy?: boolean;
   inAlbum?: boolean;
+  archive: () => void;
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
@@ -266,6 +274,8 @@ function Viewer({
               <dd>{photo.originalFileName}</dd>
               <dt>拍摄时间</dt>
               <dd>{date(photo.fileCreatedAt)}</dd>
+              <dt>归档状态</dt>
+              <dd>{photo.isArchived ? '已归档' : '未归档'}</dd>
               <dt>尺寸</dt>
               <dd>
                 {photo.width} × {photo.height}
@@ -317,6 +327,10 @@ function Viewer({
                 </button>
               )}
               <button onClick={() => act(edit)}>编辑资料</button>
+              <button disabled={busy || loading} onClick={() => act(archive)}>
+                <Icon name="archive" />
+                {photo.isArchived ? '取消归档' : '归档照片'}
+              </button>
               <button onClick={() => act(remove)}>
                 <Icon name="trash" />
                 删除
@@ -383,9 +397,11 @@ export function Gallery({
       ? '照片'
       : view === 'favorites'
         ? '收藏'
-        : view === 'trash'
-          ? '回收站'
-          : (album?.albumName ?? '相册');
+        : view === 'archive'
+          ? '归档'
+          : view === 'trash'
+            ? '回收站'
+            : (album?.albumName ?? '相册');
   useEffect(() => {
     viewerRequest.current++;
     let live = true;
@@ -495,6 +511,27 @@ export function Gallery({
       setBusy(false);
     }
   }
+  async function archivePhotos(ids: string[], archived: boolean) {
+    if (busy || !ids.length) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await api<{ processed: number; changed: number; unchanged: number }>(
+        `${web}/archive`,
+        'PATCH',
+        { ids, archived, version: timeline.version },
+      );
+      if (opened) closePhoto();
+      setSelected(new Set());
+      changed(
+        `${result.changed} 张照片已${archived ? '归档' : '取消归档'}${result.unchanged ? `；另有 ${result.unchanged} 张状态未变` : ''}`,
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const groups = new Map<string, Photo[]>();
   for (const p of items) {
     const key = new Date(view === 'trash' ? p.deletedAt! : p.fileCreatedAt).toLocaleDateString(
@@ -521,7 +558,9 @@ export function Gallery({
                 ? 'PERSONAL ALBUM'
                 : view === 'favorites'
                   ? 'FAVORITES'
-                  : 'YOUR PHOTO LIBRARY'}
+                  : view === 'archive'
+                    ? 'ARCHIVE'
+                    : 'YOUR PHOTO LIBRARY'}
           </p>
           <h1>{title}</h1>
           <p className="muted">
@@ -529,9 +568,11 @@ export function Gallery({
               ? '值得珍藏的日常，在这里慢慢回看。'
               : view === 'favorites'
                 ? '把喜欢的瞬间，放在一起。'
-                : view === 'trash'
-                  ? '已删除的照片仍可恢复，永久删除后无法找回。'
-                  : album?.description || '让每一段回忆，都有自己的位置。'}
+                : view === 'archive'
+                  ? '从主时间线收起，仍保留在收藏、相册和已有分享中；取消归档后按原拍摄时间返回。'
+                  : view === 'trash'
+                    ? '已删除的照片仍可恢复，永久删除后无法找回。'
+                    : album?.description || '让每一段回忆，都有自己的位置。'}
           </p>
         </div>
         <div className="heading-actions">
@@ -570,6 +611,9 @@ export function Gallery({
         disabled={busy}
         trash={view === 'trash'}
       />
+      {view === 'photos' && query.q && (
+        <p className="fine-print">文件名搜索也包含已归档照片，卡片会标记归档状态。</p>
+      )}
       {timeline.enabled && (
         <TimelineNav
           months={timeline.months}
@@ -607,6 +651,20 @@ export function Gallery({
               </button>
               <button disabled={busy || loading} onClick={() => ask('album')}>
                 {albumId ? '复制到相册' : '加入相册'}
+              </button>
+              {view !== 'archive' && (
+                <button
+                  disabled={busy || loading}
+                  onClick={() => void archivePhotos([...selected], true)}
+                >
+                  归档所选
+                </button>
+              )}
+              <button
+                disabled={busy || loading}
+                onClick={() => void archivePhotos([...selected], false)}
+              >
+                取消归档
               </button>
               {albumId && (
                 <button disabled={busy || loading} onClick={() => ask('move-album')}>
@@ -695,7 +753,15 @@ export function Gallery({
       ))}
       {!loading && !error && !items.length && (
         <Empty
-          icon={view === 'trash' ? 'trash' : view === 'favorites' ? 'heart' : 'photos'}
+          icon={
+            view === 'trash'
+              ? 'trash'
+              : view === 'favorites'
+                ? 'heart'
+                : view === 'archive'
+                  ? 'archive'
+                  : 'photos'
+          }
           title={
             hasPhotoFilters(query)
               ? '没有符合条件的照片'
@@ -703,18 +769,22 @@ export function Gallery({
                 ? '回收站是空的'
                 : view === 'favorites'
                   ? '还没有收藏'
-                  : '这里还没有照片'
+                  : view === 'archive'
+                    ? '还没有归档照片'
+                    : '这里还没有照片'
           }
         >
           {hasPhotoFilters(query)
             ? '请调整文件名、日期或照片类型，或点击“重置”查看全部照片。'
-            : view === 'photos'
-              ? '通过 Immich App 备份后，照片会出现在这里。'
-              : view === 'favorites'
-                ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
-                : view === 'album'
-                  ? '点击“添加照片”，从已备份的图库中选择。'
-                  : '从图库删除的照片会出现在这里。'}
+            : view === 'archive'
+              ? '在照片大图或多选工具栏中点击归档，即可将照片收纳到这里。'
+              : view === 'photos'
+                ? '通过 Immich App 备份后，照片会出现在这里。'
+                : view === 'favorites'
+                  ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
+                  : view === 'album'
+                    ? '点击“添加照片”，从已备份的图库中选择。'
+                    : '从图库删除的照片会出现在这里。'}
         </Empty>
       )}
       <div ref={timeline.after} className="timeline-edge" />
@@ -754,6 +824,7 @@ export function Gallery({
           moveAlbum={albumId ? () => ask('move-album', [opened.id]) : undefined}
           cover={albumId ? () => void setCover(opened.id) : undefined}
           isCover={album?.albumThumbnailAssetId === opened.id}
+          archive={() => void archivePhotos([opened.id], !opened.isArchived)}
         />
       )}
       {dialog === 'edit-photo' && (

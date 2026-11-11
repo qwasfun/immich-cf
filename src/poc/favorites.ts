@@ -1,9 +1,10 @@
 import type { Identity } from './auth';
 import { type Asset, assetDetailDto } from './assets';
 import { body, HttpError, invalid } from './http';
+import { archiveIds, commitArchive } from './archive';
 
 // Frozen v3.3.1 UpdateAssetDto / AssetBulkUpdateDto subset. Unsupported edits fail
-// before any write; favorite does not change capture dates or touch R2 bytes.
+// before any write; favorites and archive never alter capture dates or R2 bytes.
 export async function updateFavorite(
   request: Request,
   db: D1Database,
@@ -13,8 +14,25 @@ export async function updateFavorite(
   const input = await body(request);
   const bulk = id === undefined;
   for (const field of Object.keys(input))
-    if (field !== 'isFavorite' && !(bulk && field === 'ids'))
-      invalid(field, '当前仅支持收藏修改，请移除此字段；其他资产编辑尚未实现');
+    if (!['isFavorite', 'visibility'].includes(field) && !(bulk && field === 'ids'))
+      invalid(field, '当前支持收藏和归档修改，请移除此字段；其他资产编辑尚未实现');
+  if (input.visibility !== undefined) {
+    if (typeof input.visibility !== 'string' || !['timeline', 'archive'].includes(input.visibility))
+      invalid('visibility', '归档可见性必须为 timeline 或 archive；隐藏和锁定尚未支持');
+    if (input.isFavorite !== undefined && typeof input.isFavorite !== 'boolean')
+      invalid('isFavorite', '必须填写 true 或 false');
+    const result = await commitArchive(
+      db,
+      identity,
+      archiveIds(bulk ? input.ids : [id]),
+      input.visibility === 'archive',
+      '',
+      input.isFavorite as boolean | undefined,
+    );
+    return bulk
+      ? new Response(null, { status: 204 })
+      : Response.json(assetDetailDto(result.rows[0]!));
+  }
   if (typeof input.isFavorite !== 'boolean') invalid('isFavorite', '必须填写 true 或 false');
   const raw = bulk ? input.ids : [id];
   if (

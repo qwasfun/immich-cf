@@ -1,5 +1,7 @@
 # immich-cf
 
+Web 支持[照片归档管理](docs/web-photo-archive.md)：单张/整批归档与取消、独立归档列表和年月定位。
+
 Web 新增[相册整理](docs/web-albums.md)：名称/描述查找、四种排序、整批复制/移动和大图快捷设封面。
 
 Web 已支持 [照片资料与时间修正](docs/web-photo-metadata.md)：EXIF 相机/GPS/时间展示、描述与位置编辑、批量时间偏移及时区修正。
