@@ -1,0 +1,506 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T14:36:54.063Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-deep-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-memory-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-year-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "favorite-memory-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "utc-day-differs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-year-first-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-year-second-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-year-backward",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cursor-date-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-year-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-time-zone-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-account-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "memory-timeline-consistency",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-version-unchanged",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-memory-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "old-memory-cursor-rejected",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "archived-anchor-recovers-nearest",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-memory-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-memory-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "label-and-rate-memory",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-combined-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-photo-time-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "move-memory-to-next-day",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-photo-time-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-memory-photo-time",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "trash-only-probe-memory",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-probe-memory",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "leap-year-detail",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "nonleap-year-error",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-memory-validation-memoryDate",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-memory-validation-memoryDate",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-memory-validation-timeZone",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-memory-validation-memoryDate",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-memory-validation-userId",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "memory-read-only-method",
+      "status": 405,
+      "expected": 405
+    },
+    {
+      "label": "album-relations-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-index-empty-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "memory-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "originalsVerified": 4,
+  "memoriesVerified": true,
+  "sourceCommit": "ef080de4ef4d9a36ada0a82932cc5eebf53f3763",
+  "workerVersion": "cddae4dd-6c47-4ead-884e-66551c1c8d9b",
+  "newMigration": null,
+  "databaseSchema": "0037_photo_labels.sql remains current",
+  "syntheticOriginals": 4,
+  "local": {
+    "check": "passed",
+    "tests": 303,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources",
+    "newUnitScenarios": 3,
+    "newIntegrationScenarios": 5,
+    "syntheticSameDayPhotos": 1001,
+    "releaseRehearsalChecks": 77
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated-local-D1-R2",
+    "assertions": 38,
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 900
+      },
+      {
+        "width": 820,
+        "height": 900
+      }
+    ],
+    "suites": [
+      {
+        "suite": "memories-desktop",
+        "checks": [
+          "overview-has-year-count-and-cover",
+          "overview-current-time-zone",
+          "future-date-specific-error",
+          "empty-date-specific-error",
+          "network-failure-keeps-year-cards",
+          "overview-retry-recovers",
+          "year-detail-paged-at-60",
+          "year-detail-deep-link",
+          "selection-exposes-photo-management",
+          "filter-stays-in-memory-year",
+          "filter-clears-selection",
+          "refresh-restores-memory-filter",
+          "auto-load-completes-year",
+          "auto-load-no-duplicate",
+          "memory-opens-existing-large-viewer",
+          "large-viewer-return-keeps-offset",
+          "history-back-restores-photo-offset",
+          "refresh-restores-photo-offset",
+          "back-to-same-reference-day",
+          "previous-day-crosses-year",
+          "next-day-crosses-year",
+          "today-empty-state-and-next-disabled"
+        ]
+      },
+      {
+        "suite": "memories-responsive",
+        "checks": [
+          "390-no-horizontal-overflow",
+          "390-date-input-visible",
+          "390-year-card-contained",
+          "390-mobile-memory-navigation",
+          "390-year-detail-contained",
+          "390-month-navigation-panel",
+          "390-large-photo-viewer",
+          "390-reference-day-kept",
+          "820-no-horizontal-overflow",
+          "820-date-input-visible",
+          "820-year-card-contained",
+          "820-year-detail-contained",
+          "820-large-photo-viewer",
+          "820-reference-day-kept"
+        ]
+      },
+      {
+        "suite": "memories-empty-detail",
+        "checks": ["empty-year-specific-title", "empty-year-actionable-guidance"]
+      }
+    ]
+  },
+  "limitations": [
+    "Public verification covered HTTP and deployed frontend resources; browser interaction used isolated local D1/R2 fixtures.",
+    "This implements Web on-this-day views; AI themes, editable memory collections and official App Memories APIs or synchronization are not implemented.",
+    "Real iPhone Safari and official Immich App device verification were not performed."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-memories-desktop.png",
+    "tablet": "work/output/playwright/web-memories-820.png",
+    "mobile": "work/output/playwright/web-memories-390.png"
+  }
+}
