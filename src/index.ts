@@ -79,6 +79,7 @@ export default {
         pathname,
       ) ||
         /^\/albums(?:\/[a-f0-9-]{36})?\/?$/.test(pathname) ||
+        /^\/memories(?:\/\d{4}-\d{2}-\d{2}(?:\/[1-9]\d{0,3})?)?\/?$/.test(pathname) ||
         pathname.startsWith('/assets/') ||
         pathname === '/favicon.svg')
     ) {

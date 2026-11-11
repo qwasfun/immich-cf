@@ -21,9 +21,18 @@ export function useTimeline(
   refresh: number,
   owner: string,
   entry: string,
+  memory?: { date: string; year: number; timeZone: string },
 ) {
   const enabled = view !== 'trash';
-  const path = view + ':' + albumId;
+  const memoryParams = memory
+    ? '&' +
+      new URLSearchParams({
+        memoryDate: memory.date,
+        memoryYear: String(memory.year),
+        timeZone: memory.timeZone,
+      })
+    : '';
+  const path = view + ':' + albumId + memoryParams;
   const [saved] = useState(() => (enabled ? readTimeline(owner, entry, path) : null));
   const [query, setQuery] = useState<PhotoQuery>(saved?.query ?? { ...emptyPhotoQuery });
   const [items, setItems] = useState<Photo[]>([]);
@@ -71,10 +80,10 @@ export function useTimeline(
   };
   const latest = useRef({ replace, more, checkVersion });
   latest.current = { replace, more, checkVersion };
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const timeZone = memory?.timeZone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
   const queryKey = photoQueryParams(query).toString();
-  const scope = `view=${view}&${queryKey}${albumId ? '&albumId=' + albumId : ''}`;
-  const overviewPath = `${web}/timeline?${scope}&timeZone=${encodeURIComponent(timeZone)}`;
+  const scope = `view=${view}&${queryKey}${albumId ? '&albumId=' + albumId : ''}${memoryParams}`;
+  const overviewPath = `${web}/timeline?${scope}${memory ? '' : '&timeZone=' + encodeURIComponent(timeZone)}`;
 
   function capture(): TimelineAnchor | null {
     const top =

@@ -179,6 +179,7 @@ h3 {
   display: flex;
   flex-direction: column;
   z-index: 30;
+  overflow-y: auto;
 }
 .sidebar > .brand {
   padding-left: 15px;
@@ -832,6 +833,97 @@ main {
   font-size: 11px;
   padding: 2px 8px;
   flex-shrink: 0;
+}
+.memory-controls form,
+.memory-days,
+.memory-card-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.memory-controls form {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.memory-controls .field {
+  margin: 0;
+  width: 205px;
+}
+.memory-days {
+  justify-content: space-between;
+  max-width: 440px;
+  margin-top: 20px;
+}
+.memory-controls .fine-print {
+  margin-bottom: 0;
+}
+.memory-summary {
+  color: var(--muted);
+  margin: 24px 0 16px;
+}
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+  gap: 22px;
+}
+.memory-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: white;
+}
+.memory-cover {
+  aspect-ratio: 4 / 3;
+  position: relative;
+  overflow: hidden;
+  background: #edf0f8;
+}
+.memory-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.memory-cover > span {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  border-radius: 20px;
+  padding: 6px 12px;
+  background: #30478be6;
+  color: white;
+  font-size: 14px;
+}
+.memory-card-copy {
+  justify-content: space-between;
+  padding: 18px;
+}
+.memory-card-copy h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.memory-card-copy p {
+  margin: 5px 0 0;
+}
+.memory-card:hover {
+  border-color: #8ea9fa;
+}
+.memory-back {
+  margin-bottom: 20px;
+}
+@media (max-width: 540px) {
+  .memory-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .memory-controls .field {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .memory-days {
+    gap: 6px;
+  }
 }
 .album-grid {
   display: grid;

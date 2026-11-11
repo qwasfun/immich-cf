@@ -53,6 +53,8 @@ const labels: Record<string, string> = {
   latitude: '纬度',
   longitude: '经度',
   version: '照片资料版本',
+  memoryDate: '回忆日期',
+  memoryYear: '回忆年份',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {

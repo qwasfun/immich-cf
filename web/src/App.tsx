@@ -8,6 +8,7 @@ import { ErrorBox, Icon, Logo } from './ui';
 import { Upload } from './Upload';
 import { ManageShares } from './Share';
 import { timelineAccount, timelineEntry } from './timeline-state';
+import { Memories } from './Memories';
 
 function Login({ loggedIn, message }: { loggedIn: () => void; message: string }) {
   const [error, setError] = useState(''),
@@ -193,7 +194,7 @@ export function App() {
     };
   }, [!!boot]);
   useEffect(() => {
-    document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
+    document.title = `${path.startsWith('/memories') ? '往年今日' : path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
   }, [path]);
   function changed(text: string) {
     setMessage(text);
@@ -226,6 +227,7 @@ export function App() {
     );
   const entries = [
     { path: '/photos', label: '照片', icon: 'photos' },
+    { path: '/memories', label: '往年今日', icon: 'memories' },
     { path: '/favorites', label: '收藏', icon: 'heart' },
     { path: '/archive', label: '归档', icon: 'archive' },
     { path: '/albums', label: '相册', icon: 'album' },
@@ -233,6 +235,7 @@ export function App() {
     { path: '/trash', label: '回收站', icon: 'trash' },
   ];
   const albumId = /^\/albums\/([a-f0-9-]{36})$/.exec(path)?.[1];
+  const memoryPath = /^\/memories(?:\/(\d{4}-\d{2}-\d{2})(?:\/([1-9]\d{0,3}))?)?$/.exec(path);
   return (
     <div className="app-shell">
       {mobile && (
@@ -258,7 +261,13 @@ export function App() {
             <a
               key={e.path}
               href={e.path}
-              className={path === e.path || (e.path === '/albums' && albumId) ? 'active' : ''}
+              className={
+                path === e.path ||
+                (e.path === '/albums' && albumId) ||
+                (e.path === '/memories' && memoryPath)
+                  ? 'active'
+                  : ''
+              }
               onClick={(event) => {
                 event.preventDefault();
                 navigate(e.path);
@@ -380,7 +389,18 @@ export function App() {
               </button>
             </div>
           )}
-          {path === '/albums' ? (
+          {memoryPath ? (
+            <Memories
+              key={path + ':' + entry}
+              referenceDate={memoryPath[1]}
+              year={memoryPath[2] ? Number(memoryPath[2]) : undefined}
+              ownerId={boot.user.id}
+              entryKey={entry}
+              refresh={refresh}
+              changed={changed}
+              navigate={navigate}
+            />
+          ) : path === '/albums' ? (
             <Albums refresh={refresh} changed={changed} navigate={navigate} />
           ) : path === '/shares' ? (
             <ManageShares refresh={refresh} />

@@ -13,6 +13,7 @@ import { PhotoTimeError, photoTimeZone } from '../photo-time';
 import { webAlbums, transferAlbums } from './album-organization';
 import { photoArchive } from './archive';
 import { labels, tagSuggestions } from './photo-labels';
+import { memories } from './memories';
 
 export async function webRoute(
   request: Request,
@@ -48,7 +49,8 @@ export async function webRoute(
   else if (webPath === 'album-transfer') methods = ['POST'];
   else if (webPath === 'albums') methods = ['GET'];
   else if (unlock) methods = ['POST'];
-  else if (shared || ['bootstrap', 'assets', 'timeline'].includes(webPath)) methods = ['GET'];
+  else if (shared || ['bootstrap', 'assets', 'timeline', 'memories'].includes(webPath))
+    methods = ['GET'];
   else if (share) methods = share[1] ? ['DELETE', 'PATCH'] : ['GET', 'POST'];
   else if (download) {
     if (download[2]) methods = ['GET'];
@@ -107,6 +109,7 @@ export async function webRoute(
       } else if (webPath === 'password') response = await changePassword(request, env, identity);
       else if (webPath === 'assets') response = await gallery(request, env, identity);
       else if (webPath === 'timeline') response = await timeline(request, env, identity);
+      else if (webPath === 'memories') response = await memories(request, env, identity);
       else response = await webBootstrap(request, env, identity);
     }
   } catch (error) {

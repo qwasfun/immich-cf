@@ -479,6 +479,9 @@ test('网页入口与深链接可用，API/未知路径不回落 HTML，未登�
     '/',
     '/photos',
     '/archive',
+    '/memories',
+    '/memories/2026-01-01',
+    '/memories/2026-01-01/2024',
     '/albums',
     '/account',
     '/admin/users',
@@ -499,6 +502,7 @@ test('网页入口与深链接可用，API/未知路径不回落 HTML，未登�
   assert.equal(unknown.status, 501);
   assert.match(unknown.headers.get('content-type'), /json/);
   assert.equal((await call('/unknown')).status, 404);
+  assert.equal((await call('/memories/invalid')).status, 404);
   assert.equal((await call('/assets/missing-file.js')).status, 404);
   const r = await call(root + '/bootstrap');
   assert.equal(r.status, 401);
@@ -523,6 +527,294 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
 const shares = root + '/shares';
 const shared = root + '/shared';
 const previewOf = (id) => `${shared}/assets/${id}/preview`;
+const memoryOverview = async (u, date = '2026-01-01', timeZone = 'Asia/Shanghai') => {
+  const response = await call(
+    `${root}/memories?${new URLSearchParams({ memoryDate: date, timeZone })}`,
+    u,
+  );
+  assert.equal(response.status, 200);
+  return response.json();
+};
+const memoryScope = (year = 2024, date = '2026-01-01', timeZone = 'Asia/Shanghai') =>
+  new URLSearchParams({
+    view: 'memories',
+    memoryDate: date,
+    memoryYear: String(year),
+    timeZone,
+  }).toString();
+
+test('往年今日按当地拍摄日汇总，排除当年、未来、归档、回收站、隐藏 MOV 和其他账号', async () => {
+  const u = await user(),
+    other = await user();
+  const first = await seed(u, undefined, undefined, { date: '2023-12-31T16:00:00.000Z' });
+  const last = await seed(u, undefined, undefined, { date: '2024-01-01T15:59:59.999Z' });
+  const older = await seed(u, undefined, undefined, { date: '2022-12-31T16:00:00.000Z' });
+  const archived = await seed(u, undefined, undefined, { date: '2024-01-01T12:00:00.000Z' });
+  const trash = await seed(u, undefined, undefined, { date: '2024-01-01T13:00:00.000Z' });
+  await db.prepare('UPDATE assets SET archived=1 WHERE id=?').bind(archived.id).run();
+  await db
+    .prepare('UPDATE assets SET deleted_at=? WHERE id=?')
+    .bind(new Date().toISOString(), trash.id)
+    .run();
+  for (const date of [
+    '2023-12-31T15:59:59.999Z',
+    '2024-01-01T16:00:00.000Z',
+    '2026-01-01T02:00:00.000Z',
+    '2027-01-01T02:00:00.000Z',
+  ])
+    await seed(u, undefined, undefined, { date });
+  await seed(other, undefined, undefined, { date: '2024-01-01T02:00:00.000Z' });
+  const pair = pairId(),
+    motion = await seed(u, liveMov(pair), 'video/quicktime', {
+      date: '2023-01-01T00:00:00.000Z',
+      type: 'VIDEO',
+      visibility: 'hidden',
+      pair,
+    });
+  const still = await seed(u, liveJpeg(pair), 'image/jpeg', {
+    date: '2023-01-01T00:00:00.000Z',
+    pair,
+    video: motion.id,
+  });
+  const overview = await memoryOverview(u);
+  assert.equal(overview.total, 4);
+  assert.deepEqual(
+    overview.years.map((year) => [year.year, year.count, year.yearsAgo]),
+    [
+      [2024, 2, 2],
+      [2023, 2, 3],
+    ],
+  );
+  assert.equal(overview.years[0].coverId, last.id);
+  assert.doesNotMatch(JSON.stringify(overview), /object_key|checksum|filename|password|token/);
+  const read = await call(`${root}/assets?${memoryScope()}`, u);
+  assert.equal(read.status, 200);
+  assert.equal(read.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(
+    (await read.json()).items.map((p) => p.id),
+    [last.id, first.id],
+  );
+  const olderPage = await (await call(`${root}/assets?${memoryScope(2023)}`, u)).json();
+  assert.deepEqual(new Set(olderPage.items.map((p) => p.id)), new Set([older.id, still.id]));
+  const utc = await memoryOverview(u, '2026-01-01', 'UTC');
+  assert.notEqual(utc.years[0].coverId, overview.years[0].coverId);
+  assert.equal((await memoryOverview(other)).total, 1);
+});
+
+test('回忆概览与年份列表在闰日、夏令时和午夜跳时边界保持一致', async () => {
+  const u = await user();
+  for (const date of [
+    '2024-02-28T15:59:59.999Z',
+    '2024-02-28T16:00:00.000Z',
+    '2024-02-29T15:59:59.999Z',
+    '2024-02-29T16:00:00.000Z',
+    '2020-02-28T16:00:00.000Z',
+    '2020-02-29T15:59:59.999Z',
+    '2023-03-01T00:00:00.000Z',
+    '2024-11-03T06:59:59.999Z',
+    '2024-11-03T07:00:00.000Z',
+    '2024-11-03T08:30:00.000Z',
+    '2024-11-03T09:30:00.000Z',
+    '2024-11-04T07:59:59.999Z',
+    '2024-11-04T08:00:00.000Z',
+    '2018-11-04T02:59:59.999Z',
+    '2018-11-04T03:00:00.000Z',
+    '2018-11-05T01:59:59.999Z',
+    '2018-11-05T02:00:00.000Z',
+  ])
+    await seed(u, undefined, undefined, { date });
+  for (const [reference, zone, year, count] of [
+    ['2024-02-29', 'Asia/Shanghai', 2020, 2],
+    ['2026-11-03', 'America/Los_Angeles', 2024, 4],
+    ['2026-11-04', 'America/Sao_Paulo', 2018, 2],
+  ]) {
+    // Future reference dates are disallowed; all chosen reference days precede the test date.
+    const overview = await memoryOverview(u, reference, zone);
+    const page = await (
+      await call(`${root}/assets?${memoryScope(year, reference, zone)}`, u)
+    ).json();
+    assert.equal(page.items.length, count);
+    assert.equal(overview.years.find((item) => item.year === year)?.count ?? 0, count);
+  }
+  const leap = await memoryOverview(u, '2024-02-29');
+  assert.equal(leap.total, 2);
+  const targetLeap = await memoryOverview(u, '2026-02-28');
+  assert.equal(targetLeap.years.find((item) => item.year === 2024).count, 1);
+  const noLeap = await call(`${root}/assets?${memoryScope(2023, '2024-02-29')}`, u);
+  assert.equal(noLeap.status, 400);
+  assert.equal((await noLeap.json()).errors[0].path[0], 'memoryYear');
+});
+
+test('1001 张同日回忆支持双向分页、同一时刻定位、组合筛选和账号/日期/年份/时区/版本游标隔离', async () => {
+  const u = await user(),
+    other = await user(),
+    ids = [];
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, offset) => {
+        const i = at + offset,
+          id = randomUUID(),
+          date = '2024-01-01T02:00:00.000Z';
+        ids.push(id);
+        return db
+          .prepare(
+            `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,tags,rating)
+      VALUES(?,?,?,?,?,?,4,1,1,?,?,?,0,?,?)`,
+          )
+          .bind(
+            id,
+            u.id,
+            id,
+            id,
+            `memory-${i}.jpg`,
+            i % 2 ? 'image/png' : 'image/jpeg',
+            date,
+            date,
+            date,
+            JSON.stringify(i % 2 ? ['旅行'] : []),
+            i % 2 ? 4 : null,
+          );
+      }),
+    );
+  assert.equal((await memoryOverview(u)).total, 1001);
+  const scope = memoryScope(),
+    first = await (await call(`${root}/assets?${scope}`, u)).json();
+  assert.equal(first.items.length, 60);
+  const middleId = [...ids].sort().reverse()[450];
+  const position = '&anchorTime=2024-01-01T02%3A00%3A00.000Z&anchorId=' + middleId;
+  const middle = await (await call(`${root}/assets?${scope}${position}`, u)).json();
+  assert.equal(middle.items[0].id, middleId);
+  const all = [...middle.items];
+  for (const side of ['previous', 'next']) {
+    let cursor = middle[side + 'Cursor'];
+    while (cursor) {
+      const response = await call(
+        `${root}/assets?${scope}&limit=100&cursor=${encodeURIComponent(cursor)}`,
+        u,
+      );
+      assert.equal(response.status, 200);
+      const page = await response.json();
+      if (side === 'previous') all.unshift(...page.items);
+      else all.push(...page.items);
+      cursor = page[side + 'Cursor'];
+    }
+  }
+  assert.deepEqual(
+    all.map((p) => p.id),
+    [...ids].sort().reverse(),
+  );
+  const cursor = '&cursor=' + encodeURIComponent(first.nextCursor);
+  for (const [query, actor] of [
+    [memoryScope(2023), u],
+    [memoryScope(2024, '2026-01-02'), u],
+    [memoryScope(2024, '2026-01-01', 'UTC'), u],
+    [scope + '&order=oldest', u],
+    [scope, other],
+    ['view=photos', u],
+  ])
+    assert.equal((await call(`${root}/assets?${query}${cursor}`, actor)).status, 400);
+  const filter = scope + '&tag=旅行&rating=gte4&type=png&q=memory-';
+  const months = await (await call(`${root}/timeline?${filter}`, u)).json();
+  assert.equal(months.months[0].count, 500);
+  const asc = await (await call(`${root}/assets?${filter}&order=oldest`, u)).json();
+  assert.ok(asc.items.every((photo) => photo.tags.includes('旅行') && photo.rating === 4));
+  assert.deepEqual(
+    asc.items.map((photo) => photo.id),
+    [...asc.items.map((photo) => photo.id)].sort(),
+  );
+  const changed = await call(`${root}/archive`, u, 'PATCH', {
+    ids: [middleId],
+    archived: true,
+    version: first.version,
+  });
+  assert.equal(changed.status, 200);
+  assert.equal((await call(`${root}/assets?${scope}${cursor}`, u)).status, 409);
+  const recovered = await (await call(`${root}/assets?${scope}${position}`, u)).json();
+  assert.ok(!recovered.items.some((photo) => photo.id === middleId));
+  assert.equal((await memoryOverview(u)).total, 1000);
+});
+
+test('回忆随拍摄时间、归档及删除恢复更新，原件与收藏、相册关系保持', async () => {
+  const u = await user(),
+    photo = await seed(u, undefined, undefined, { date: '2024-01-01T02:00:00.000Z' });
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '回忆相册', assetIds: [photo.id] })
+  ).json();
+  await call('/api/assets', u, 'PUT', { ids: [photo.id], isFavorite: true });
+  let overview = await memoryOverview(u);
+  assert.equal(overview.total, 1);
+  const unchanged = await (
+    await call(
+      `${root}/memories?memoryDate=2026-01-01&timeZone=Asia%2FShanghai&version=${encodeURIComponent(overview.version)}`,
+      u,
+    )
+  ).json();
+  assert.equal(unchanged.unchanged, true);
+  await call(`${root}/archive`, u, 'PATCH', {
+    ids: [photo.id],
+    archived: true,
+    version: overview.version,
+  });
+  assert.equal((await memoryOverview(u)).total, 0);
+  overview = await memoryOverview(u);
+  await call(`${root}/archive`, u, 'PATCH', {
+    ids: [photo.id],
+    archived: false,
+    version: overview.version,
+  });
+  assert.equal((await memoryOverview(u)).total, 1);
+  const metadata = await (await call(`${root}/assets/${photo.id}/metadata`, u)).json();
+  const corrected = await call(`${root}/photo-metadata`, u, 'PATCH', {
+    ids: [photo.id],
+    version: metadata.version,
+    dateTime: '2024-01-02T10:00',
+    timeZone: 'Asia/Shanghai',
+  });
+  assert.equal(corrected.status, 200);
+  assert.equal((await memoryOverview(u)).total, 0);
+  assert.equal((await memoryOverview(u, '2026-01-02')).total, 1);
+  assert.equal((await call('/api/assets', u, 'DELETE', { ids: [photo.id] })).status, 204);
+  assert.equal((await memoryOverview(u, '2026-01-02')).total, 0);
+  assert.equal(
+    (await call('/api/trash/restore/assets', u, 'POST', { ids: [photo.id] })).status,
+    200,
+  );
+  assert.equal((await memoryOverview(u, '2026-01-02')).total, 1);
+  const detail = await (await call('/api/assets/' + photo.id, u)).json();
+  assert.equal(detail.isFavorite, true);
+  assert.equal((await (await call('/api/albums/' + album.id, u)).json()).assetCount, 1);
+  assert.deepEqual(
+    Buffer.from(await (await call(`${root}/assets/${photo.id}/download`, u)).arrayBuffer()),
+    photo.content,
+  );
+});
+
+test('回忆接口只读私有，字段校验具体且会话禁用后立即失效', async () => {
+  const u = await user();
+  assert.equal((await call(root + '/memories', null)).status, 401);
+  const method = await call(root + '/memories', u, 'POST', {});
+  assert.equal(method.status, 405);
+  assert.equal(method.headers.get('allow'), 'GET');
+  for (const [path, field] of [
+    ['/memories?memoryDate=2026-02-30', 'memoryDate'],
+    ['/memories?memoryDate=9999-01-01', 'memoryDate'],
+    ['/memories?timeZone=invalid', 'timeZone'],
+    ['/memories?memoryDate=2026-01-01&memoryDate=2025-01-01', 'memoryDate'],
+    ['/memories?userId=' + u.id, 'userId'],
+    ['/assets?view=memories&memoryDate=2026-01-01', 'memoryYear'],
+    ['/assets?' + memoryScope(2026), 'memoryYear'],
+    ['/assets?view=photos&memoryDate=2026-01-01', 'memoryDate'],
+  ]) {
+    const response = await call(root + path, u);
+    assert.equal(response.status, 400, path);
+    const body = await response.json();
+    assert.equal(body.errors[0].path[0], field);
+    assert.match(body.errors[0].message, /：/);
+  }
+  await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(u.id).run();
+  assert.equal((await call(root + '/memories', u)).status, 401);
+  assert.equal((await call(root + '/assets?' + memoryScope(), u)).status, 401);
+});
 const originalOf = (id, component = 'photo') =>
   `${shared}/assets/${id}/download?component=${component}`;
 const shareAuth = (link) => ({ Authorization: 'Share ' + link.path.split('#')[1] });

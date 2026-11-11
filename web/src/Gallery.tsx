@@ -389,6 +389,7 @@ export function Gallery({
   changed,
   ownerId,
   entryKey,
+  memory,
 }: {
   view: string;
   albumId?: string;
@@ -396,8 +397,9 @@ export function Gallery({
   changed: Changed;
   ownerId: string;
   entryKey: string;
+  memory?: { date: string; year: number; timeZone: string };
 }) {
-  const timeline = useTimeline(view, albumId, refresh, ownerId, entryKey);
+  const timeline = useTimeline(view, albumId, refresh, ownerId, entryKey, memory);
   const { items, query, cursor, previousCursor, loading, error, setError } = timeline;
   const viewerAnchor = useRef<TimelineAnchor | null>(null);
   const viewerRequest = useRef(0);
@@ -407,8 +409,9 @@ export function Gallery({
     [dialog, setDialog] = useState(''),
     [targets, setTargets] = useState<string[]>([]),
     [busy, setBusy] = useState(false);
-  const title =
-    view === 'photos'
+  const title = memory
+    ? `${memory.year} 年的这一天`
+    : view === 'photos'
       ? '照片'
       : view === 'favorites'
         ? '收藏'
@@ -567,27 +570,31 @@ export function Gallery({
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            {view === 'trash'
-              ? 'TRASH'
-              : view === 'album'
-                ? 'PERSONAL ALBUM'
-                : view === 'favorites'
-                  ? 'FAVORITES'
-                  : view === 'archive'
-                    ? 'ARCHIVE'
-                    : 'YOUR PHOTO LIBRARY'}
+            {view === 'memories'
+              ? 'ON THIS DAY'
+              : view === 'trash'
+                ? 'TRASH'
+                : view === 'album'
+                  ? 'PERSONAL ALBUM'
+                  : view === 'favorites'
+                    ? 'FAVORITES'
+                    : view === 'archive'
+                      ? 'ARCHIVE'
+                      : 'YOUR PHOTO LIBRARY'}
           </p>
           <h1>{title}</h1>
           <p className="muted">
-            {view === 'photos'
-              ? '值得珍藏的日常，在这里慢慢回看。'
-              : view === 'favorites'
-                ? '把喜欢的瞬间，放在一起。'
-                : view === 'archive'
-                  ? '从主时间线收起，仍保留在收藏、相册和已有分享中；取消归档后按原拍摄时间返回。'
-                  : view === 'trash'
-                    ? '已删除的照片仍可恢复，永久删除后无法找回。'
-                    : album?.description || '让每一段回忆，都有自己的位置。'}
+            {memory
+              ? `${Number(memory.date.slice(0, 4)) - memory.year} 年前的 ${Number(memory.date.slice(5, 7))} 月 ${Number(memory.date.slice(8))} 日 · 按当前时区回看，归档与回收站照片不在此显示。`
+              : view === 'photos'
+                ? '值得珍藏的日常，在这里慢慢回看。'
+                : view === 'favorites'
+                  ? '把喜欢的瞬间，放在一起。'
+                  : view === 'archive'
+                    ? '从主时间线收起，仍保留在收藏、相册和已有分享中；取消归档后按原拍摄时间返回。'
+                    : view === 'trash'
+                      ? '已删除的照片仍可恢复，永久删除后无法找回。'
+                      : album?.description || '让每一段回忆，都有自己的位置。'}
           </p>
         </div>
         <div className="heading-actions">
@@ -783,26 +790,30 @@ export function Gallery({
           title={
             hasPhotoFilters(query)
               ? '没有符合条件的照片'
-              : view === 'trash'
-                ? '回收站是空的'
-                : view === 'favorites'
-                  ? '还没有收藏'
-                  : view === 'archive'
-                    ? '还没有归档照片'
-                    : '这里还没有照片'
+              : view === 'memories'
+                ? '这一天还没有照片'
+                : view === 'trash'
+                  ? '回收站是空的'
+                  : view === 'favorites'
+                    ? '还没有收藏'
+                    : view === 'archive'
+                      ? '还没有归档照片'
+                      : '这里还没有照片'
           }
         >
           {hasPhotoFilters(query)
             ? '请调整文件名、日期或照片类型，或点击“重置”查看全部照片。'
-            : view === 'archive'
-              ? '在照片大图或多选工具栏中点击归档，即可将照片收纳到这里。'
-              : view === 'photos'
-                ? '通过 Immich App 备份后，照片会出现在这里。'
-                : view === 'favorites'
-                  ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
-                  : view === 'album'
-                    ? '点击“添加照片”，从已备份的图库中选择。'
-                    : '从图库删除的照片会出现在这里。'}
+            : view === 'memories'
+              ? '照片可能已更改时间、归档或删除；返回往年今日选择其他年份。'
+              : view === 'archive'
+                ? '在照片大图或多选工具栏中点击归档，即可将照片收纳到这里。'
+                : view === 'photos'
+                  ? '通过 Immich App 备份后，照片会出现在这里。'
+                  : view === 'favorites'
+                    ? '在照片预览中点击收藏，留下你喜欢的瞬间。'
+                    : view === 'album'
+                      ? '点击“添加照片”，从已备份的图库中选择。'
+                      : '从图库删除的照片会出现在这里。'}
         </Empty>
       )}
       <div ref={timeline.after} className="timeline-edge" />
