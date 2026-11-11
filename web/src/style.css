@@ -378,6 +378,92 @@ main {
   color: #adb5c3;
   font-weight: 400;
 }
+.timeline-gallery {
+  overflow-anchor: none;
+}
+.timeline-gallery .day-heading {
+  position: sticky;
+  top: var(--timeline-top, 0px);
+  z-index: 7;
+  padding-block: 10px;
+  background: #fafbfe;
+}
+.timeline-gallery .day-heading h2 {
+  margin-bottom: 0;
+}
+.timeline-edge {
+  min-height: 1px;
+}
+.timeline-edge > button {
+  margin-block: 10px 16px;
+}
+.timeline-rail {
+  display: none;
+}
+.timeline-date-trigger {
+  position: fixed;
+  right: 16px;
+  bottom: 20px;
+  z-index: 8;
+  min-height: 44px;
+  color: var(--blue);
+  background: #fff;
+  box-shadow: 0 4px 18px #24396222;
+}
+.timeline-months {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+.timeline-months button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.timeline-months button[aria-current] {
+  color: var(--blue);
+  background: #e8eeff;
+  border-color: #bdcbf7;
+}
+.timeline-months small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.timeline-date-panel select {
+  width: 100%;
+}
+.viewer-feedback {
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+@media (min-width: 1100px) {
+  .timeline-gallery {
+    margin-right: 118px;
+  }
+  .timeline-rail {
+    display: block;
+    position: fixed;
+    right: 16px;
+    top: 100px;
+    width: 106px;
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+    z-index: 6;
+  }
+  .timeline-rail select {
+    width: 100%;
+    padding: 6px;
+    background: #fff;
+  }
+  .timeline-rail button {
+    padding: 6px 8px;
+    min-height: 32px;
+  }
+  .timeline-date-trigger {
+    display: none;
+  }
+}
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

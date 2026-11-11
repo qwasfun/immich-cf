@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api, albumMembers, bytes, date, web } from './api';
 import type { Album, Page, Photo } from './api';
 import { Confirm, Empty, ErrorBox, FormModal, Icon, Modal, Preview } from './ui';
@@ -6,6 +6,9 @@ import { emptyPhotoQuery, hasPhotoFilters, photoQueryParams } from '../../src/we
 import { PhotoFilters } from './PhotoFilters';
 import { Download } from './Download';
 import { ShareDialog } from './Share';
+import { useTimeline } from './useTimeline';
+import { TimelineNav } from './TimelineNav';
+import type { TimelineAnchor } from './timeline-state';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -20,7 +23,11 @@ function PhotoCard({
   open: () => void;
 }) {
   return (
-    <article className={`photo-tile ${selected ? 'selected' : ''}`}>
+    <article
+      className={`photo-tile ${selected ? 'selected' : ''}`}
+      data-photo-id={photo.id}
+      data-photo-time={photo.fileCreatedAt}
+    >
       <Preview id={photo.id} name={photo.originalFileName} />
       <button className="photo-open" aria-label={`查看 ${photo.originalFileName}`} onClick={open} />
       <button
@@ -237,6 +244,9 @@ function Viewer({
   favorite,
   remove,
   addAlbum,
+  loading,
+  error,
+  retry,
 }: {
   photo: Photo;
   previous?: () => void;
@@ -245,6 +255,9 @@ function Viewer({
   favorite: () => void;
   remove: () => void;
   addAlbum: () => void;
+  loading: boolean;
+  error: string;
+  retry: () => void;
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
@@ -270,6 +283,12 @@ function Viewer({
   }, [previous, next]);
   return (
     <Modal title={photo.originalFileName} close={close} wide>
+      {(loading || error) && (
+        <div className="viewer-feedback">
+          {loading && <p role="status">正在加载相邻照片…</p>}
+          <ErrorBox error={error} retry={retry} />
+        </div>
+      )}
       <div className="viewer-body">
         <div
           className="viewer-stage"
@@ -392,19 +411,20 @@ export function Gallery({
   albumId = '',
   refresh,
   changed,
+  ownerId,
+  entryKey,
 }: {
   view: string;
   albumId?: string;
   refresh: number;
   changed: Changed;
+  ownerId: string;
+  entryKey: string;
 }) {
-  const loadVersion = useRef(0);
-  const [items, setItems] = useState<Photo[]>([]),
-    [query, setQuery] = useState(emptyPhotoQuery),
-    [cursor, setCursor] = useState<string | null>(null),
-    [error, setError] = useState(''),
-    [loading, setLoading] = useState(true),
-    [selected, setSelected] = useState<Set<string>>(new Set()),
+  const timeline = useTimeline(view, albumId, refresh, ownerId, entryKey);
+  const { items, query, cursor, previousCursor, loading, error, setError } = timeline;
+  const viewerAnchor = useRef<TimelineAnchor | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set()),
     [opened, setOpened] = useState<Photo | null>(null),
     [album, setAlbum] = useState<Album | null>(null),
     [dialog, setDialog] = useState(''),
@@ -418,45 +438,62 @@ export function Gallery({
         : view === 'trash'
           ? '回收站'
           : (album?.albumName ?? '相册');
-  async function load(next?: string) {
-    const version = ++loadVersion.current;
-    setLoading(true);
-    setError('');
-    try {
-      const page = await api<Page<Photo>>(
-        `${web}/assets?view=${view}&${photoQueryParams(query)}${albumId ? '&albumId=' + albumId : ''}${next ? '&cursor=' + encodeURIComponent(next) : ''}`,
-      );
-      if (version !== loadVersion.current) return;
-      setItems((prev) => (next ? [...prev, ...page.items] : page.items));
-      setCursor(page.nextCursor);
-    } catch (e) {
-      if (version === loadVersion.current) setError((e as Error).message);
-    } finally {
-      if (version === loadVersion.current) setLoading(false);
-    }
-  }
   useEffect(() => {
     let live = true;
-    setItems([]);
-    setCursor(null);
-    setSelected(new Set());
-    void load();
     if (albumId)
       api<Album>(`/api/albums/${albumId}`)
-        .then((a) => {
-          if (live) setAlbum(a);
+        .then((value) => {
+          if (live) setAlbum(value);
         })
-        .catch((e) => {
+        .catch((e: Error) => {
           if (live) setError(e.message);
         });
     return () => {
       live = false;
-      loadVersion.current++;
     };
-  }, [view, albumId, refresh, query]);
+  }, [albumId, refresh]);
   useEffect(() => {
     setOpened(null);
+    setSelected(new Set());
   }, [query]);
+  useEffect(() => {
+    if (opened && !loading && !items.some((photo) => photo.id === opened.id)) setOpened(null);
+  }, [items, loading]);
+  useLayoutEffect(() => {
+    const root = timeline.root.current;
+    const toolbar = root?.querySelector<HTMLElement>('.selection-toolbar');
+    if (!root) return;
+    const update = () =>
+      root.style.setProperty(
+        '--timeline-top',
+        toolbar ? toolbar.getBoundingClientRect().height + 20 + 'px' : '0px',
+      );
+    update();
+    if (!toolbar) return;
+    const observer = new ResizeObserver(update);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [selected.size > 0]);
+  async function moveViewer(side: 'previous' | 'next') {
+    if (!opened || loading) return;
+    const index = items.findIndex((photo) => photo.id === opened.id);
+    const candidate = items[index + (side === 'previous' ? -1 : 1)];
+    if (candidate) {
+      setOpened(candidate);
+      return;
+    }
+    const page = await timeline.more(side);
+    const photo = side === 'previous' ? page.at(-1) : page[0];
+    if (photo) setOpened(photo);
+  }
+  function openPhoto(photo: Photo) {
+    viewerAnchor.current = timeline.captureAnchor();
+    setOpened(photo);
+  }
+  function closePhoto() {
+    setOpened(null);
+    timeline.restoreAnchor(viewerAnchor.current);
+  }
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -524,7 +561,7 @@ export function Gallery({
   };
   const close = () => setDialog('');
   return (
-    <>
+    <div ref={timeline.root} className={timeline.enabled ? 'timeline-gallery' : undefined}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">
@@ -577,7 +614,20 @@ export function Gallery({
           )}
         </div>
       </div>
-      <PhotoFilters apply={setQuery} disabled={busy} trash={view === 'trash'} />
+      <PhotoFilters
+        apply={timeline.apply}
+        initialQuery={query}
+        disabled={busy}
+        trash={view === 'trash'}
+      />
+      {timeline.enabled && (
+        <TimelineNav
+          months={timeline.months}
+          active={timeline.activeMonth}
+          disabled={busy || loading}
+          jump={timeline.jump}
+        />
+      )}
       {selected.size > 0 && (
         <div className="selection-toolbar">
           <strong>已选择 {selected.size} 项</strong>
@@ -641,15 +691,14 @@ export function Gallery({
           </button>
         )}
       </div>
-      <ErrorBox
-        error={error}
-        retry={() => {
-          setSelected(new Set());
-          setItems([]);
-          setCursor(null);
-          void load();
-        }}
-      />
+      <ErrorBox error={error} retry={timeline.retry} />
+      <div ref={timeline.before} className="timeline-edge">
+        {previousCursor && timeline.enabled && (
+          <button disabled={loading} onClick={() => void timeline.more('previous')}>
+            加载前面的照片
+          </button>
+        )}
+      </div>
       {[...groups].map(([label, photos]) => (
         <section className="day-group" key={label}>
           <div className="day-heading">
@@ -674,7 +723,7 @@ export function Gallery({
                 photo={p}
                 selected={selected.has(p.id)}
                 select={() => toggle(p.id)}
-                open={() => setOpened(p)}
+                open={() => openPhoto(p)}
               />
             ))}
           </div>
@@ -704,9 +753,10 @@ export function Gallery({
                   : '从图库删除的照片会出现在这里。'}
         </Empty>
       )}
+      <div ref={timeline.after} className="timeline-edge" />
       {cursor && !error && (
         <div className="load-more">
-          <button disabled={loading} onClick={() => void load(cursor)}>
+          <button disabled={loading} onClick={() => void timeline.more('next')}>
             {loading ? '正在加载…' : '加载更多照片'}
           </button>
         </div>
@@ -714,16 +764,21 @@ export function Gallery({
       {opened && (
         <Viewer
           photo={opened}
-          close={() => setOpened(null)}
+          close={closePhoto}
+          loading={loading}
+          error={error}
+          retry={timeline.retry}
           previous={
-            items.findIndex((p) => p.id === opened.id) > 0
-              ? () => setOpened(items[items.findIndex((p) => p.id === opened.id) - 1])
+            !loading &&
+            (items.findIndex((p) => p.id === opened.id) > 0 || (timeline.enabled && previousCursor))
+              ? () => void moveViewer('previous')
               : undefined
           }
           next={
-            items.findIndex((p) => p.id === opened.id) >= 0 &&
-            items.findIndex((p) => p.id === opened.id) < items.length - 1
-              ? () => setOpened(items[items.findIndex((p) => p.id === opened.id) + 1])
+            !loading &&
+            (items.findIndex((p) => p.id === opened.id) < items.length - 1 ||
+              (timeline.enabled && cursor))
+              ? () => void moveViewer('next')
               : undefined
           }
           favorite={() => void favorite([opened.id], !opened.isFavorite)}
@@ -810,7 +865,7 @@ export function Gallery({
           }
         />
       )}
-    </>
+    </div>
   );
 }
 

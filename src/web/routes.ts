@@ -7,6 +7,7 @@ import { sameOrigin } from './common';
 import { downloads } from './downloads';
 import { manageShares, sharedPhotos } from './shares';
 import { unlockShare } from './share-access';
+import { timeline } from './timeline';
 
 export async function webRoute(
   request: Request,
@@ -33,7 +34,7 @@ export async function webRoute(
   const webPath = path.slice('/api/immich-cf/web/'.length);
   let methods: string[] = [];
   if (unlock) methods = ['POST'];
-  else if (shared || ['bootstrap', 'assets'].includes(webPath)) methods = ['GET'];
+  else if (shared || ['bootstrap', 'assets', 'timeline'].includes(webPath)) methods = ['GET'];
   else if (share) methods = share[1] ? ['DELETE', 'PATCH'] : ['GET', 'POST'];
   else if (download) {
     if (download[2]) methods = ['GET'];
@@ -71,6 +72,7 @@ export async function webRoute(
         response = await upload(request, env, identity);
       } else if (webPath === 'password') response = await changePassword(request, env, identity);
       else if (webPath === 'assets') response = await gallery(request, env, identity);
+      else if (webPath === 'timeline') response = await timeline(request, env, identity);
       else response = await webBootstrap(request, env, identity);
     }
   } catch (error) {

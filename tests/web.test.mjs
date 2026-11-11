@@ -785,6 +785,213 @@ test('浏览器先上传 MOV 再配对 HEIC，同组重试仅一逻辑资产，�
     motion,
   );
 });
+test('年月概览和定位覆盖 1001 张照片，双向分页无遗漏并绑定账号、筛选和版本', async () => {
+  const owner = await user(),
+    foreign = await user();
+  const ids = [];
+  for (let at = 0; at < 1001; at += 50)
+    await db.batch(
+      Array.from({ length: Math.min(50, 1001 - at) }, (_, index) => {
+        const i = at + index,
+          id = randomUUID();
+        ids.push(id);
+        const date = new Date(
+          Date.UTC(
+            2020 + Math.floor(i / 360),
+            Math.floor(i / 30) % 12,
+            Math.floor((i % 30) / 3) + 1,
+            10,
+          ),
+        ).toISOString();
+        return db
+          .prepare(
+            `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite)
+        VALUES(?,?,?,?,?,?,4,1,1,?,?,?,?)`,
+          )
+          .bind(
+            id,
+            owner.id,
+            id,
+            owner.id + '/' + id,
+            'timeline-' + i + '.jpg',
+            i % 3 ? 'image/jpeg' : 'image/png',
+            date,
+            date,
+            date,
+            i % 2,
+          );
+      }),
+    );
+  const overview = async (suffix = '', actor = owner) => {
+    const result = await call(root + '/timeline?timeZone=Asia%2FShanghai' + suffix, actor);
+    assert.equal(result.status, 200);
+    return result.json();
+  };
+  const months = await overview();
+  assert.equal(
+    months.months.reduce((n, month) => n + month.count, 0),
+    1001,
+  );
+  assert.equal(months.months.length, 34);
+  assert.doesNotMatch(JSON.stringify(months), /object_key|checksum|filename/);
+  const middle = months.months[12];
+  const position =
+    '&anchorTime=' + encodeURIComponent(middle.anchorTime) + '&anchorId=' + middle.anchorId;
+  const page = await (await call(root + '/assets?limit=17' + position, owner)).json();
+  assert.equal(page.items[0].id, middle.anchorId);
+  assert.ok(page.previousCursor && page.nextCursor);
+  const all = [...page.items];
+  let previous = page.previousCursor;
+  while (previous) {
+    const r = await call(root + '/assets?limit=100&cursor=' + encodeURIComponent(previous), owner);
+    assert.equal(r.status, 200);
+    const data = await r.json();
+    all.unshift(...data.items);
+    previous = data.previousCursor;
+  }
+  let next = page.nextCursor;
+  while (next) {
+    const r = await call(root + '/assets?limit=100&cursor=' + encodeURIComponent(next), owner);
+    assert.equal(r.status, 200);
+    const data = await r.json();
+    all.push(...data.items);
+    next = data.nextCursor;
+  }
+  assert.equal(all.length, 1001);
+  assert.equal(new Set(all.map(({ id }) => id)).size, 1001);
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1],
+      b = all[i];
+    assert.ok(
+      Date.parse(a.fileCreatedAt) > Date.parse(b.fileCreatedAt) ||
+        (a.fileCreatedAt === b.fileCreatedAt && a.id > b.id),
+    );
+  }
+  const oldest = await overview('&order=oldest');
+  assert.deepEqual(
+    oldest.months.map((m) => m.key),
+    months.months.map((m) => m.key).reverse(),
+  );
+  const ascending = await (
+    await call(
+      root +
+        '/assets?order=oldest&limit=4&anchorTime=' +
+        encodeURIComponent(oldest.months[12].anchorTime) +
+        '&anchorId=' +
+        oldest.months[12].anchorId,
+      owner,
+    )
+  ).json();
+  assert.equal(ascending.items[0].id, oldest.months[12].anchorId);
+  const before = await (
+    await call(
+      root + '/assets?order=oldest&limit=4&cursor=' + encodeURIComponent(ascending.previousCursor),
+      owner,
+    )
+  ).json();
+  assert.ok(
+    Date.parse(before.items.at(-1).fileCreatedAt) <= Date.parse(ascending.items[0].fileCreatedAt),
+  );
+  assert.equal((await call(root + '/assets?cursor=' + page.nextCursor, foreign)).status, 400);
+  assert.equal(
+    (await call(root + '/assets?view=favorites&cursor=' + page.nextCursor, owner)).status,
+    400,
+  );
+  const favorites = await overview('&view=favorites&type=png&q=timeline-');
+  assert.equal(
+    favorites.months.reduce((n, m) => n + m.count, 0),
+    ids.filter((_, i) => i % 2 && i % 3 === 0).length,
+  );
+  const album = await (
+    await call('/api/albums', owner, 'POST', {
+      albumName: '日期定位',
+      assetIds: ids.slice(0, 120),
+    })
+  ).json();
+  assert.equal(
+    (await overview('&view=album&albumId=' + album.id)).months.reduce((n, m) => n + m.count, 0),
+    120,
+  );
+  assert.equal(
+    (await call(root + '/timeline?view=album&albumId=' + album.id, foreign)).status,
+    404,
+  );
+  assert.equal((await call(root + '/assets?cursor=' + page.nextCursor, owner)).status, 409);
+});
+
+test('年月概览遵循 IANA 时区、夏令时和筛选，失效定位选择最近照片，参数错误定位字段', async () => {
+  const owner = await user();
+  const dates = [
+    '2025-12-31T16:00:00.000Z',
+    '2026-03-01T07:30:00.000Z',
+    '2026-03-01T08:30:00.000Z',
+    '2026-03-08T09:59:00.000Z',
+    '2026-03-08T10:00:00.000Z',
+    '2026-11-01T08:30:00.000Z',
+    '2026-11-01T09:30:00.000Z',
+  ];
+  const photos = [];
+  for (const date of dates)
+    photos.push(await seed(owner, liveJpeg(pairId()), 'image/jpeg', { date }));
+  const get = async (zone, extra = '') => {
+    const r = await call(root + '/timeline?timeZone=' + encodeURIComponent(zone) + extra, owner);
+    assert.equal(r.status, 200);
+    return r.json();
+  };
+  const shanghai = await get('Asia/Shanghai');
+  const la = await get('America/Los_Angeles');
+  assert.deepEqual(
+    shanghai.months.map(({ key, count }) => [key, count]),
+    [
+      ['2026-11', 2],
+      ['2026-03', 4],
+      ['2026-01', 1],
+    ],
+  );
+  assert.deepEqual(
+    la.months.map(({ key, count }) => [key, count]),
+    [
+      ['2026-11', 2],
+      ['2026-03', 3],
+      ['2026-02', 1],
+      ['2025-12', 1],
+    ],
+  );
+  assert.equal((await get('Asia/Shanghai', '&version=' + shanghai.version)).unchanged, true);
+  assert.equal((await call(root + '/timeline', null)).status, 401);
+  for (const [route, field] of [
+    ['/timeline?timeZone=not-a-zone', 'timeZone'],
+    ['/timeline?view=trash', 'view'],
+    ['/assets?anchorId=' + photos[0].id, 'anchorTime'],
+    ['/assets?anchorTime=bad', 'anchorTime'],
+    ['/assets?limit=1&limit=2', 'limit'],
+  ]) {
+    const r = await call(root + route, owner);
+    assert.equal(r.status, 400);
+    assert.deepEqual((await r.json()).errors[0].path, [field]);
+  }
+  await call('/api/assets', owner, 'DELETE', { ids: [photos[1].id] });
+  const near = await (
+    await call(
+      root + '/assets?anchorTime=' + encodeURIComponent(dates[1]) + '&anchorId=' + photos[1].id,
+      owner,
+    )
+  ).json();
+  assert.equal(near.items[0].id, photos[2].id);
+  const refreshed = await get('Asia/Shanghai', '&version=' + shanghai.version);
+  assert.ok(!refreshed.unchanged);
+  assert.equal(
+    refreshed.months.reduce((n, m) => n + m.count, 0),
+    6,
+  );
+  const r = await call(
+    root + '/assets?cursor=' + near.previousCursor + '&anchorTime=' + encodeURIComponent(dates[0]),
+    owner,
+  );
+  assert.equal(r.status, 400);
+  assert.deepEqual((await r.json()).errors[0].path, ['cursor/anchorTime']);
+});
+
 test('1001 张跨日期照片稳定分页、收藏/回收站/相册筛选、游标隔离与变化冲突', async () => {
   const u = await user(),
     foreign = await user();

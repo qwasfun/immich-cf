@@ -7,6 +7,7 @@ import { AdminAccounts, MyAccount } from './Accounts';
 import { ErrorBox, Icon, Logo } from './ui';
 import { Upload } from './Upload';
 import { ManageShares } from './Share';
+import { timelineAccount, timelineEntry } from './timeline-state';
 
 function Login({ loggedIn, message }: { loggedIn: () => void; message: string }) {
   const [error, setError] = useState(''),
@@ -120,8 +121,12 @@ export function App() {
     [refresh, setRefresh] = useState(0),
     [mobile, setMobile] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [entry, setEntry] = useState(timelineEntry);
   function navigate(next: string) {
-    window.history.pushState({}, '', next);
+    window.dispatchEvent(new Event('timeline-checkpoint'));
+    const key = crypto.randomUUID();
+    window.history.pushState({ timelineEntry: key }, '', next);
+    setEntry(key);
     setPath(next);
     setMobile(false);
     setMessage('');
@@ -131,9 +136,12 @@ export function App() {
     setError('');
     try {
       const value = await api<Bootstrap>(`${web}/bootstrap`);
+      timelineAccount(value.user.id);
       setBoot(value);
       if (window.location.pathname === '/' || window.location.pathname === '/login') {
-        window.history.replaceState({}, '', '/photos');
+        const key = crypto.randomUUID();
+        window.history.replaceState({ timelineEntry: key }, '', '/photos');
+        setEntry(key);
         setPath('/photos');
       }
     } catch (e) {
@@ -143,8 +151,11 @@ export function App() {
     }
   }
   useEffect(() => {
+    const restoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
     void initialize();
     const expired = (e: Event) => {
+      timelineAccount(null);
       setUploadOpen(false);
       setBoot(null);
       setReady(true);
@@ -153,12 +164,15 @@ export function App() {
       setPath('/login');
     };
     const pop = () => {
+      window.dispatchEvent(new Event('timeline-checkpoint'));
+      setEntry(timelineEntry());
       setPath(window.location.pathname);
       setMobile(false);
     };
     window.addEventListener('session-expired', expired);
     window.addEventListener('popstate', pop);
     return () => {
+      window.history.scrollRestoration = restoration;
       window.removeEventListener('session-expired', expired);
       window.removeEventListener('popstate', pop);
     };
@@ -172,7 +186,11 @@ export function App() {
       }
     };
     document.addEventListener('visibilitychange', listener);
-    return () => document.removeEventListener('visibilitychange', listener);
+    window.addEventListener('focus', listener);
+    return () => {
+      document.removeEventListener('visibilitychange', listener);
+      window.removeEventListener('focus', listener);
+    };
   }, [!!boot]);
   useEffect(() => {
     document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
@@ -336,6 +354,7 @@ export function App() {
               onClick={async () => {
                 try {
                   await api('/api/auth/logout', 'POST');
+                  timelineAccount(null);
                   setUploadOpen(false);
                   setBoot(null);
                   setMessage('已退出登录');
@@ -374,7 +393,9 @@ export function App() {
             )
           ) : ['/photos', '/favorites', '/trash'].includes(path) || albumId ? (
             <Gallery
-              key={path}
+              key={path + ':' + entry}
+              ownerId={boot.user.id}
+              entryKey={entry}
               view={albumId ? 'album' : path.slice(1)}
               albumId={albumId}
               refresh={refresh}

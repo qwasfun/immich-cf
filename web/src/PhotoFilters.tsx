@@ -1,7 +1,16 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { emptyPhotoQuery, photoQuery, photoQueryParams } from '../../src/web/gallery-query';
 import type { PhotoQuery } from '../../src/web/gallery-query';
 import { ErrorBox, Icon } from './ui';
+
+function dateInput(iso: string, end = false) {
+  if (!iso) return '';
+  const date = new Date(Date.parse(iso) - (end ? 1 : 0));
+  return `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function draftOf(query: PhotoQuery) {
+  return { ...query, from: dateInput(query.from), to: dateInput(query.to, true) };
+}
 
 function localDate(value: string, label: string) {
   const parsed = new Date(`${value}T00:00:00`);
@@ -20,13 +29,19 @@ export function PhotoFilters({
   apply,
   disabled = false,
   trash = false,
+  initialQuery,
 }: {
   apply: (query: PhotoQuery) => void;
   disabled?: boolean;
   trash?: boolean;
+  initialQuery?: PhotoQuery;
 }) {
   const id = useId();
   const [error, setError] = useState('');
+  const [draft, setDraft] = useState(() => draftOf(initialQuery ?? emptyPhotoQuery));
+  useEffect(() => {
+    if (initialQuery) setDraft(draftOf(initialQuery));
+  }, [initialQuery]);
   return (
     <form
       className="photo-filters"
@@ -67,8 +82,10 @@ export function PhotoFilters({
           setError((e as Error).message);
         }
       }}
-      onReset={() => {
+      onReset={(event) => {
+        event.preventDefault();
         setError('');
+        setDraft(draftOf(emptyPhotoQuery));
         apply({ ...emptyPhotoQuery });
       }}
     >
@@ -82,19 +99,38 @@ export function PhotoFilters({
             type="search"
             placeholder="输入文件名搜索整个列表"
             maxLength={100}
+            value={draft.q}
+            onChange={(event) => setDraft({ ...draft, q: event.target.value })}
           />
         </label>
         <label className="field" htmlFor={`${id}-from`}>
           拍摄开始日期
-          <input id={`${id}-from`} name="from" type="date" />
+          <input
+            id={`${id}-from`}
+            name="from"
+            type="date"
+            value={draft.from}
+            onChange={(event) => setDraft({ ...draft, from: event.target.value })}
+          />
         </label>
         <label className="field" htmlFor={`${id}-to`}>
           拍摄结束日期
-          <input id={`${id}-to`} name="to" type="date" />
+          <input
+            id={`${id}-to`}
+            name="to"
+            type="date"
+            value={draft.to}
+            onChange={(event) => setDraft({ ...draft, to: event.target.value })}
+          />
         </label>
         <label className="field" htmlFor={`${id}-type`}>
           照片类型
-          <select id={`${id}-type`} name="type" defaultValue="all">
+          <select
+            id={`${id}-type`}
+            name="type"
+            value={draft.type}
+            onChange={(event) => setDraft({ ...draft, type: event.target.value })}
+          >
             <option value="all">全部类型</option>
             <option value="static">静态照片</option>
             <option value="live">动态照片（Live Photo）</option>
@@ -105,7 +141,12 @@ export function PhotoFilters({
         </label>
         <label className="field" htmlFor={`${id}-order`}>
           排序{trash ? '（删除时间）' : '（拍摄时间）'}
-          <select id={`${id}-order`} name="order" defaultValue="newest">
+          <select
+            id={`${id}-order`}
+            name="order"
+            value={draft.order}
+            onChange={(event) => setDraft({ ...draft, order: event.target.value })}
+          >
             <option value="newest">最新在前</option>
             <option value="oldest">最早在前</option>
           </select>
