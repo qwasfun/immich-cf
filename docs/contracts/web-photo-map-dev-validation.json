@@ -1,0 +1,674 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T19:35:55.447Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-encoded-deep-link",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "lazy-map-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "lazy-map-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-map-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-position-list-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "leaflet-license-notice",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "position-first-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "position-second-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "position-backward-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cursor-bounds-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-scope-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-sort-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cursor-account-isolation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "position-timeline-consistency",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-only-probe-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "inspect-probe-labels",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-and-rate-probe-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "combined-position-filter",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "foreign-album-not-accessible",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "fresh-location-cursor",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "stale-position-cursor",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "moved-anchor-recovers-nearest",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "date-line-position-list",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-position-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "edit-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "archive-only-probe-position",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "trash-only-probe-photo",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "restore-probe-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "specific-map-validation-bounds",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-bounds",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-bounds",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-zoom",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-mapView",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-view",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "specific-map-validation-userId",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "map-read-only-method",
+      "status": 405,
+      "expected": 405
+    },
+    {
+      "label": "album-relations-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-index-empty-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-overview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "originalsVerified": 4,
+  "mapVerified": true,
+  "sourceCommit": "fa468ec383d16eaa550ea56a93c931b8be6a14f0",
+  "workerVersion": "2a1ef4fc-dcf1-40ea-b0b1-ab7eed38baa0",
+  "newMigration": null,
+  "databaseSchema": "0037_photo_labels.sql remains current",
+  "syntheticOriginals": 4,
+  "local": {
+    "check": "passed",
+    "tests": 316,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources",
+    "newGeometryScenarios": 4,
+    "newStateScenarios": 3,
+    "newIntegrationScenarios": 6,
+    "syntheticPhotos": 1001,
+    "maxClusters": 512,
+    "pageSize": 60,
+    "releaseRehearsalChecks": 105
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated-local-D1-R2",
+    "assertions": 52,
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 1000
+      },
+      {
+        "width": 820,
+        "height": 1000
+      }
+    ],
+    "suites": [
+      {
+        "suite": "map-desktop",
+        "checks": [
+          "complete-filtered-gps-count",
+          "real-osm-basemap-loaded",
+          "visible-osm-attribution",
+          "marker-opens-count-preview-and-coordinates",
+          "selected-place-is-overlay",
+          "cluster-zoom-updates-area",
+          "tile-requests-use-origin-referrer",
+          "tiles-omit-private-headers",
+          "drag-updates-query-bounds",
+          "fit-all-restores-all-locations",
+          "area-detail-deep-link",
+          "area-inherits-map-filter",
+          "area-first-page-60",
+          "filter-cannot-escape-selected-place",
+          "area-auto-load-all-75",
+          "area-no-duplicates",
+          "area-shift-selection",
+          "area-reuses-share-and-metadata",
+          "area-large-viewer",
+          "large-viewer-return-keeps-offset",
+          "area-history-restores-photo-offset",
+          "area-refresh-restores-photo-offset",
+          "return-map-keeps-filter",
+          "map-network-failure-keeps-markers",
+          "map-failure-disables-area-navigation",
+          "map-retry-recovers",
+          "hide-basemap-keeps-markers",
+          "basemap-preference-survives-refresh",
+          "tile-failure-keeps-photo-navigation",
+          "tile-retry-recovers",
+          "favorites-map-scope",
+          "archive-map-scope",
+          "map-empty-state"
+        ],
+        "externalTiles": {
+          "loaded": true,
+          "originReferrer": true,
+          "privateHeadersAbsent": true
+        }
+      },
+      {
+        "suite": "map-responsive",
+        "checks": [
+          "390-all-positions-fit-world",
+          "390-no-horizontal-overflow",
+          "390-map-fits-screen",
+          "390-mobile-map-navigation",
+          "390-place-panel-contained",
+          "390-place-actions-accessible",
+          "390-attribution-kept-in-map",
+          "390-position-gallery-contained",
+          "390-position-large-viewer",
+          "390-map-filter-restored",
+          "820-all-positions-fit-world",
+          "820-no-horizontal-overflow",
+          "820-map-fits-screen",
+          "820-place-panel-contained",
+          "820-place-actions-accessible",
+          "820-attribution-kept-in-map",
+          "820-position-gallery-contained",
+          "820-position-large-viewer",
+          "820-map-filter-restored"
+        ]
+      }
+    ],
+    "externalTileHeaders": {
+      "headersApi": "request.allHeaders",
+      "cookieObservedOnSite": true,
+      "tilesObserved": 12,
+      "privateHeadersAbsent": true,
+      "originReferrer": true,
+      "anonymousImages": true
+    }
+  },
+  "limitations": [
+    "Public verification covered HTTP and deployed frontend resources; browser interaction used isolated local D1/R2 fixtures with actual OpenStreetMap tiles.",
+    "The Web map reads stored effective GPS; older photos may need explicit EXIF extraction or location entry. No address geocoding, browser geolocation or official App map APIs were implemented.",
+    "Real phone touch gestures and iPhone Safari were not verified; third-party basemap availability is network dependent."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-map-desktop.png",
+    "tablet": "work/output/playwright/web-map-820.png",
+    "mobile": "work/output/playwright/web-map-390.png"
+  }
+}
