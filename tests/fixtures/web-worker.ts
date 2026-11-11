@@ -49,7 +49,42 @@ export default {
                 return db.batch(statements);
               },
             }
-          : db,
+          : request.headers.has('x-test-album-transfer')
+            ? {
+                prepare: db.prepare.bind(db),
+                async batch(statements: D1PreparedStatement[]) {
+                  const action = request.headers.get('x-test-album-transfer');
+                  const session = request.headers.get('x-test-transfer-session');
+                  if (action === 'revoke')
+                    await db.prepare('DELETE FROM sessions WHERE id=?').bind(session).run();
+                  if (action === 'expire')
+                    await db
+                      .prepare('UPDATE sessions SET expires_at=0 WHERE id=?')
+                      .bind(session)
+                      .run();
+                  if (action === 'disable')
+                    await db
+                      .prepare(
+                        'UPDATE users SET disabled=1 WHERE id=(SELECT user_id FROM sessions WHERE id=?)',
+                      )
+                      .bind(session)
+                      .run();
+                  if (action === 'target-delete')
+                    await db
+                      .prepare('DELETE FROM albums WHERE id=?')
+                      .bind(request.headers.get('x-test-transfer-target'))
+                      .run();
+                  if (action === 'stale')
+                    await db
+                      .prepare(
+                        "UPDATE albums SET description=description||' concurrent' WHERE id=?",
+                      )
+                      .bind(request.headers.get('x-test-transfer-target'))
+                      .run();
+                  return db.batch(statements);
+                },
+              }
+            : db,
     } as unknown as Env;
     // Synchronous preview mode makes transformation failure and quota states deterministic.
     return app.fetch(

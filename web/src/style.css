@@ -818,6 +818,9 @@ main {
   min-width: 0;
 }
 .album-cover {
+  width: 100%;
+  padding: 0;
+  border: 0;
   aspect-ratio: 1.2;
   border-radius: 13px;
   overflow: hidden;
@@ -832,6 +835,76 @@ main {
   align-items: center;
   margin-top: 12px;
   gap: 8px;
+}
+.album-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.album-filters .field {
+  margin: 0;
+  min-width: 0;
+}
+.album-filters button {
+  min-height: 43px;
+}
+.modal:has(.album-transfer-body) {
+  overflow: hidden;
+}
+.modal:has(.album-transfer-body) .modal-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+}
+.modal:has(.album-transfer-body) header,
+.modal:has(.album-transfer-body) .modal-actions {
+  flex-shrink: 0;
+}
+.album-transfer-body {
+  min-height: 0;
+  overflow: auto;
+}
+.album-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 34dvh;
+  overflow: auto;
+  padding: 2px;
+}
+.album-target {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.album-target strong {
+  overflow-wrap: anywhere;
+}
+.album-target span {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.album-target[aria-pressed='true'] {
+  border-color: #5677df;
+  background: #edf2ff;
+}
+@media (max-width: 700px) {
+  .album-filters {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .album-filters .field:first-child {
+    grid-column: 1 / -1;
+  }
 }
 .album-open {
   padding: 0;

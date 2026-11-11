@@ -32,6 +32,9 @@ const labels: Record<string, string> = {
   visibility: '照片类型',
   'x-immich-checksum': '文件校验',
   albumId: '相册',
+  sourceAlbumId: '来源相册',
+  targetAlbumId: '目标相册',
+  mode: '整理方式',
   downloadId: '下载任务',
   attempt: '下载尝试',
   days: '有效期',
@@ -162,6 +165,8 @@ export interface Album {
   description: string;
   albumThumbnailAssetId: string | null;
   assetCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 export interface Bootstrap {
   user: { id: string; email: string; name: string };

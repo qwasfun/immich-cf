@@ -12,6 +12,8 @@ import type { TimelineAnchor } from './timeline-state';
 import { PhotoMetadataInfo, EditPhotoMetadata, CorrectPhotoTime } from './PhotoMetadata';
 import { PhotoViewer, type ViewerMove } from './PhotoViewer';
 import { usePhotoSelection } from './usePhotoSelection';
+import { AlbumTransfer, type AlbumSnapshot } from './AlbumTransfer';
+import { albumList, type AlbumOrder } from './album-list';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -180,70 +182,6 @@ export function Picker({
   );
 }
 
-function AlbumChoice({
-  ids,
-  close,
-  changed,
-}: {
-  ids: string[];
-  close: () => void;
-  changed: Changed;
-}) {
-  const [albums, setAlbums] = useState<Album[]>([]),
-    [error, setError] = useState(''),
-    [busy, setBusy] = useState(false),
-    [target, setTarget] = useState('');
-  useEffect(() => {
-    api<Album[]>('/api/albums')
-      .then((rows) => {
-        setAlbums(rows);
-        setTarget(rows[0]?.id ?? '');
-      })
-      .catch((e) => setError(e.message));
-  }, []);
-  return (
-    <Modal title="添加到相册" close={close} busy={busy}>
-      <div className="form-body">
-        <p className="muted">将 {ids.length} 张照片添加到个人相册，原有照片会保留。</p>
-        <label className="field">
-          选择相册
-          <select value={target} onChange={(e) => setTarget(e.target.value)} disabled={busy}>
-            {albums.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.albumName}
-              </option>
-            ))}
-          </select>
-        </label>
-        {!albums.length && !error && <p>还没有相册，请先在“相册”页面创建。</p>}
-        <ErrorBox error={error} />
-      </div>
-      <footer className="modal-actions">
-        <button disabled={busy} onClick={close}>
-          取消
-        </button>
-        <button
-          className="primary"
-          disabled={!target || busy}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              changed(await albumMembers(target, ids, 'PUT'));
-              close();
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {busy ? '正在添加…' : '添加到相册'}
-        </button>
-      </footer>
-    </Modal>
-  );
-}
-
 function Viewer({
   photo,
   previous,
@@ -256,6 +194,11 @@ function Viewer({
   error,
   retry,
   edit,
+  moveAlbum,
+  cover,
+  isCover = false,
+  busy = false,
+  inAlbum = false,
 }: {
   photo: Photo;
   previous?: ViewerMove;
@@ -268,6 +211,11 @@ function Viewer({
   error: string;
   retry: () => void;
   edit: () => void;
+  moveAlbum?: () => void;
+  cover?: () => void;
+  isCover?: boolean;
+  busy?: boolean;
+  inAlbum?: boolean;
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
@@ -356,8 +304,18 @@ function Viewer({
               </button>
               <button onClick={() => act(addAlbum)}>
                 <Icon name="album" />
-                加入相册
+                {inAlbum ? '复制到相册' : '加入相册'}
               </button>
+              {moveAlbum && (
+                <button disabled={busy} onClick={() => act(moveAlbum)}>
+                  移动到相册
+                </button>
+              )}
+              {cover && (
+                <button disabled={busy || isCover} onClick={() => act(cover)}>
+                  {isCover ? '已是封面' : '设为封面'}
+                </button>
+              )}
               <button onClick={() => act(edit)}>编辑资料</button>
               <button onClick={() => act(remove)}>
                 <Icon name="trash" />
@@ -647,7 +605,14 @@ export function Gallery({
               >
                 {view === 'favorites' ? '取消收藏' : '收藏'}
               </button>
-              <button onClick={() => ask('album')}>加入相册</button>
+              <button disabled={busy || loading} onClick={() => ask('album')}>
+                {albumId ? '复制到相册' : '加入相册'}
+              </button>
+              {albumId && (
+                <button disabled={busy || loading} onClick={() => ask('move-album')}>
+                  移动到相册
+                </button>
+              )}
               <button disabled={busy || loading} onClick={() => ask('correct-time')}>
                 修正拍摄时间
               </button>
@@ -784,6 +749,11 @@ export function Gallery({
           remove={() => ask('trash', [opened.id])}
           addAlbum={() => ask('album', [opened.id])}
           edit={() => ask('edit-photo', [opened.id])}
+          inAlbum={!!albumId}
+          busy={busy}
+          moveAlbum={albumId ? () => ask('move-album', [opened.id]) : undefined}
+          cover={albumId ? () => void setCover(opened.id) : undefined}
+          isCover={album?.albumThumbnailAssetId === opened.id}
         />
       )}
       {dialog === 'edit-photo' && (
@@ -806,7 +776,15 @@ export function Gallery({
           }}
         />
       )}
-      {dialog === 'album' && <AlbumChoice ids={targets} close={close} changed={changed} />}
+      {(dialog === 'album' || dialog === 'move-album') && (
+        <AlbumTransfer
+          ids={targets}
+          source={albumId || undefined}
+          moving={dialog === 'move-album'}
+          close={close}
+          changed={dialog === 'move-album' ? done : changed}
+        />
+      )}
       {dialog === 'download' && <Download ids={targets} close={close} />}
       {dialog === 'download-album' && <Download albumId={albumId} close={close} />}
       {dialog === 'share' && <ShareDialog ids={targets} close={close} />}
@@ -903,13 +881,15 @@ export function Albums({
     [loading, setLoading] = useState(true),
     [create, setCreate] = useState(false),
     [remove, setRemove] = useState<Album | null>(null);
+  const [query, setQuery] = useState(''),
+    [order, setOrder] = useState<AlbumOrder>('updated');
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
-    api<Album[]>('/api/albums')
+    api<AlbumSnapshot>(`${web}/albums`)
       .then((rows) => {
-        if (active) setItems(rows);
+        if (active) setItems(rows.items);
       })
       .catch((e) => {
         if (active) setError(e.message);
@@ -921,6 +901,7 @@ export function Albums({
       active = false;
     };
   }, [refresh]);
+  const visible = albumList(items, query, order);
   return (
     <>
       <div className="page-heading">
@@ -935,17 +916,55 @@ export function Albums({
         </button>
       </div>
       <ErrorBox error={error} retry={() => changed('正在重新加载相册')} />
+      <div className="album-filters" role="search" aria-label="查找相册">
+        <label className="field">
+          相册名称或描述
+          <input
+            type="search"
+            value={query}
+            maxLength={100}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="查找相册"
+          />
+        </label>
+        <label className="field">
+          相册排序
+          <select value={order} onChange={(event) => setOrder(event.target.value as AlbumOrder)}>
+            <option value="updated">最近更新</option>
+            <option value="created">最近创建</option>
+            <option value="name">名称顺序</option>
+            <option value="count">照片最多</option>
+          </select>
+        </label>
+        <button
+          onClick={() => {
+            setQuery('');
+            setOrder('updated');
+          }}
+        >
+          重置
+        </button>
+      </div>
+      {!loading && (
+        <p className="list-summary" role="status">
+          显示 {visible.length} / {items.length} 本相册
+        </p>
+      )}
       {loading && <p className="muted">正在加载相册…</p>}
       <div className="album-grid">
-        {items.map((a) => (
+        {visible.map((a) => (
           <article className="album-card" key={a.id}>
-            <div className="album-cover">
+            <button
+              className="album-cover"
+              aria-label={`打开相册 ${a.albumName}`}
+              onClick={() => navigate(`/albums/${a.id}`)}
+            >
               {a.albumThumbnailAssetId ? (
                 <Preview id={a.albumThumbnailAssetId} name={a.albumName} />
               ) : (
                 <Icon name="album" size={42} />
               )}
-            </div>
+            </button>
             <div className="album-meta">
               <button className="album-open" onClick={() => navigate(`/albums/${a.id}`)}>
                 <strong>{a.albumName}</strong>
@@ -962,6 +981,11 @@ export function Albums({
           </article>
         ))}
       </div>
+      {!loading && !error && items.length > 0 && visible.length === 0 && (
+        <Empty icon="album" title="没有匹配的相册">
+          请调整名称或描述搜索，或重置筛选。
+        </Empty>
+      )}
       {!loading && !error && !items.length && (
         <Empty icon="album" title="创建第一本相册">
           旅行、家人，或平凡又特别的一天。

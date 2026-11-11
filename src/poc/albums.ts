@@ -1,7 +1,7 @@
 import { type Identity, userDto } from './auth';
 import { body, digest, HttpError, invalid } from './http';
 
-interface Album {
+export interface Album {
   id: string;
   owner_id: string;
   name: string;
@@ -41,6 +41,7 @@ function text(value: unknown, field: string, max: number, nullable = false) {
 const selectAlbum = `SELECT b.*,(SELECT COUNT(*) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) asset_count,
  (SELECT MIN(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) start_date,
  (SELECT MAX(a.file_created_at) FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.album_id=b.id AND a.deleted_at IS NULL) end_date FROM albums b`;
+export { selectAlbum };
 export function albumDto(row: Album, identity: Identity) {
   return {
     id: row.id,

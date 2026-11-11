@@ -10,6 +10,7 @@ import { unlockShare } from './share-access';
 import { timeline } from './timeline';
 import { photoMetadata } from './photo-metadata';
 import { PhotoTimeError, photoTimeZone } from '../photo-time';
+import { webAlbums, transferAlbums } from './album-organization';
 
 export async function webRoute(
   request: Request,
@@ -38,6 +39,8 @@ export async function webRoute(
   let methods: string[] = [];
   if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
   else if (webPath === 'photo-metadata') methods = ['PATCH'];
+  else if (webPath === 'album-transfer') methods = ['POST'];
+  else if (webPath === 'albums') methods = ['GET'];
   else if (unlock) methods = ['POST'];
   else if (shared || ['bootstrap', 'assets', 'timeline'].includes(webPath)) methods = ['GET'];
   else if (share) methods = share[1] ? ['DELETE', 'PATCH'] : ['GET', 'POST'];
@@ -67,6 +70,10 @@ export async function webRoute(
       const identity = await authenticate(request, env.IMMICH_CF_DB);
       if (metadata)
         response = await photoMetadata(request, env, identity, metadata[1], !!metadata[2]);
+      else if (webPath === 'albums')
+        response = await webAlbums(request, env.IMMICH_CF_DB, identity);
+      else if (webPath === 'album-transfer')
+        response = await transferAlbums(request, env.IMMICH_CF_DB, identity);
       else if (webPath === 'photo-metadata') response = await photoMetadata(request, env, identity);
       else if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
       else if (download)

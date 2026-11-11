@@ -1,5 +1,7 @@
 # immich-cf
 
+Web 新增[相册整理](docs/web-albums.md)：名称/描述查找、四种排序、整批复制/移动和大图快捷设封面。
+
 Web 已支持 [照片资料与时间修正](docs/web-photo-metadata.md)：EXIF 相机/GPS/时间展示、描述与位置编辑、批量时间偏移及时区修正。
 
 测试与生产环境已于 2026-11-10 首次发布，地址、登录方式及验证结果见 [部署记录](docs/test-prod-deployment.md)。

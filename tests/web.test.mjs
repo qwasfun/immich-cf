@@ -1822,3 +1822,278 @@ test('提交时重新授权：已撤销的管理员不能靠旧身份写入，�
     0,
   );
 });
+
+const albumSnapshot = async (u) => (await call(root + '/albums', u)).json();
+const organize = async (u, data, headers = {}) =>
+  call(root + '/album-transfer', u, 'POST', data, headers);
+async function makeAlbum(u, ids = [], name = '整理相册') {
+  const result = await call('/api/albums', u, 'POST', { albumName: name, assetIds: ids });
+  assert.equal(result.status, 201, await result.clone().text());
+  return result.json();
+}
+async function relations(album) {
+  return (
+    await db
+      .prepare('SELECT asset_id FROM album_assets WHERE album_id=? ORDER BY asset_id')
+      .bind(album.id)
+      .all()
+  ).results.map((row) => row.asset_id);
+}
+test('相册整理快照只包含本人完整相册、排序资料和版本，拒绝多余查询及未登录', async () => {
+  const a = await user(),
+    b = await user();
+  const own = await makeAlbum(a, [], '旅行'),
+    foreign = await makeAlbum(b, [], '私有');
+  const snapshot = await albumSnapshot(a);
+  assert.deepEqual(
+    snapshot.items.map((x) => x.id),
+    [own.id],
+  );
+  assert.match(snapshot.version, /^\d+:\d+$/);
+  assert.ok(snapshot.items[0].createdAt && snapshot.items[0].updatedAt);
+  assert.doesNotMatch(
+    JSON.stringify(snapshot),
+    new RegExp(foreign.id + '|object_key|token_hash|session_id'),
+  );
+  assert.equal((await call(root + '/albums', null)).status, 401);
+  const bad = await call(root + '/albums?q=bad', a);
+  assert.equal(bad.status, 400);
+  assert.equal((await bad.json()).errors[0].path[0], 'q');
+});
+test('复制与移动整批原子处理重复项、封面及同步，保留其他相册和 Live Photo 两份原件', async () => {
+  const u = await user(),
+    pair = pairId(),
+    motion = await seed(u, liveMov(pair), 'video/quicktime', {
+      type: 'VIDEO',
+      visibility: 'hidden',
+      pair,
+    }),
+    photo = await seed(u, liveHeic(pair), 'image/heic', { pair, video: motion.id }),
+    other = await seed(u);
+  const source = await makeAlbum(u, [photo.id, other.id], '来源'),
+    target = await makeAlbum(u, [photo.id], '目标'),
+    third = await makeAlbum(u, [photo.id], '其他');
+  const before = (
+    await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(u.id).all()
+  ).results;
+  let version = (await albumSnapshot(u)).version;
+  const copied = await organize(u, {
+    ids: [photo.id, other.id, other.id],
+    sourceAlbumId: source.id,
+    targetAlbumId: target.id,
+    mode: 'copy',
+    version,
+  });
+  assert.equal(copied.status, 200, await copied.clone().text());
+  assert.deepEqual(await copied.json(), { processed: 2, added: 1, alreadyPresent: 1, removed: 0 });
+  assert.deepEqual(await relations(source), [photo.id, other.id].sort());
+  version = (await albumSnapshot(u)).version;
+  const moved = await organize(u, {
+    ids: [photo.id],
+    sourceAlbumId: source.id,
+    targetAlbumId: target.id,
+    mode: 'move',
+    version,
+  });
+  assert.equal(moved.status, 200);
+  assert.deepEqual(await moved.json(), { processed: 1, added: 0, alreadyPresent: 1, removed: 1 });
+  assert.deepEqual(await relations(source), [other.id]);
+  assert.deepEqual(await relations(third), [photo.id]);
+  const updated = await (await call('/api/albums/' + source.id, u)).json();
+  assert.equal(updated.albumThumbnailAssetId, other.id);
+  assert.equal(
+    (
+      await db
+        .prepare(
+          'SELECT COUNT(*) n FROM album_asset_deletions WHERE owner_id=? AND album_id=? AND asset_id=?',
+        )
+        .bind(u.id, source.id, photo.id)
+        .first()
+    ).n,
+    1,
+  );
+  assert.deepEqual(
+    (await db.prepare('SELECT * FROM assets WHERE owner_id=? ORDER BY id').bind(u.id).all())
+      .results,
+    before,
+  );
+  for (const asset of [photo, motion])
+    assert.deepEqual(Buffer.from(await (await bucket.get(asset.key)).arrayBuffer()), asset.content);
+  const replay = await organize(u, {
+    ids: [photo.id],
+    sourceAlbumId: source.id,
+    targetAlbumId: target.id,
+    mode: 'move',
+    version,
+  });
+  assert.equal(replay.status, 409);
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM web_album_transfer_guards').first()).n, 0);
+});
+test('相册整理校验定位字段，拒绝跨站、同一相册、缺失来源、无效类型、超过1000项及跨账号', async () => {
+  const u = await user(),
+    foreign = await user(),
+    p = await seed(u),
+    other = await seed(foreign),
+    source = await makeAlbum(u, [p.id]),
+    target = await makeAlbum(u),
+    outside = await makeAlbum(foreign, [other.id]);
+  const data = {
+    ids: [p.id],
+    sourceAlbumId: source.id,
+    targetAlbumId: target.id,
+    mode: 'move',
+    version: (await albumSnapshot(u)).version,
+  };
+  for (const [patch, status, key] of [
+    [{ targetAlbumId: source.id }, 400, 'targetAlbumId'],
+    [{ sourceAlbumId: undefined }, 400, 'sourceAlbumId'],
+    [{ mode: ['copy'] }, 400, 'mode'],
+    [{ ids: [] }, 400, 'ids'],
+    [{ ids: Array(1001).fill(p.id) }, 400, 'ids'],
+    [{ version: 'secret-bad-value' }, 400, 'version'],
+    [{ targetAlbumId: outside.id }, 404, 'targetAlbumId'],
+    [{ sourceAlbumId: outside.id }, 404, 'sourceAlbumId'],
+    [{ ids: [other.id] }, 404, 'ids'],
+  ]) {
+    const result = await organize(u, { ...data, ...patch });
+    assert.equal(result.status, status, JSON.stringify(patch));
+    const error = await result.json();
+    assert.equal(error.errors[0].path[0], key);
+    assert.match(error.message, /：/);
+    assert.doesNotMatch(error.message, /secret-bad-value/);
+  }
+  assert.equal((await organize(u, data, { Origin: 'https://foreign.invalid' })).status, 403);
+  assert.equal((await organize(null, data)).status, 401);
+  assert.deepEqual(await relations(source), [p.id]);
+  assert.deepEqual(await relations(target), []);
+});
+test('相册移动提交前撤销、过期、停用、删除目标或版本变化，均保留来源关系', async () => {
+  for (const action of ['revoke', 'expire', 'disable', 'target-delete', 'stale']) {
+    const u = await user(),
+      p = await seed(u),
+      source = await makeAlbum(u, [p.id]),
+      target = await makeAlbum(u),
+      version = (await albumSnapshot(u)).version;
+    const result = await organize(
+      u,
+      { ids: [p.id], sourceAlbumId: source.id, targetAlbumId: target.id, mode: 'move', version },
+      {
+        'x-test-album-transfer': action,
+        'x-test-transfer-session': u.sessionId,
+        'x-test-transfer-target': target.id,
+      },
+    );
+    assert.equal(
+      result.status,
+      action === 'target-delete' ? 404 : action === 'stale' ? 409 : 401,
+      action,
+    );
+    assert.deepEqual(await relations(source), [p.id], action);
+    assert.deepEqual(await relations(target), [], action);
+    assert.equal(
+      (await db.prepare('SELECT COUNT(*) n FROM web_album_transfer_guards').first()).n,
+      0,
+    );
+  }
+});
+test('移动在写入目标之后失败会回滚新增关系、封面、同步版本和删除日志', async () => {
+  const u = await user(),
+    p = await seed(u),
+    source = await makeAlbum(u, [p.id]),
+    target = await makeAlbum(u),
+    version = (await albumSnapshot(u)).version;
+  const before = (
+    await db
+      .prepare(
+        'SELECT id,thumbnail_asset_id,sync_seq,touch_revision FROM albums WHERE owner_id=? ORDER BY id',
+      )
+      .bind(u.id)
+      .all()
+  ).results;
+  await db
+    .prepare(
+      `CREATE TRIGGER test_transfer_rollback BEFORE DELETE ON album_assets WHEN OLD.album_id='${source.id}' BEGIN SELECT RAISE(ABORT,'TEST_TRANSFER_ROLLBACK'); END`,
+    )
+    .run();
+  try {
+    const result = await organize(u, {
+      ids: [p.id],
+      sourceAlbumId: source.id,
+      targetAlbumId: target.id,
+      mode: 'move',
+      version,
+    });
+    assert.equal(result.status, 503);
+  } finally {
+    await db.prepare('DROP TRIGGER test_transfer_rollback').run();
+  }
+  assert.deepEqual(await relations(source), [p.id]);
+  assert.deepEqual(await relations(target), []);
+  assert.equal((await albumSnapshot(u)).version, version);
+  assert.deepEqual(
+    (
+      await db
+        .prepare(
+          'SELECT id,thumbnail_asset_id,sync_seq,touch_revision FROM albums WHERE owner_id=? ORDER BY id',
+        )
+        .bind(u.id)
+        .all()
+    ).results,
+    before,
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT COUNT(*) n FROM album_asset_deletions WHERE owner_id=?')
+        .bind(u.id)
+        .first()
+    ).n,
+    0,
+  );
+});
+test('相册整理支持1000张批量移动，无遗漏或重复，隐藏动态及回收项不能直接整理', async () => {
+  const u = await user(),
+    ids = [];
+  for (let at = 0; at < 1000; at += 50)
+    await db.batch(
+      Array.from({ length: 50 }, (_, n) => {
+        const id = randomUUID();
+        ids.push(id);
+        const date = '2026-11-11T00:00:00.000Z';
+        return db
+          .prepare(
+            "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,0)",
+          )
+          .bind(id, u.id, id, id, 'batch-' + (at + n) + '.jpg', date, date, date);
+      }),
+    );
+  const source = await makeAlbum(u, ids),
+    target = await makeAlbum(u),
+    version = (await albumSnapshot(u)).version;
+  const moved = await organize(u, {
+    ids,
+    sourceAlbumId: source.id,
+    targetAlbumId: target.id,
+    mode: 'move',
+    version,
+  });
+  assert.equal(moved.status, 200, await moved.clone().text());
+  assert.equal((await moved.json()).processed, 1000);
+  assert.deepEqual(await relations(source), []);
+  assert.deepEqual(await relations(target), [...ids].sort());
+  const trashed = await seed(u);
+  await call('/api/assets', u, 'DELETE', { ids: [trashed.id] });
+  const hidden = await seed(u, liveMov(pairId()), 'video/quicktime', {
+    type: 'VIDEO',
+    visibility: 'hidden',
+  });
+  for (const id of [trashed.id, hidden.id]) {
+    const response = await organize(u, {
+      ids: [id],
+      targetAlbumId: target.id,
+      mode: 'copy',
+      version: (await albumSnapshot(u)).version,
+    });
+    assert.equal(response.status, 404);
+  }
+});
