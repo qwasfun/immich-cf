@@ -1,0 +1,360 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-11T13:15:54.937Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "owned-album-snapshot",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "initial-album-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-initial-album-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "copy-skips-existing-photo",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "stale-version-rejected",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "owned-album-snapshot",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "same-album-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "missing-source-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "invalid-mode-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "empty-ids-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "over-limit-rejected",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "cross-origin-rejected",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "anonymous-rejected",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-album-snapshot",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cross-owner-target-rejected",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "move-already-present-photos",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "read-probe-album-members",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "empty-source-cover-cleared",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "set-target-cover",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "target-cover-updated",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "incremental-album-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "syncVerified": true,
+  "originalsVerified": 2,
+  "sourceCommit": "f683e8001ed693091e8d934247dd3a99e0c6ab9b",
+  "workerVersion": "d31e182b-301d-4790-9087-4c642765569d",
+  "migration": "0035_web_album_transfer.sql",
+  "local": {
+    "check": "passed",
+    "tests": 280,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": "passed - 279 operations and 53 sources",
+    "newIntegrationScenarios": 6,
+    "localReleaseRehearsalChecks": 50
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated local D1/R2",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 960
+      },
+      {
+        "width": 1280,
+        "height": 900
+      },
+      {
+        "width": 820,
+        "height": 1180
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "suites": [
+      {
+        "suite": "album-organization-desktop",
+        "checks": [
+          "Album search includes description and ignores ASCII case",
+          "Album name sorting uses numeric order",
+          "Album count sort",
+          "Album creation order keeps complete search results",
+          "Empty search gives correction prompt",
+          "Viewer shortcut updates album cover",
+          "Copy retains source relationships",
+          "Copy skips duplicate target relationship",
+          "Stale transfer requires refresh",
+          "Version conflict preserves source",
+          "Move removes selected source relationships",
+          "Move does not duplicate already present photos",
+          "Move preserves unrelated album",
+          "Move clears completed selection"
+        ]
+      },
+      {
+        "suite": "responsive-and-retry",
+        "checks": [
+          "390px search includes all albums",
+          "390px album grid has no horizontal overflow",
+          "390px requires deliberate target choice",
+          "390px long target can be selected",
+          "390px confirm footer remains visible",
+          "390px transfer has no horizontal overflow",
+          "820px search includes all albums",
+          "820px album grid has no horizontal overflow",
+          "820px requires deliberate target choice",
+          "820px long target can be selected",
+          "820px confirm footer remains visible",
+          "820px transfer has no horizontal overflow",
+          "Failed refresh blocks submission",
+          "Refresh retry restores transfer",
+          "Cancel preserves selected source photo"
+        ]
+      },
+      {
+        "suite": "gallery-and-viewer",
+        "checks": [
+          "Gallery add-to-album uses copy without source",
+          "Nested transfer keeps viewer keyboard inactive",
+          "Moving viewed photo closes viewer and updates empty source",
+          "Viewer move adds target relationship"
+        ]
+      }
+    ],
+    "assertions": 33,
+    "realDeviceVerified": false
+  },
+  "limitations": [
+    "Browser interaction was verified with isolated local D1/R2 fixtures; public verification covered HTTP and deployed frontend resources.",
+    "Real iPhone Safari and official Immich App device verification were not performed."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-albums-desktop.png",
+    "tablet": "work/output/playwright/web-albums-820.png",
+    "mobile": "work/output/playwright/web-albums-390.png",
+    "mobileTransfer": "work/output/playwright/web-album-transfer-390.png"
+  }
+}
