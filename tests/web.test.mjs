@@ -120,12 +120,24 @@ async function seed(u, content = liveJpeg(pairId()), mime = 'image/jpeg', fields
   return { id, content, key };
 }
 test('网页入口与深链接可用，API/未知路径不回落 HTML，未登录数据私有', async () => {
-  for (const route of ['/', '/photos', '/albums', '/account', '/admin/users']) {
+  for (const route of [
+    '/',
+    '/photos',
+    '/albums',
+    '/account',
+    '/admin/users',
+    '/share',
+    '/shares',
+  ]) {
     const r = await call(route);
     assert.equal(r.status, 200);
     assert.match(r.headers.get('content-type'), /html/);
     assert.match(await r.text(), /lang="zh-CN"/);
     assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    if (route.startsWith('/share')) {
+      assert.equal(r.headers.get('referrer-policy'), 'no-referrer');
+      assert.match(r.headers.get('x-robots-tag'), /noindex/);
+    }
   }
   const unknown = await call('/api/unknown');
   assert.equal(unknown.status, 501);
@@ -144,11 +156,159 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
   assert.equal(data.canManageAccounts, true);
   assert.equal(data.limits.assetLimit, 10000);
   assert.equal(data.support.upload, true);
+  assert.equal(data.support.share, true);
   assert.equal(data.limits.upload.photoBytes, 20_000_000);
   assert.equal(data.limits.upload.motionBytes, 64 * 1024 ** 2);
   assert.equal(data.user.id, u.id);
   assert.doesNotMatch(JSON.stringify(data), /password_hash|token_hash|object_key/);
   assert.equal((await (await call('/api/users/me', u)).json()).isAdmin, false);
+});
+
+const shares = root + '/shares';
+const shared = root + '/shared';
+const previewOf = (id) => `${shared}/assets/${id}/preview`;
+const shareAuth = (link) => ({ Authorization: 'Share ' + link.path.split('#')[1] });
+
+test('所选照片分享只开放指定预览，令牌只在创建时返回，撤销后访客无法继续读取', async () => {
+  const owner = await user(),
+    foreign = await user(true);
+  const first = await seed(owner),
+    unshared = await seed(owner),
+    other = await seed(foreign);
+  const input = { ids: [first.id], days: 7 };
+  assert.equal((await call(shares, null, 'POST', input)).status, 401);
+  assert.equal(
+    (await call(shares, owner, 'POST', input, { Origin: 'https://foreign.invalid' })).status,
+    403,
+  );
+  const foreignSelection = await call(shares, owner, 'POST', {
+    ids: [first.id, other.id],
+    days: 7,
+  });
+  assert.equal(foreignSelection.status, 404);
+  assert.deepEqual((await foreignSelection.json()).errors[0].path, ['ids']);
+  for (const [data, field] of [
+    [{ ids: [], days: 7 }, 'ids'],
+    [{ ids: [first.id, first.id], days: 7 }, 'ids'],
+    [{ ids: [first.id], days: 0 }, 'days'],
+    [{ ids: [first.id], albumId: randomUUID(), days: 7 }, 'ids/albumId'],
+  ]) {
+    const r = await call(shares, owner, 'POST', data);
+    assert.equal(r.status, 400);
+    assert.deepEqual((await r.json()).errors[0].path, [field]);
+  }
+  const created = await call(shares, owner, 'POST', input);
+  assert.equal(created.status, 201);
+  const link = await created.json();
+  assert.match(link.path, /^\/share#[a-f0-9]{64}$/);
+  const key = link.path.split('#')[1];
+  const stored = await db
+    .prepare('SELECT token_hash FROM web_shares WHERE id=?')
+    .bind(link.id)
+    .first();
+  assert.equal(stored.token_hash, createHash('sha256').update(key).digest('hex'));
+  const ownerList = await (await call(shares, owner)).json();
+  assert.deepEqual(
+    ownerList.items.map((item) => item.id),
+    [link.id],
+  );
+  assert.ok(!JSON.stringify(ownerList).includes(key));
+  assert.equal((await (await call(shares, foreign)).json()).items.length, 0);
+  assert.equal((await call(`${shares}/${link.id}`, foreign, 'DELETE')).status, 404);
+  assert.equal((await call(shared, owner)).status, 404);
+
+  const headers = shareAuth(link);
+  const page = await call(shared, null, 'GET', undefined, headers);
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get('cache-control'), 'no-store');
+  assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
+  const data = await page.json();
+  assert.deepEqual(data.items, [{ id: first.id }]);
+  assert.deepEqual(Object.keys(data).sort(), ['expiresAt', 'items', 'nextCursor', 'title']);
+  const jpeg = await call(previewOf(first.id), null, 'GET', undefined, {
+    ...headers,
+    'x-test-sync-preview': '1',
+  });
+  assert.equal(jpeg.status, 200);
+  assert.equal(jpeg.headers.get('content-type'), 'image/jpeg');
+  assert.deepEqual([...new Uint8Array(await jpeg.arrayBuffer())], [255, 216, 255, 217]);
+  for (const photo of [unshared, other])
+    assert.equal((await call(previewOf(photo.id), null, 'GET', undefined, headers)).status, 404);
+  assert.equal(
+    (await call(`${root}/assets/${first.id}/download`, null, 'GET', undefined, headers)).status,
+    401,
+  );
+  assert.equal(
+    (
+      await call(`${shares}/${link.id}`, owner, 'DELETE', undefined, {
+        Origin: 'https://foreign.invalid',
+      })
+    ).status,
+    403,
+  );
+  assert.equal((await call(`${shares}/${link.id}`, owner, 'DELETE')).status, 204);
+  assert.equal((await call(shared, null, 'GET', undefined, headers)).status, 404);
+  assert.equal((await call(previewOf(first.id), null, 'GET', undefined, headers)).status, 404);
+});
+
+test('整本相册分享按完整相册分页，实时应用成员和回收变化，过期、删除与停用撤销访问', async () => {
+  const owner = await user(),
+    other = await user(true);
+  const first = await seed(owner),
+    second = await seed(owner),
+    added = await seed(owner);
+  const album = await (
+    await call('/api/albums', owner, 'POST', {
+      albumName: '分享相册',
+      assetIds: [first.id, second.id],
+    })
+  ).json();
+  const scope = { albumId: album.id, days: 1 };
+  assert.equal((await call(shares, other, 'POST', scope)).status, 404);
+  const create = async () => {
+    const r = await call(shares, owner, 'POST', scope);
+    assert.equal(r.status, 201);
+    return r.json();
+  };
+  const link = await create(),
+    headers = shareAuth(link);
+  const get = async (suffix = '') => {
+    const r = await call(shared + suffix, null, 'GET', undefined, headers);
+    assert.equal(r.status, 200);
+    return r.json();
+  };
+  const p = await get('?limit=1');
+  assert.equal(p.title, '分享相册');
+  assert.equal(p.items.length, 1);
+  const next = await get('?limit=1&cursor=' + p.nextCursor);
+  assert.deepEqual(
+    [...p.items, ...next.items].map((item) => item.id).sort(),
+    [first.id, second.id].sort(),
+  );
+  assert.equal(next.nextCursor, null);
+
+  await call(`/api/albums/${album.id}/assets`, owner, 'DELETE', { ids: [first.id] });
+  await call(`/api/albums/${album.id}/assets`, owner, 'PUT', { ids: [added.id] });
+  await call('/api/assets', owner, 'DELETE', { ids: [second.id], force: false });
+  assert.deepEqual((await get()).items, [{ id: added.id }]);
+  for (const photo of [first, second])
+    assert.equal((await call(previewOf(photo.id), null, 'GET', undefined, headers)).status, 404);
+
+  await db.prepare('UPDATE web_shares SET expires_ms=0 WHERE id=?').bind(link.id).run();
+  assert.equal((await call(shared, null, 'GET', undefined, headers)).status, 404);
+  const deletedAlbum = await create();
+  const selected = await (await call(shares, owner, 'POST', { ids: [added.id], days: 7 })).json();
+  assert.equal((await call(`/api/albums/${album.id}`, owner, 'DELETE')).status, 204);
+  assert.equal((await call(shared, null, 'GET', undefined, shareAuth(deletedAlbum))).status, 404);
+  assert.equal(
+    (await call(`${adminRoot}/${owner.id}`, other, 'PATCH', { disabled: true })).status,
+    204,
+  );
+  assert.equal(
+    (await call(`${adminRoot}/${owner.id}`, other, 'PATCH', { disabled: false })).status,
+    204,
+  );
+  assert.equal((await call(shared, null, 'GET', undefined, shareAuth(selected))).status, 404);
 });
 
 const prepareZip = (u, input) => call(root + '/downloads', u, 'POST', input);

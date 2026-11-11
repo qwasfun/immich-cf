@@ -1959,6 +1959,47 @@ main {
     padding: 10px 12px;
   }
 }
+.share-list {
+  padding: 0;
+  list-style: none;
+}
+.share-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+.share-list > li + li {
+  border-top: 1px solid var(--border);
+}
+.share-list small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.share-list strong {
+  overflow-wrap: anywhere;
+}
+.shared-page .topbar {
+  padding-inline: clamp(16px, 4vw, 48px);
+}
+.shared-page main {
+  max-width: 1450px;
+  margin-inline: auto;
+  padding: clamp(16px, 4vw, 48px);
+}
+.shared-page h1 {
+  overflow-wrap: anywhere;
+}
+.shared-load {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+.shared-viewer {
+  display: block;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *:before,

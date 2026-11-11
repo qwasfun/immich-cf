@@ -34,6 +34,8 @@ const labels: Record<string, string> = {
   albumId: '相册',
   downloadId: '下载任务',
   attempt: '下载尝试',
+  days: '有效期',
+  shareId: '分享链接',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {
@@ -77,6 +79,7 @@ export async function api<T = unknown>(
   data?: unknown,
   signal?: AbortSignal,
   blob = false,
+  shareToken?: string,
 ): Promise<T> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
@@ -86,9 +89,12 @@ export async function api<T = unknown>(
   try {
     const response = await fetch(url, {
       method,
-      credentials: 'same-origin',
+      credentials: shareToken ? 'omit' : 'same-origin',
       cache: 'no-store',
-      headers: data === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers: {
+        ...(data === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(shareToken ? { Authorization: 'Share ' + shareToken } : {}),
+      },
       ...(data === undefined ? {} : { body: JSON.stringify(data) }),
       signal: controller.signal,
     });

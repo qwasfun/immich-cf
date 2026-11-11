@@ -6,6 +6,7 @@ import { Albums, Gallery } from './Gallery';
 import { AdminAccounts, MyAccount } from './Accounts';
 import { ErrorBox, Icon, Logo } from './ui';
 import { Upload } from './Upload';
+import { ManageShares } from './Share';
 
 function Login({ loggedIn, message }: { loggedIn: () => void; message: string }) {
   const [error, setError] = useState(''),
@@ -174,7 +175,7 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', listener);
   }, [!!boot]);
   useEffect(() => {
-    document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/trash' ? '回收站' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
+    document.title = `${path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
   }, [path]);
   function changed(text: string) {
     setMessage(text);
@@ -209,6 +210,7 @@ export function App() {
     { path: '/photos', label: '照片', icon: 'photos' },
     { path: '/favorites', label: '收藏', icon: 'heart' },
     { path: '/albums', label: '相册', icon: 'album' },
+    { path: '/shares', label: '分享管理', icon: 'link' },
     { path: '/trash', label: '回收站', icon: 'trash' },
   ];
   const albumId = /^\/albums\/([a-f0-9-]{36})$/.exec(path)?.[1];
@@ -360,6 +362,8 @@ export function App() {
           )}
           {path === '/albums' ? (
             <Albums refresh={refresh} changed={changed} navigate={navigate} />
+          ) : path === '/shares' ? (
+            <ManageShares refresh={refresh} />
           ) : path === '/account' ? (
             <MyAccount boot={boot} refresh={refresh} changed={changed} />
           ) : path === '/admin/users' ? (

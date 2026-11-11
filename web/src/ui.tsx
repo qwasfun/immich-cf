@@ -43,6 +43,12 @@ const shapes: Record<string, ReactNode> = {
     </>
   ),
   plus: <path d="M12 4v16M4 12h16" />,
+  link: (
+    <path
+      d="m10 13 4-4m-6 6-2 2a3.5 3.5 0 0 1-5-5l5-5a3.5 3.5 0 0 1 5 0m2 2 2-2a3.5 3.5 0 0 1 5 5l-5 5a3.5 3.5 0 0 1-5 0"
+      transform="translate(1 0)"
+    />
+  ),
   search: (
     <>
       <circle cx="10.5" cy="10.5" r="6.5" />
@@ -336,10 +342,12 @@ export function Preview({
   id,
   large = false,
   name = '',
+  shareToken,
 }: {
   id: string;
   large?: boolean;
   name?: string;
+  shareToken?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null),
     [visible, setVisible] = useState(large),
@@ -371,11 +379,12 @@ export function Preview({
       for (let retry = 0; retry < 4; retry++) {
         try {
           const blob = await api<Blob>(
-            `${web}/assets/${id}/preview?size=${large ? 'preview' : 'thumbnail'}`,
+            `${web}${shareToken ? '/shared' : ''}/assets/${id}/preview?size=${large ? 'preview' : 'thumbnail'}`,
             'GET',
             undefined,
             controller.signal,
             true,
+            shareToken,
           );
           if (!controller.signal.aborted) {
             objectUrl = URL.createObjectURL(blob);
@@ -411,7 +420,7 @@ export function Preview({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id, large, visible, attempt]);
+  }, [id, large, visible, attempt, shareToken]);
   return (
     <div ref={ref} className={`preview ${large ? 'large' : ''}`}>
       {src ? (
@@ -420,7 +429,9 @@ export function Preview({
           alt={name}
           onError={() => {
             setSrc('');
-            setError('预览图片无法显示，请重试或下载原件');
+            setError(
+              shareToken ? '预览图片无法显示，请重试' : '预览图片无法显示，请重试或下载原件',
+            );
           }}
         />
       ) : error ? (

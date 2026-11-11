@@ -5,6 +5,7 @@ import { Confirm, Empty, ErrorBox, FormModal, Icon, Modal, Preview } from './ui'
 import { emptyPhotoQuery, hasPhotoFilters, photoQueryParams } from '../../src/web/gallery-query';
 import { PhotoFilters } from './PhotoFilters';
 import { Download } from './Download';
+import { ShareDialog } from './Share';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -549,6 +550,10 @@ export function Gallery({
         <div className="heading-actions">
           {album && (
             <>
+              <button disabled={loading || busy} onClick={() => setDialog('share-album')}>
+                <Icon name="link" />
+                分享整本相册
+              </button>
               <button disabled={loading || busy} onClick={() => setDialog('download-album')}>
                 <Icon name="download" />
                 下载整本相册
@@ -590,6 +595,10 @@ export function Gallery({
             </>
           ) : (
             <>
+              <button disabled={busy || loading} onClick={() => ask('share')}>
+                <Icon name="link" size={16} />
+                分享所选
+              </button>
               <button
                 disabled={busy}
                 onClick={() => void favorite([...selected], view !== 'favorites')}
@@ -725,6 +734,8 @@ export function Gallery({
       {dialog === 'album' && <AlbumChoice ids={targets} close={close} changed={changed} />}
       {dialog === 'download' && <Download ids={targets} close={close} />}
       {dialog === 'download-album' && <Download albumId={albumId} close={close} />}
+      {dialog === 'share' && <ShareDialog ids={targets} close={close} />}
+      {dialog === 'share-album' && albumId && <ShareDialog albumId={albumId} close={close} />}
       {dialog === 'picker' && (
         <Picker
           title="添加照片到相册"

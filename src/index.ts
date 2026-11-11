@@ -5,16 +5,20 @@ import { runPreviews } from './poc/previews';
 import { cleanStaging } from './poc/media-staging';
 import { webRoute } from './web/routes';
 import { cleanDownloads } from './web/downloads';
+import { cleanShares } from './web/shares';
 
 export default {
   async scheduled(controller, env, ctx) {
     if (String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(
-        Promise.all([runPreviews(env), cleanStaging(env), cleanDownloads(env.IMMICH_CF_DB)]).catch(
-          () => {
-            console.error(JSON.stringify({ code: 'MEDIA_MAINTENANCE_UNAVAILABLE' }));
-          },
-        ),
+        Promise.all([
+          runPreviews(env),
+          cleanStaging(env),
+          cleanDownloads(env.IMMICH_CF_DB),
+          cleanShares(env.IMMICH_CF_DB),
+        ]).catch(() => {
+          console.error(JSON.stringify({ code: 'MEDIA_MAINTENANCE_UNAVAILABLE' }));
+        }),
       );
     if (controller.cron && String(env.ENABLE_P1_POC) === 'true')
       ctx.waitUntil(
@@ -71,7 +75,9 @@ export default {
       String(env.ENABLE_P1_POC) === 'true' &&
       env.WEB_ASSETS &&
       ['GET', 'HEAD'].includes(request.method) &&
-      (/^\/(?:login|photos|favorites|trash|account|admin\/users)?\/?$/.test(pathname) ||
+      (/^\/(?:login|photos|favorites|trash|account|share|shares|admin\/users)?\/?$/.test(
+        pathname,
+      ) ||
         /^\/albums(?:\/[a-f0-9-]{36})?\/?$/.test(pathname) ||
         pathname.startsWith('/assets/') ||
         pathname === '/favicon.svg')
@@ -83,8 +89,10 @@ export default {
       )
         return errorResponse('NOT_FOUND', '请求的静态文件不存在', 404, requestId);
       const response = new Response(asset.body, asset);
+      const isSharePage = /^\/shares?\/?$/.test(pathname);
       response.headers.set('X-Content-Type-Options', 'nosniff');
-      response.headers.set('Referrer-Policy', 'same-origin');
+      response.headers.set('Referrer-Policy', isSharePage ? 'no-referrer' : 'same-origin');
+      if (isSharePage) response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
       response.headers.set(
         'Content-Security-Policy',
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",

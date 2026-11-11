@@ -250,7 +250,7 @@ export async function webBootstrap(request: Request, env: Env, identity: Identit
     support: {
       upload: true,
       download: true,
-      share: false,
+      share: true,
       previewFormats: ['image/jpeg', 'image/png', 'image/heic'],
       livePhotoPlayback: 'browser-dependent',
     },
