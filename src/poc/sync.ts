@@ -165,7 +165,10 @@ export async function sync(
         .bind(session)
         .all<{ type: string; ack: string }>();
   const checkpoints = new Map(checkpointRows.results.map((row) => [row.type, row.ack]));
-  const assetsRequested = types.includes('AssetsV2');
+  const assetsRequested =
+    types.includes('AssetsV2') ||
+    types.includes('AssetExifsV1') ||
+    types.includes('AlbumAssetExifsV1');
   const metadataRequested = types.includes('AssetMetadataV1');
   const historyRequested = assetsRequested || metadataRequested;
   const historyFloor = historyRequested

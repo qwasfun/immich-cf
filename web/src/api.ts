@@ -38,6 +38,13 @@ const labels: Record<string, string> = {
   shareId: '分享链接',
   allowDownload: '允许下载原件',
   component: '原件类型',
+  timeZone: '拍摄时区',
+  dateTime: '拍摄时间',
+  shiftMinutes: '整体偏移',
+  occurrence: '重复时刻',
+  latitude: '纬度',
+  longitude: '经度',
+  version: '照片资料版本',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {

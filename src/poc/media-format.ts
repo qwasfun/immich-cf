@@ -2,6 +2,7 @@ import { HttpError, invalid } from './http';
 import { exifOrientation } from './exif';
 import { rejectLivePhotoExif } from './live-photo-exif';
 import { checkPngXmp, checkStaticXmp, xmpFailure } from './xmp';
+import { photoExif, type PhotoExif } from './photo-exif';
 
 export const MAX_PHOTO = 20_000_000;
 export const MAX_MOTION = 64 * 1024 * 1024;
@@ -13,6 +14,7 @@ export interface MediaInfo {
   duration: string | null;
   pair: string | null;
   marked: boolean;
+  exif?: PhotoExif;
 }
 function bad(): never {
   return invalid('assetData', '媒体容器、尺寸或配对元数据不完整，请重新选择未修改的照片及动态原件');
@@ -153,6 +155,7 @@ export async function inspectMedia(
   let pair: string | null = null,
     marked = false,
     orientation: number | undefined;
+  let details: PhotoExif = {};
   const readExif = (bytes: Uint8Array) => {
     orientation = exifOrientation(bytes);
     rejectLivePhotoExif(bytes, (id) => {
@@ -162,6 +165,7 @@ export async function inspectMedia(
         pair = id;
       }
     });
+    details = photoExif(bytes);
   };
   if (
     (prefix[0] === 255 && prefix[1] === 216) ||
@@ -306,7 +310,16 @@ export async function inspectMedia(
         mime = 'image/png';
       }
       if (orientation !== undefined && orientation >= 5) [width, height] = [height, width];
-      return dimensions({ mime, width, height, pair, marked, type: 'IMAGE', duration: null });
+      return dimensions({
+        mime,
+        width,
+        height,
+        pair,
+        marked,
+        type: 'IMAGE',
+        duration: null,
+        exif: details,
+      });
     } finally {
       await r.close();
     }
@@ -467,6 +480,7 @@ export async function inspectMedia(
     else if (orientation !== undefined && orientation >= 5) [width, height] = [height, width];
     return dimensions({
       mime: 'image/heic',
+      exif: details,
       width,
       height,
       type: 'IMAGE',

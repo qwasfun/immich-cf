@@ -437,6 +437,69 @@ main {
   padding: 0 24px;
   flex-shrink: 0;
 }
+.metadata-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.metadata-grid > .field {
+  min-width: 0;
+}
+.metadata-time-fields {
+  border: 0;
+  padding: 12px 0;
+  margin: 0;
+  min-width: 0;
+}
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+.metadata-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.photo-metadata-info dd {
+  overflow-wrap: anywhere;
+}
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.modal:has(.photo-metadata-form) {
+  overflow: hidden;
+}
+.modal:has(.photo-metadata-form) .modal-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+}
+.photo-metadata-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.photo-metadata-form .form-body {
+  overflow: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.modal:has(.photo-metadata-form) .modal-inner > header,
+.photo-metadata-form .modal-actions {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+}
 @media (min-width: 1100px) {
   .timeline-gallery {
     margin-right: 118px;

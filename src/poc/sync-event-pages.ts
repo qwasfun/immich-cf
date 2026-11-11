@@ -1,9 +1,10 @@
 import type { Identity } from './auth';
 import { assetDto, type Asset } from './assets';
 import type { SyncLine } from './sync-lines';
+import { photoExifDto } from './photo-details';
 
 const columns =
-  'id,owner_id,checksum,media_type,created_at,file_created_at,file_modified_at,filename,width,height,favorite,visibility,duration,deleted_at,live_photo_video_id,sync_seq';
+  'id,owner_id,checksum,media_type,created_at,file_created_at,file_modified_at,filename,width,height,favorite,visibility,duration,deleted_at,live_photo_video_id,sync_seq,local_date_time';
 // Original metadata and internal R2 references are never loaded for an asset DTO.
 export async function* libraryEventPages(
   db: D1Database,
@@ -41,6 +42,43 @@ export async function* libraryEventPages(
     }
   }
   const asset = (row: Record<string, unknown>) => assetDto(row as unknown as Asset);
+  const exifColumns =
+    'id,bytes,photo_metadata,file_created_at,file_modified_at,width,height,sync_seq';
+  const exif = (row: Record<string, unknown>) => ({
+    assetId: row.id,
+    ...photoExifDto(row as unknown as Asset),
+    fps: null,
+    profileDescription: null,
+  });
+  if (types.includes('AssetExifsV1'))
+    yield* query(
+      'AssetExifV1',
+      `SELECT ${exifColumns} FROM assets WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? ORDER BY sync_seq`,
+      exif,
+      'sync_seq',
+      500,
+    );
+  if (types.includes('AlbumAssetExifsV1')) {
+    yield* query(
+      'AlbumAssetExifCreateV1',
+      `SELECT ${exifColumns
+        .split(',')
+        .map((c) => 'a.' + c)
+        .join(
+          ',',
+        )},l.sync_seq link_seq FROM album_assets l JOIN assets a ON a.id=l.asset_id WHERE l.owner_id=? AND a.photo_metadata<>'{}' AND l.sync_seq>? AND l.sync_seq<=? ORDER BY l.sync_seq`,
+      exif,
+      'link_seq',
+      500,
+    );
+    yield* query(
+      'AlbumAssetExifUpdateV1',
+      `SELECT ${exifColumns} FROM assets a WHERE owner_id=? AND photo_metadata<>'{}' AND sync_seq>? AND sync_seq<=? AND EXISTS(SELECT 1 FROM album_assets l WHERE l.asset_id=a.id AND l.owner_id=a.owner_id) ORDER BY sync_seq`,
+      exif,
+      'sync_seq',
+      500,
+    );
+  }
   if (types.includes('AssetsV2')) {
     yield* query(
       'AssetV2',

@@ -121,7 +121,11 @@ export function ErrorBox({ error, retry }: { error: string; retry?: () => void }
     <div className="error-box" role="alert">
       <Icon name="info" />
       <span>{error}</span>
-      {retry && <button onClick={retry}>重试</button>}
+      {retry && (
+        <button type="button" onClick={retry}>
+          重试
+        </button>
+      )}
     </div>
   ) : null;
 }

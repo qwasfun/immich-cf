@@ -8,6 +8,7 @@ import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { getPlatformProxy, unstable_dev } from 'wrangler';
 import { liveJpeg, liveMov, liveHeic, pairId } from './fixtures/live-photo-media.mjs';
+import { photoJpeg, photoTiff, pngWithExif } from './fixtures/photo-metadata.mjs';
 
 const state = path.resolve('work', `web-v1-${randomUUID()}`),
   root = '/api/immich-cf/web',
@@ -119,6 +120,352 @@ async function seed(u, content = liveJpeg(pairId()), mime = 'image/jpeg', fields
     .run();
   return { id, content, key };
 }
+test('照片资料提取相机、GPS和原件日期，旧照片时间及原件字节和 App 标识保持', async () => {
+  const u = await user(),
+    foreign = await user(),
+    photo = await seed(u, photoJpeg());
+  const opaque = JSON.stringify([
+    { key: 'mobile-app', value: { iCloudId: 'private-cloud-id', location: { test: true } } },
+  ]);
+  await db.prepare('UPDATE assets SET metadata=? WHERE id=?').bind(opaque, photo.id).run();
+  const route = `${root}/assets/${photo.id}/metadata`,
+    before = await (await call(route, u)).json();
+  assert.equal(before.extracted, false);
+  const read = await call(route + '/extract', u, 'POST', { version: before.version });
+  assert.equal(read.status, 200);
+  const data = await read.json();
+  assert.equal(data.make, 'Example Camera');
+  assert.equal(data.model, 'Test Model');
+  assert.equal(data.iso, 200);
+  assert.equal(data.latitude, 31.2083333);
+  assert.equal(data.longitude, 121.5);
+  assert.equal(data.source.originalDateTime, '2020-01-01T00:30:00.125');
+  assert.equal(data.source.originalOffset, '+08:00');
+  assert.equal(data.fileCreatedAt, before.fileCreatedAt);
+  assert.doesNotMatch(JSON.stringify(data), /object_key|iCloudId|private-cloud-id|checksum|token/);
+  assert.equal(
+    (await db.prepare('SELECT metadata FROM assets WHERE id=?').bind(photo.id).first()).metadata,
+    opaque,
+  );
+  assert.equal((await call(route, foreign)).status, 404);
+  assert.equal((await call(route, null)).status, 401);
+  assert.equal(
+    (
+      await call(
+        route + '/extract',
+        u,
+        'POST',
+        { version: data.version },
+        { Origin: 'https://foreign.invalid' },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await call(root + '/photo-metadata', u, 'PATCH', {
+        ids: [photo.id],
+        version: data.version,
+        description: '手动说明',
+        latitude: null,
+        longitude: null,
+      })
+    ).status,
+    200,
+  );
+  const updated = await (await call(route, u)).json();
+  const repeat = await (
+    await call(route + '/extract', u, 'POST', { version: updated.version })
+  ).json();
+  assert.equal(repeat.description, '手动说明');
+  assert.equal(repeat.latitude, null);
+  assert.equal(repeat.longitude, null);
+  const original = await bucket.get(photo.key);
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), photo.content);
+});
+
+test('照片资料修改同步官方 EXIF 与本地拍摄时间，重定位跟随改时照片且游标失效', async () => {
+  const u = await user(),
+    livePair = pairId(),
+    motion = await seed(u, liveMov(livePair), 'video/quicktime', {
+      type: 'VIDEO',
+      visibility: 'hidden',
+      pair: livePair,
+    }),
+    photo = await seed(u, photoJpeg({ pair: livePair }), 'image/jpeg', {
+      pair: livePair,
+      video: motion.id,
+    }),
+    other = await seed(u, photoJpeg({ local: '2021:01:01 12:00:00' }));
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '资料同步', assetIds: [photo.id] })
+  ).json();
+  const route = `${root}/assets/${photo.id}/metadata`,
+    prior = await (await call(route, u)).json();
+  const oldPage = await (await call(root + '/assets?limit=1', u)).json();
+  const r = await call(root + '/photo-metadata', u, 'PATCH', {
+    ids: [photo.id],
+    version: prior.version,
+    description: '新描述',
+    latitude: 0,
+    longitude: 0,
+    dateTime: '2020-01-01T00:30:00.125',
+    timeZone: 'Asia/Shanghai',
+  });
+  assert.equal(r.status, 200);
+  const updated = await (await call('/api/assets/' + photo.id, u)).json();
+  assert.equal(updated.fileCreatedAt, '2019-12-31T16:30:00.125Z');
+  assert.equal(updated.localDateTime, '2020-01-01T00:30:00.125Z');
+  assert.equal(updated.livePhotoVideoId, motion.id);
+  assert.equal(updated.exifInfo.description, '新描述');
+  assert.equal(updated.exifInfo.latitude, 0);
+  assert.equal(updated.exifInfo.timeZone, 'Asia/Shanghai');
+  const seek = await (
+    await call(
+      root +
+        '/assets?anchorTime=' +
+        encodeURIComponent(prior.fileCreatedAt) +
+        '&anchorId=' +
+        photo.id,
+      u,
+    )
+  ).json();
+  assert.equal(seek.items[0].id, photo.id);
+  assert.equal((await call(root + '/assets?cursor=' + oldPage.nextCursor, u)).status, 409);
+  const syncResponse = await call('/api/sync/stream', u, 'POST', {
+    types: ['AssetsV2', 'AssetExifsV1', 'AlbumAssetExifsV1'],
+    reset: true,
+  });
+  assert.equal(syncResponse.status, 200);
+  const events = (await syncResponse.text()).trim().split('\n').map(JSON.parse);
+  const exif = events.find((e) => e.type === 'AssetExifV1' && e.data.assetId === photo.id);
+  assert.equal(exif.data.description, '新描述');
+  assert.equal(exif.data.dateTimeOriginal, updated.fileCreatedAt);
+  assert.equal(exif.data.timeZone, 'Asia/Shanghai');
+  assert.ok(events.some((e) => e.type === 'AlbumAssetExifCreateV1' && e.data.assetId === photo.id));
+  const spec = JSON.parse(
+    await readFile('docs/contracts/upstream/immich-v3.3.1.openapi.json', 'utf8'),
+  ).components.schemas.SyncAssetExifV1;
+  for (const key of spec.required) assert.ok(Object.hasOwn(exif.data, key), key);
+  assert.equal(events.at(-1).type, 'SyncCompleteV1');
+  assert.equal(
+    (await call('/api/sync/ack', u, 'POST', { acks: events.map((e) => e.ack) })).status,
+    204,
+  );
+  const current = await (await call(route, u)).json();
+  assert.equal(
+    (
+      await call(root + '/photo-metadata', u, 'PATCH', {
+        ids: [photo.id, other.id],
+        version: current.version,
+        shiftMinutes: -60,
+      })
+    ).status,
+    200,
+  );
+  const delta = await (
+    await call('/api/sync/stream', u, 'POST', {
+      types: ['AssetsV2', 'AssetExifsV1', 'AlbumAssetExifsV1'],
+    })
+  ).text();
+  assert.match(delta, /AlbumAssetExifUpdateV1/);
+  assert.match(delta, /2019-12-31T15:30:00.125Z/);
+  assert.equal((await (await call('/api/albums/' + album.id, u)).json()).assetCount, 1);
+  const original = await call(`${root}/assets/${photo.id}/download`, u);
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), photo.content);
+  const originalMotion = await call(`${root}/assets/${photo.id}/download?component=motion`, u);
+  assert.deepEqual(Buffer.from(await originalMotion.arrayBuffer()), motion.content);
+});
+
+test('照片资料批量时间修正保留间隔，字段错误、过期版本、账号和事务中撤销均不部分写入', async () => {
+  const u = await user(),
+    foreign = await user(),
+    a = await seed(u, photoJpeg(), 'image/jpeg', { date: '2026-01-01T00:00:00.125Z' }),
+    b = await seed(u, photoJpeg({ local: '2022:01:01 00:00:00' }), 'image/jpeg', {
+      date: '2026-01-01T01:20:00.500Z',
+    }),
+    f = await seed(foreign);
+  const get = async () => await (await call(`${root}/assets/${a.id}/metadata`, u)).json();
+  const before = await get(),
+    patch = { ids: [a.id, b.id], version: before.version, shiftMinutes: 480 };
+  assert.equal((await call(root + '/photo-metadata', u, 'PATCH', patch)).status, 200);
+  const [one, two] = await Promise.all([
+    db.prepare('SELECT file_created_at FROM assets WHERE id=?').bind(a.id).first(),
+    db.prepare('SELECT file_created_at FROM assets WHERE id=?').bind(b.id).first(),
+  ]);
+  assert.equal(one.file_created_at, '2026-01-01T08:00:00.125Z');
+  assert.equal(Date.parse(two.file_created_at) - Date.parse(one.file_created_at), 80 * 60000 + 375);
+  assert.equal((await call(root + '/photo-metadata', u, 'PATCH', patch)).status, 409);
+  const current = await get();
+  for (const [extra, field] of [
+    [{ latitude: 20 }, 'latitude/longitude'],
+    [{ latitude: 91, longitude: 0 }, 'latitude'],
+    [{ dateTime: '2026-03-08T02:30', timeZone: 'America/Los_Angeles' }, 'dateTime/timeZone'],
+    [{ dateTime: '2026-02-30T00:00', timeZone: 'UTC' }, 'dateTime'],
+    [{ timeZone: 'bad-zone' }, 'timeZone'],
+    [{ shiftMinutes: 0 }, 'shiftMinutes'],
+    [{ description: 'x'.repeat(2001) }, 'description'],
+  ]) {
+    const response = await call(root + '/photo-metadata', u, 'PATCH', {
+      ids: [a.id, b.id],
+      version: current.version,
+      ...extra,
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual((await response.json()).errors[0].path, [field]);
+  }
+  assert.equal(
+    (
+      await call(root + '/photo-metadata', u, 'PATCH', {
+        ids: [a.id, f.id],
+        version: current.version,
+        shiftMinutes: 10,
+      })
+    ).status,
+    404,
+  );
+  const unchanged = await get();
+  assert.equal(unchanged.fileCreatedAt, one.file_created_at);
+  assert.equal(unchanged.version, current.version);
+  const revoke = await call(
+    root + '/photo-metadata',
+    u,
+    'PATCH',
+    { ids: [a.id, b.id], version: current.version, shiftMinutes: 10 },
+    { 'x-test-revoke-photo-session': u.sessionId },
+  );
+  assert.equal(revoke.status, 401);
+  assert.equal(
+    (await db.prepare('SELECT file_created_at FROM assets WHERE id=?').bind(a.id).first())
+      .file_created_at,
+    one.file_created_at,
+  );
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM web_photo_guards').first()).n, 0);
+});
+
+test('照片资料新 Web 上传优先 EXIF 时间，JPEG/PNG/HEIC 提取一致，无偏移使用浏览器时区，原生上传尊重提交时间', async () => {
+  const u = await user();
+  const send = async (content, name, route = root + '/upload', zone = 'Asia/Shanghai') => {
+    const form = new FormData();
+    form.append('assetData', new File([content], name));
+    form.append('fileCreatedAt', '2026-11-11T00:00:00.000Z');
+    form.append('fileModifiedAt', '2026-11-10T00:00:00.000Z');
+    const encoded = new Request('http://localhost', { method: 'POST', body: form });
+    const response = await worker.fetch(route, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + u.token,
+        Origin: origin,
+        'x-immich-cf-time-zone': zone,
+        'Content-Type': encoded.headers.get('content-type'),
+      },
+      body: await encoded.arrayBuffer(),
+    });
+    assert.equal(response.status, 201, await response.clone().text());
+    return (await response.json()).id;
+  };
+  const png = pngWithExif(await readFile('tests/fixtures/small.png'));
+  for (const [bytes, name] of [
+    [photoJpeg(), 'meta.jpg'],
+    [png, 'meta.png'],
+    [liveHeic('unused', photoTiff()), 'meta.heic'],
+  ]) {
+    const id = await send(bytes, name),
+      data = await (await call(`${root}/assets/${id}/metadata`, u)).json();
+    assert.equal(data.fileCreatedAt, '2019-12-31T16:30:00.125Z');
+    assert.equal(data.fileModifiedAt, '2026-11-10T00:00:00.000Z');
+    assert.equal(data.timeSource, 'exif');
+    assert.equal(data.iso, 200);
+    assert.equal(data.latitude, 31.2083333);
+  }
+  const noOffset = await send(
+    photoJpeg({ offset: null }),
+    'no-zone.jpg',
+    root + '/upload',
+    'America/Los_Angeles',
+  );
+  assert.equal(
+    (await (await call(`${root}/assets/${noOffset}/metadata`, u)).json()).fileCreatedAt,
+    '2020-01-01T08:30:00.125Z',
+  );
+  const native = await send(
+    photoJpeg({ local: '2023:01:01 12:00:00' }),
+    'native.jpg',
+    '/api/assets',
+  );
+  assert.equal(
+    (await (await call(`${root}/assets/${native}/metadata`, u)).json()).fileCreatedAt,
+    '2026-11-11T00:00:00.000Z',
+  );
+});
+
+test('照片资料批量修正覆盖 1000 项，未选项目不变，超过上限拒绝且可按修改后时间定位', async () => {
+  const u = await user(),
+    ids = Array.from({ length: 1001 }, () => randomUUID()),
+    start = Date.parse('2024-01-01T00:00:00.125Z');
+  for (let at = 0; at < ids.length; at += 40)
+    await db.batch(
+      ids
+        .slice(at, at + 40)
+        .map((id, n) =>
+          db
+            .prepare(
+              "INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite) VALUES(?,?,?,?,?,'image/jpeg',4,1,1,?,?,?,0)",
+            )
+            .bind(
+              id,
+              u.id,
+              id,
+              u.id + '/' + id,
+              'bulk-time.jpg',
+              new Date(start).toISOString(),
+              new Date(start + (at + n) * 1000).toISOString(),
+              new Date(start).toISOString(),
+            ),
+        ),
+    );
+  const original = await (await call(`${root}/assets/${ids[0]}/metadata`, u)).json();
+  const response = await call(root + '/photo-metadata', u, 'PATCH', {
+    ids: ids.slice(0, 1000),
+    version: original.version,
+    shiftMinutes: 90,
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).updated, 1000);
+  const aggregate = await db
+    .prepare(
+      "SELECT COUNT(*) n,MIN(file_created_at) first,MAX(file_created_at) last FROM assets WHERE owner_id=? AND photo_metadata<>'{}'",
+    )
+    .bind(u.id)
+    .first();
+  assert.equal(aggregate.n, 1000);
+  assert.equal(aggregate.first, '2024-01-01T01:30:00.125Z');
+  assert.equal(aggregate.last, '2024-01-01T01:46:39.125Z');
+  const untouched = await (await call(`${root}/assets/${ids[1000]}/metadata`, u)).json();
+  assert.equal(untouched.fileCreatedAt, '2024-01-01T00:16:40.125Z');
+  assert.equal(
+    (
+      await call(root + '/photo-metadata', u, 'PATCH', {
+        ids,
+        version: untouched.version,
+        shiftMinutes: 10,
+      })
+    ).status,
+    400,
+  );
+  const seek = await (
+    await call(
+      root +
+        '/assets?anchorId=' +
+        ids[0] +
+        '&anchorTime=' +
+        encodeURIComponent(original.fileCreatedAt),
+      u,
+    )
+  ).json();
+  assert.equal(seek.items[0].id, ids[0]);
+});
+
 test('网页入口与深链接可用，API/未知路径不回落 HTML，未登录数据私有', async () => {
   for (const route of [
     '/',

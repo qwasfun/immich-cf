@@ -5,6 +5,7 @@ export default {
       return new Response(new URL(request.url).origin);
     const mode = request.headers.get('x-test-images');
     const db = env.IMMICH_CF_DB;
+    let photoBatches = 0;
     const configured = {
       ...env,
       IMAGES_FREE_CONFIRMED: 'true',
@@ -36,7 +37,19 @@ export default {
               return db.batch(statements);
             },
           }
-        : db,
+        : request.headers.has('x-test-revoke-photo-session')
+          ? {
+              prepare: db.prepare.bind(db),
+              async batch(statements: D1PreparedStatement[]) {
+                if (++photoBatches === 2)
+                  await db
+                    .prepare('DELETE FROM sessions WHERE id=?')
+                    .bind(request.headers.get('x-test-revoke-photo-session'))
+                    .run();
+                return db.batch(statements);
+              },
+            }
+          : db,
     } as unknown as Env;
     // Synchronous preview mode makes transformation failure and quota states deterministic.
     return app.fetch(

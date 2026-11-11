@@ -245,7 +245,9 @@ export function Upload({
           {limits.motionBytes > 0 &&
             `；Live Photo 请同时选择同名照片和 MOV（最多 ${bytes(limits.motionBytes)}），由服务端核对配对。`}
           <br />
-          照片时间默认使用文件修改时间；原件不压缩。上传期间请保持本页打开。
+          优先采用原件拍摄时间；原件未注明时区时按{' '}
+          {Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}{' '}
+          解释，无有效拍摄时间时采用文件修改时间。可在照片资料中修正。上传期间请保持本页打开。
           {albumId && ' 照片会同时保存到图库并加入当前相册。'}
         </p>
         <ErrorBox error={error} />

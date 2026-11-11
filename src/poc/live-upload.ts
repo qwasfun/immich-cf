@@ -7,6 +7,7 @@ import { stageUpload, cleanStaging } from './media-staging';
 import { guardLivePhoto } from './live-photo';
 import { queuePreviews } from './previews';
 import { assetQuota, assetLimit } from './quota';
+import { initialPhotoRecord } from './photo-details';
 
 export async function completeOriginals(env: Env, row: Asset): Promise<boolean> {
   if (
@@ -37,7 +38,7 @@ export async function completeOriginals(env: Env, row: Asset): Promise<boolean> 
   }
   return true;
 }
-export async function uploadLive(request: Request, env: Env, identity: Identity) {
+export async function uploadLive(request: Request, env: Env, identity: Identity, webZone?: string) {
   const staged = await stageUpload(request, env, identity.id),
     db = env.IMMICH_CF_DB,
     form = staged.fields;
@@ -110,6 +111,8 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
       throw error;
     }
     mediaType = info.type;
+    const photo =
+      info.type === 'IMAGE' ? initialPhotoRecord(info.exif ?? {}, created, webZone) : null;
     if (info.type === 'IMAGE' && staged.size > MAX_PHOTO)
       throw new HttpError(
         413,
@@ -279,8 +282,8 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
     const result = await db.batch([
       db
         .prepare(
-          `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata,r2_sha1_verified,media_type,visibility,duration,pair_id,live_photo_video_id,logical_key)
-      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND s.user_id=? AND s.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)) AND u.disabled=0)
+          `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,metadata,r2_sha1_verified,media_type,visibility,duration,pair_id,live_photo_video_id,logical_key,photo_metadata,local_date_time)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND s.user_id=? AND s.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)) AND u.disabled=0)
       AND EXISTS(SELECT 1 FROM media_upload_staging WHERE id=? AND status='ready' AND expires_ms>?) ON CONFLICT(owner_id,checksum) DO NOTHING`,
         )
         .bind(
@@ -294,7 +297,7 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
           info.width,
           info.height,
           intent.created_at,
-          created,
+          photo?.time ?? created,
           modified,
           favorite === 'true' ? 1 : 0,
           JSON.stringify(metadata),
@@ -304,6 +307,8 @@ export async function uploadLive(request: Request, env: Env, identity: Identity)
           pairId,
           linked ?? null,
           logical,
+          photo ? JSON.stringify(photo.record) : '{}',
+          photo?.local ?? '',
           identity.session_id,
           identity.id,
           Date.now(),

@@ -1,5 +1,7 @@
 # immich-cf
 
+Web 已支持 [照片资料与时间修正](docs/web-photo-metadata.md)：EXIF 相机/GPS/时间展示、描述与位置编辑、批量时间偏移及时区修正。
+
 测试与生产环境已于 2026-11-10 首次发布，地址、登录方式及验证结果见 [部署记录](docs/test-prod-deployment.md)。
 
 - [P2 只读存储对账](docs/p2-storage-audit.md)：分页观察原图异常与保留预约，不执行清理。

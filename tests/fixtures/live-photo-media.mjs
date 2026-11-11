@@ -87,8 +87,8 @@ export function liveMov(id, padding = 16) {
     box('mdat', Buffer.alloc(padding, 0x20)),
   ]);
 }
-export function liveHeic(id) {
-  const exif = Buffer.concat([u32(0), liveExif(id)]);
+export function liveHeic(id, tiff = liveExif(id)) {
+  const exif = Buffer.concat([u32(0), tiff]);
   const meta = box(
     'meta',
     full,

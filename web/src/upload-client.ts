@@ -156,6 +156,10 @@ export async function uploadFile(
     xhr.withCredentials = true;
     xhr.timeout = 180000;
     xhr.setRequestHeader('x-immich-checksum', checksum);
+    xhr.setRequestHeader(
+      'x-immich-cf-time-zone',
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    );
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) progress(event.loaded / event.total, false);
     };

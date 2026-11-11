@@ -7,6 +7,7 @@ import { guardLivePhoto } from './live-photo';
 import { originalMatches } from './integrity';
 import { uploadLive } from './live-upload';
 import { readPreview, runPreviews } from './previews';
+import { photoExifDto } from './photo-details';
 
 import { MAX_IMAGE, parseUploadForm } from './multipart';
 
@@ -37,6 +38,8 @@ export interface Asset {
   pair_id: string | null;
   live_photo_video_id: string | null;
   logical_key: string;
+  photo_metadata?: string;
+  local_date_time?: string;
 }
 function checksum(value: unknown, field: string) {
   if (typeof value !== 'string') invalid(field, '必须填写 SHA-1 的十六进制或 Base64 字符串');
@@ -45,8 +48,8 @@ function checksum(value: unknown, field: string) {
   if (!/^[A-Za-z0-9+/]{27}=$/.test(value)) invalid(field, '必须填写有效的 SHA-1 校验和');
   return value;
 }
-export async function upload(request: Request, env: Env, identity: Identity) {
-  if (String(env.ENABLE_LIVE_PHOTO) === 'true') return uploadLive(request, env, identity);
+export async function upload(request: Request, env: Env, identity: Identity, webZone?: string) {
+  if (String(env.ENABLE_LIVE_PHOTO) === 'true') return uploadLive(request, env, identity, webZone);
   const form = await parseUploadForm(request);
   const encoder = new TextEncoder();
   const seen = new Set<string>();
@@ -360,7 +363,7 @@ export function assetDto(row: Asset) {
     createdAt: row.created_at,
     fileCreatedAt: row.file_created_at,
     fileModifiedAt: row.file_modified_at,
-    localDateTime: row.file_created_at,
+    localDateTime: row.local_date_time || row.file_created_at,
     originalFileName: row.filename,
     width: row.width,
     height: row.height,
@@ -381,7 +384,8 @@ export function assetDetailDto(row: Asset) {
     originalPath: '',
     originalMimeType: row.mime,
     updatedAt: row.updated_at || row.created_at,
-    hasMetadata: false,
+    hasMetadata: !!row.photo_metadata && row.photo_metadata !== '{}',
+    ...(row.photo_metadata && row.photo_metadata !== '{}' ? { exifInfo: photoExifDto(row) } : {}),
     isArchived: false,
     isOffline: false,
     isTrashed: !!row.deleted_at,

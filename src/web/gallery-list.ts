@@ -60,7 +60,7 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
     const targetId =
       anchorId ??
       (ascending ? '00000000-0000-4000-8000-000000000000' : 'ffffffff-ffff-4fff-bfff-ffffffffffff');
-    const [state, before, after] = await db.batch([
+    const [state, before, after, exact] = await db.batch([
       galleryState(db, identity, album),
       db
         .prepare(
@@ -74,12 +74,16 @@ export async function gallery(request: Request, env: Env, identity: Identity) {
         AND (${sort},a.id)>=(julianday(?),?) ORDER BY ${sort} ASC,a.id ASC LIMIT 1`,
         )
         .bind(...args, anchorTime, targetId),
+      db
+        .prepare(`SELECT a.id,${sort} time FROM assets a WHERE ${where} AND a.id=? LIMIT 1`)
+        .bind(...args, anchorId ?? ''),
     ]);
     seekVersion = readGalleryState(state!);
     const low = before!.results[0] as { time: number; id: string } | undefined;
     const high = after!.results[0] as typeof low;
     const time = Date.parse(anchorTime) / 86400000 + 2440587.5;
-    if (high?.id === anchorId) pivot = high;
+    const matching = exact!.results[0] as typeof low;
+    if (matching) pivot = matching;
     else if (!low) pivot = high ?? null;
     else if (!high) pivot = low;
     else {

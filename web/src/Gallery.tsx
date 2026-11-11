@@ -9,6 +9,7 @@ import { ShareDialog } from './Share';
 import { useTimeline } from './useTimeline';
 import { TimelineNav } from './TimelineNav';
 import type { TimelineAnchor } from './timeline-state';
+import { PhotoMetadataInfo, EditPhotoMetadata, CorrectPhotoTime } from './PhotoMetadata';
 
 type Changed = (message: string) => void;
 function PhotoCard({
@@ -247,6 +248,7 @@ function Viewer({
   loading,
   error,
   retry,
+  edit,
 }: {
   photo: Photo;
   previous?: () => void;
@@ -258,6 +260,7 @@ function Viewer({
   loading: boolean;
   error: string;
   retry: () => void;
+  edit: () => void;
 }) {
   const [info, setInfo] = useState(false),
     [play, setPlay] = useState(false),
@@ -361,6 +364,7 @@ function Viewer({
                 </>
               )}
             </dl>
+            <PhotoMetadataInfo key={photo.id + ':' + photo.fileCreatedAt} id={photo.id} />
           </aside>
         )}
       </div>
@@ -375,6 +379,7 @@ function Viewer({
               <Icon name="album" />
               加入相册
             </button>
+            <button onClick={edit}>编辑资料</button>
             <button onClick={remove}>
               <Icon name="trash" />
               删除
@@ -656,6 +661,9 @@ export function Gallery({
                 {view === 'favorites' ? '取消收藏' : '收藏'}
               </button>
               <button onClick={() => ask('album')}>加入相册</button>
+              <button disabled={busy || loading} onClick={() => ask('correct-time')}>
+                修正拍摄时间
+              </button>
               {albumId && <button onClick={() => ask('remove-album')}>移出相册</button>}
               {albumId && selected.size === 1 && (
                 <button disabled={busy} onClick={() => void setCover([...selected][0])}>
@@ -784,6 +792,27 @@ export function Gallery({
           favorite={() => void favorite([opened.id], !opened.isFavorite)}
           remove={() => ask('trash', [opened.id])}
           addAlbum={() => ask('album', [opened.id])}
+          edit={() => ask('edit-photo', [opened.id])}
+        />
+      )}
+      {dialog === 'edit-photo' && (
+        <EditPhotoMetadata
+          id={targets[0]!}
+          close={close}
+          changed={(text) => {
+            setOpened(null);
+            changed(text);
+          }}
+        />
+      )}
+      {dialog === 'correct-time' && (
+        <CorrectPhotoTime
+          ids={targets}
+          close={close}
+          changed={(text) => {
+            setOpened(null);
+            changed(text);
+          }}
         />
       )}
       {dialog === 'album' && <AlbumChoice ids={targets} close={close} changed={changed} />}

@@ -8,6 +8,8 @@ import { downloads } from './downloads';
 import { manageShares, sharedPhotos } from './shares';
 import { unlockShare } from './share-access';
 import { timeline } from './timeline';
+import { photoMetadata } from './photo-metadata';
+import { PhotoTimeError, photoTimeZone } from '../photo-time';
 
 export async function webRoute(
   request: Request,
@@ -22,6 +24,7 @@ export async function webRoute(
   )
     return null;
   const media = path.match(/^\/api\/immich-cf\/web\/assets\/([^/]+)\/(preview|download)$/);
+  const metadata = path.match(/^\/api\/immich-cf\/web\/assets\/([^/]+)\/metadata(\/extract)?$/);
   const admin = path.match(
     /^\/api\/immich-cf\/admin\/users(?:\/([^/]+)(?:\/(reset-password|sessions))?)?$/,
   );
@@ -33,7 +36,9 @@ export async function webRoute(
   const unlock = path === '/api/immich-cf/web/shared/unlock';
   const webPath = path.slice('/api/immich-cf/web/'.length);
   let methods: string[] = [];
-  if (unlock) methods = ['POST'];
+  if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
+  else if (webPath === 'photo-metadata') methods = ['PATCH'];
+  else if (unlock) methods = ['POST'];
   else if (shared || ['bootstrap', 'assets', 'timeline'].includes(webPath)) methods = ['GET'];
   else if (share) methods = share[1] ? ['DELETE', 'PATCH'] : ['GET', 'POST'];
   else if (download) {
@@ -60,7 +65,10 @@ export async function webRoute(
       response = await sharedPhotos(request, env, shared[1], shared[2], ctx);
     } else {
       const identity = await authenticate(request, env.IMMICH_CF_DB);
-      if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
+      if (metadata)
+        response = await photoMetadata(request, env, identity, metadata[1], !!metadata[2]);
+      else if (webPath === 'photo-metadata') response = await photoMetadata(request, env, identity);
+      else if (share) response = await manageShares(request, env.IMMICH_CF_DB, identity, share[1]);
       else if (download)
         response = await downloads(request, env, identity, download[1], !!download[2], ctx);
       else if (admin) response = await accounts(request, env, identity);
@@ -69,7 +77,14 @@ export async function webRoute(
         sameOrigin(request);
         for (const key of new URL(request.url).searchParams.keys())
           throw new HttpError(400, `${key}：上传不接受查询参数，请移除`, key);
-        response = await upload(request, env, identity);
+        let zone: string;
+        try {
+          zone = photoTimeZone(request.headers.get('x-immich-cf-time-zone') ?? 'UTC');
+        } catch (error) {
+          if (error instanceof PhotoTimeError) throw new HttpError(400, error.message, error.field);
+          throw error;
+        }
+        response = await upload(request, env, identity, zone);
       } else if (webPath === 'password') response = await changePassword(request, env, identity);
       else if (webPath === 'assets') response = await gallery(request, env, identity);
       else if (webPath === 'timeline') response = await timeline(request, env, identity);
