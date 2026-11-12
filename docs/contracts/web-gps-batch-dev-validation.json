@@ -1,0 +1,558 @@
+{
+  "target": "dev",
+  "checkedAt": "2026-11-12T00:38:51.610Z",
+  "complete": true,
+  "checks": [
+    {
+      "label": "operator-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "operator-usage-before",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-page",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-ui-fingerprinted-js",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-ui-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-fingerprinted-css",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-gps-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-preview-private",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "create-isolated-probe",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "probe-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "gps-unread-preview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "initial-job-empty",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "upload-only-isolated-fixture",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "owned-photo-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "manual-probe-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "owned-photo-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "manual-probe-metadata",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "favorite-before-gps",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "labels-before-gps",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "preserve-tags-rating",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-only-probe-album",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "prepare-only-probe-legacy-rows",
+      "method": "isolated-D1-fixture",
+      "passed": true
+    },
+    {
+      "label": "album-includes-legacy-fixture",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-before-batch",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-before-batch",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-unread-preview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "create-gps-job",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "foreign-job-private",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "foreign-step-private",
+      "status": 404,
+      "expected": 404
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-pause",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "persisted-gps-job",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-unread-preview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "one-active-job-per-account",
+      "status": 409,
+      "expected": 409
+    },
+    {
+      "label": "gps-resume",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "retry-only-failed-ids",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "restore-only-isolated-missing-original",
+      "method": "isolated-R2-fixture",
+      "passed": true
+    },
+    {
+      "label": "gps-retry",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-process-next-original",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-unread-preview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "map-after-batch",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleared-position-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "manual-position-time-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "photos-after-batch",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "album-members-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-exif-sync",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-gps-sync",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "gps-specific-validation-bounds",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "gps-specific-validation-mapView",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "gps-specific-validation-mapView",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "gps-mutation-same-origin",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-sha1-preserved",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cleanup-probe-album",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "purge-only-probe-fixtures",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "run-authorized-probe-purge",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-purge-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "probe-usage-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "tag-index-empty-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "empty-map-after-cleanup",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "gps-unread-preview",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "clear-probe-job-snapshot",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "disable-only-isolated-probe",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "probe-session-revoked",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "operator-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    }
+  ],
+  "privateSamplesUploaded": false,
+  "cleaned": true,
+  "physicalCleanupConfirmed": true,
+  "existingAccountUsageUnchanged": true,
+  "realDeviceVerified": false,
+  "legacyFixturePrepared": true,
+  "realMissingOriginalFailureVerified": true,
+  "syncVerified": true,
+  "originalsVerified": 5,
+  "gpsBatchVerified": true,
+  "queueCleared": true,
+  "sourceCommit": "f3d9fca0092d577a13c21bca83eb5ca78460ae93",
+  "workerVersion": "38fcc06b-1927-454a-91bb-848a886b626e",
+  "migration": "0038_web_gps_jobs.sql",
+  "publicChecks": 85,
+  "verification": {
+    "fullCheck": true,
+    "tests": 327,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": {
+      "operations": 279,
+      "sources": 53,
+      "passed": true
+    },
+    "syntheticPhotoJob": 1001,
+    "releaseRehearsalChecks": 83
+  },
+  "browser": {
+    "engine": "Playwright Chromium",
+    "target": "isolated-local-D1-R2",
+    "assertions": 44,
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 900
+      },
+      {
+        "width": 820,
+        "height": 900
+      }
+    ],
+    "suites": [
+      {
+        "suite": "gps-batch-desktop-start",
+        "checks": [
+          "preview-finds-all-24-unread-photos",
+          "scope-explains-hidden-map-photos",
+          "scope-shows-current-file-filter",
+          "progress-updates-during-work",
+          "progressbar-has-total-24",
+          "pause-preserves-partial-progress",
+          "reopen-restores-same-job",
+          "reopen-keeps-completed-count",
+          "refresh-restores-persisted-job",
+          "all-other-photos-complete",
+          "no-gps-is-successful-result",
+          "specific-filename-and-repair-reason",
+          "complete-with-failure-is-not-success-heading",
+          "single-failure-retry-keeps-successes",
+          "failure-retry-attempt-count"
+        ]
+      },
+      {
+        "suite": "gps-batch-desktop-finish",
+        "checks": [
+          "recovered-original-retry-finishes-only-failure",
+          "final-gps-and-cleared-location-counts",
+          "failure-list-clears-after-success",
+          "completed-photos-excluded-from-new-plan",
+          "progress-reaches-full-total",
+          "map-refreshes-after-import",
+          "manual-cleared-location-stays-cleared",
+          "manual-zero-location-preserved",
+          "original-timeline-times-preserved"
+        ]
+      },
+      {
+        "suite": "gps-batch-responsive-recovery",
+        "checks": [
+          "390-dialog-contained",
+          "390-fixed-actions-visible",
+          "390-response-loss-keeps-server-commit",
+          "390-unknown-result-prompts-progress-refresh",
+          "390-all-five-complete-without-double-count",
+          "390-all-five-located",
+          "390-no-horizontal-overflow",
+          "390-footer-remains-visible-after-scroll",
+          "390-map-updates-after-close",
+          "820-dialog-contained",
+          "820-fixed-actions-visible",
+          "820-all-five-complete-without-double-count",
+          "820-all-five-located",
+          "820-no-horizontal-overflow",
+          "820-footer-remains-visible-after-scroll",
+          "820-map-updates-after-close"
+        ]
+      },
+      {
+        "suite": "gps-batch-preview-recovery",
+        "checks": [
+          "preview-failure-retains-restored-server-progress",
+          "preview-failure-shows-actionable-retry",
+          "preview-retry-retains-complete-progress",
+          "preview-retry-clears-error-and-excludes-complete"
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Public verification covered HTTP and deployed frontend resources; browser interaction used isolated local D1/R2 fixtures.",
+    "GPS extraction is explicitly started and sequentially driven by the open browser panel. Closing or leaving stops new requests; in-flight requests may finish. Resume restores server progress.",
+    "Tasks read unextracted originals only and preserve manual metadata and times. Already extracted photos with no GPS are not repeatedly scanned.",
+    "Public fixture preparation changed legacy metadata and added a missing-original row only in the new isolated probe account. The missing synthetic original was restored for a real retry; all five fixtures were physically cleaned.",
+    "Real phone touch gestures, iPhone Safari and official App device behavior were not verified."
+  ],
+  "artifacts": {
+    "desktop": "work/output/playwright/web-gps-batch-desktop-final.png",
+    "tablet": "work/output/playwright/web-gps-batch-820.png",
+    "mobile": "work/output/playwright/web-gps-batch-390.png",
+    "mobileRecovery": "work/output/playwright/web-gps-batch-390-recovery.png"
+  }
+}
