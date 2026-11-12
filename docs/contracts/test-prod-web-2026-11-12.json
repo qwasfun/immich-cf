@@ -1,0 +1,1757 @@
+{
+  "checkedAt": "2026-11-12T01:36:11.525Z",
+  "sourceCommit": "31a03bb509ad9f9601fbec465026305442c6d062",
+  "runtimeTestedCommit": "f3d9fca0092d577a13c21bca83eb5ca78460ae93",
+  "localValidation": {
+    "reusedSameRuntimeSource": true,
+    "fullCheck": true,
+    "tests": 327,
+    "failed": 0,
+    "skipped": 0,
+    "contracts": {
+      "operations": 279,
+      "sources": 53,
+      "passed": true
+    }
+  },
+  "migrations": {
+    "from": 30,
+    "to": 38,
+    "applied": 8
+  },
+  "environments": {
+    "test": {
+      "workerVersion": "7a0d0b7e-a4ef-4d1f-ae5f-dcf1e809e72f",
+      "publicChecks": 134,
+      "preReleaseD1BookmarkRecorded": true,
+      "controlPlane": {
+        "target": "test",
+        "bindings": [
+          {
+            "name": "APP_ENV",
+            "type": "plain_text",
+            "text": "test"
+          },
+          {
+            "name": "ENABLE_LIVE_PHOTO",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "ENABLE_P1_POC",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "IMAGES",
+            "type": "images"
+          },
+          {
+            "name": "IMAGES_FREE_CONFIRMED",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "IMMICH_CF_DB",
+            "type": "d1",
+            "id": "a1140d40-c9c7-4155-8aaf-6273724caf03"
+          },
+          {
+            "name": "IMMICH_CF_MEDIA",
+            "type": "r2_bucket",
+            "bucket": "immich-cf-media-test"
+          },
+          {
+            "name": "WEB_ASSETS",
+            "type": "assets"
+          }
+        ],
+        "deployments": [
+          {
+            "id": "62c71724-0377-4ea5-857a-01a1c54476f3",
+            "versions": [
+              {
+                "version_id": "7a0d0b7e-a4ef-4d1f-ae5f-dcf1e809e72f",
+                "percentage": 100
+              }
+            ]
+          }
+        ],
+        "schedules": ["*/5 * * * *"],
+        "publicR2Enabled": false,
+        "checkedAt": "2026-11-12T01:16:03.733Z"
+      },
+      "target": "test",
+      "checkedAt": "2026-11-12T01:21:00.918Z",
+      "complete": true,
+      "checks": [
+        {
+          "label": "operator-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "operator-usage-before",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/healthz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/.well-known/immich",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/api/server/ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/api/server/version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "migrations-and-media-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-fingerprinted-js",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-ui-fingerprinted-js",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-ui-fingerprinted-css",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-fingerprinted-css",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "anonymous-gps-private",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "anonymous-preview-private",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "create-isolated-probe",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "initial-job-empty",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "owned-photo-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-probe-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "owned-photo-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-probe-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "favorite-before-gps",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "labels-before-gps",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "preserve-tags-rating",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-only-probe-album",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "prepare-only-probe-legacy-rows",
+          "method": "isolated-D1-fixture",
+          "passed": true
+        },
+        {
+          "label": "album-includes-legacy-fixture",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photos-before-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-before-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-gps-job",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "foreign-job-private",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "foreign-step-private",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-pause",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "persisted-gps-job",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "one-active-job-per-account",
+          "status": 409,
+          "expected": 409
+        },
+        {
+          "label": "gps-resume",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "retry-only-failed-ids",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "restore-only-isolated-missing-original",
+          "method": "isolated-R2-fixture",
+          "passed": true
+        },
+        {
+          "label": "gps-retry",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-after-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleared-position-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-position-time-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photos-after-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-members-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-exif-sync",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-gps-sync",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "gps-specific-validation-bounds",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-specific-validation-mapView",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-specific-validation-mapView",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-mutation-same-origin",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "ordinary-user-admin-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "spa-/photos",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/albums",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/memories",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/shares",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "combined-tag-rating-type-search",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timezone-month-navigation",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-first-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-next-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-previous-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "on-this-day-recall",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-list-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-selected-photo",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-browse",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unarchive-list-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unarchive-selected-photo",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-only-probe-album",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "album-search-sort-snapshot",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "copy-photo-to-album",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-version-before-move",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "move-photo-back-with-dedup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "quick-album-cover",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-cover-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "prepare-selected-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "read-selected-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "selected-zip-complete",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "prepare-album-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "read-album-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-zip-complete",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "protected-photo-share",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "locked-share-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "unlock-photo-share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unlocked-photo-share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "guest-download-disabled",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "enable-guest-originals",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "guest-original-sha1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "whole-album-share",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "whole-album-guest-list",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photo-jpeg-preview",
+          "status": 503,
+          "expected": [200, 503]
+        },
+        {
+          "label": "photo-jpeg-preview",
+          "status": 200,
+          "expected": [200, 503]
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleanup-probe-share",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-share",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "purge-only-probe-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-usage-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "tag-index-empty-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-map-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "clear-probe-job-snapshot",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "disable-only-isolated-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "probe-session-revoked",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "operator-usage-after",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "privateSamplesUploaded": false,
+      "cleaned": true,
+      "physicalCleanupConfirmed": true,
+      "existingAccountUsageUnchanged": true,
+      "realDeviceVerified": false,
+      "migrations": 38,
+      "legacyFixturePrepared": true,
+      "realMissingOriginalFailureVerified": true,
+      "syncVerified": true,
+      "archivesVerified": 2,
+      "previewVerified": true,
+      "releaseFeaturesVerified": true,
+      "originalsVerified": 5,
+      "gpsBatchVerified": true,
+      "queueCleared": true
+    },
+    "prod": {
+      "workerVersion": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+      "publicChecks": 134,
+      "preReleaseD1BookmarkRecorded": true,
+      "controlPlane": {
+        "target": "prod",
+        "bindings": [
+          {
+            "name": "APP_ENV",
+            "type": "plain_text",
+            "text": "production"
+          },
+          {
+            "name": "ENABLE_LIVE_PHOTO",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "ENABLE_P1_POC",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "IMAGES",
+            "type": "images"
+          },
+          {
+            "name": "IMAGES_FREE_CONFIRMED",
+            "type": "plain_text",
+            "text": "true"
+          },
+          {
+            "name": "IMMICH_CF_DB",
+            "type": "d1",
+            "id": "cc80e056-5b06-46ed-9a1f-2e6fd86a96ba"
+          },
+          {
+            "name": "IMMICH_CF_MEDIA",
+            "type": "r2_bucket",
+            "bucket": "immich-cf-media"
+          },
+          {
+            "name": "WEB_ASSETS",
+            "type": "assets"
+          }
+        ],
+        "deployments": [
+          {
+            "id": "2fd73885-594a-413d-a3d8-7de1cb721d74",
+            "versions": [
+              {
+                "version_id": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+                "percentage": 100
+              }
+            ]
+          }
+        ],
+        "schedules": ["*/5 * * * *"],
+        "publicR2Enabled": false,
+        "checkedAt": "2026-11-12T01:25:09.593Z"
+      },
+      "target": "prod",
+      "checkedAt": "2026-11-12T01:30:51.547Z",
+      "complete": true,
+      "checks": [
+        {
+          "label": "operator-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "operator-usage-before",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/healthz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/.well-known/immich",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/api/server/ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-/api/server/version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "migrations-and-media-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-fingerprinted-js",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-ui-fingerprinted-js",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-ui-fingerprinted-css",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-fingerprinted-css",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "anonymous-gps-private",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "anonymous-preview-private",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "create-isolated-probe",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "initial-job-empty",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "upload-only-isolated-fixture",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "owned-photo-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-probe-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "owned-photo-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-probe-metadata",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "favorite-before-gps",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "labels-before-gps",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "preserve-tags-rating",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-only-probe-album",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "prepare-only-probe-legacy-rows",
+          "method": "isolated-D1-fixture",
+          "passed": true
+        },
+        {
+          "label": "album-includes-legacy-fixture",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photos-before-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-before-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-gps-job",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "foreign-job-private",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "foreign-step-private",
+          "status": 404,
+          "expected": 404
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-pause",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "persisted-gps-job",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "one-active-job-per-account",
+          "status": 409,
+          "expected": 409
+        },
+        {
+          "label": "gps-resume",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "retry-only-failed-ids",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "restore-only-isolated-missing-original",
+          "method": "isolated-R2-fixture",
+          "passed": true
+        },
+        {
+          "label": "gps-retry",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-process-next-original",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "map-after-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleared-position-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "manual-position-time-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photos-after-batch",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-members-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-exif-sync",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-gps-sync",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "gps-specific-validation-bounds",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-specific-validation-mapView",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-specific-validation-mapView",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "gps-mutation-same-origin",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "ordinary-user-admin-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "spa-/photos",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/albums",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/memories",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/shares",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "spa-/share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "combined-tag-rating-type-search",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timezone-month-navigation",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-first-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-next-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "timeline-previous-page",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "on-this-day-recall",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-list-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-selected-photo",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "archive-browse",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unarchive-list-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unarchive-selected-photo",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-only-probe-album",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "album-search-sort-snapshot",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "copy-photo-to-album",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-version-before-move",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "move-photo-back-with-dedup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "quick-album-cover",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-cover-read",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "prepare-selected-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "read-selected-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "selected-zip-complete",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "prepare-album-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "read-album-zip",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "album-zip-complete",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "protected-photo-share",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "locked-share-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "unlock-photo-share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "unlocked-photo-share",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "guest-download-disabled",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "enable-guest-originals",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "guest-original-sha1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "whole-album-share",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "whole-album-guest-list",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "photo-jpeg-preview",
+          "status": 503,
+          "expected": [200, 503]
+        },
+        {
+          "label": "photo-jpeg-preview",
+          "status": 200,
+          "expected": [200, 503]
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-sha1-preserved",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cleanup-probe-share",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-share",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "cleanup-probe-album",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "purge-only-probe-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "run-authorized-probe-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-usage-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "tag-index-empty-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-map-after-cleanup",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "gps-unread-preview",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "clear-probe-job-snapshot",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "disable-only-isolated-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "probe-session-revoked",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "operator-usage-after",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "privateSamplesUploaded": false,
+      "cleaned": true,
+      "physicalCleanupConfirmed": true,
+      "existingAccountUsageUnchanged": true,
+      "realDeviceVerified": false,
+      "migrations": 38,
+      "legacyFixturePrepared": true,
+      "realMissingOriginalFailureVerified": true,
+      "syncVerified": true,
+      "archivesVerified": 2,
+      "previewVerified": true,
+      "releaseFeaturesVerified": true,
+      "originalsVerified": 5,
+      "gpsBatchVerified": true,
+      "queueCleared": true
+    }
+  },
+  "isolation": {
+    "checkedAt": "2026-11-12T01:25:45.773Z",
+    "complete": true,
+    "checks": [
+      {
+        "target": "dev",
+        "label": "login-own-admin",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "target": "test",
+        "label": "login-own-admin",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "target": "prod",
+        "label": "login-own-admin",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "target": "dev",
+        "label": "own-bearer-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "dev",
+        "label": "own-cookie-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "dev",
+        "label": "test-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "dev",
+        "label": "test-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "dev",
+        "label": "prod-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "dev",
+        "label": "prod-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "test",
+        "label": "own-bearer-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "test",
+        "label": "own-cookie-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "test",
+        "label": "dev-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "test",
+        "label": "dev-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "test",
+        "label": "prod-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "test",
+        "label": "prod-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "prod",
+        "label": "own-bearer-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "prod",
+        "label": "own-cookie-accepted",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "prod",
+        "label": "dev-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "prod",
+        "label": "dev-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "prod",
+        "label": "test-bearer-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "prod",
+        "label": "test-cookie-rejected",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "target": "dev",
+        "label": "logout-own-session",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "test",
+        "label": "logout-own-session",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "target": "prod",
+        "label": "logout-own-session",
+        "status": 200,
+        "expected": 200
+      }
+    ]
+  },
+  "cleanupReconciliation": {
+    "checkedAt": "2026-11-12T01:32:44.010Z",
+    "complete": true,
+    "disabled": true,
+    "removedAlbums": 0,
+    "checks": [
+      {
+        "label": "operator-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "operator-before",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "find-only-prior-probe",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "enable-only-prior-probe",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "prior-probe-login",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "label": "read-prior-probe-albums",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "prior-probe-albums-empty",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "prior-probe-assets-empty",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "disable-only-prior-probe",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "label": "prior-probe-session-revoked",
+        "status": 401,
+        "expected": 401
+      },
+      {
+        "label": "operator-after",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "label": "operator-logout",
+        "status": 200,
+        "expected": 200
+      }
+    ]
+  },
+  "fixtureCorrection": {
+    "initialAttemptCleaned": true,
+    "testTransportAttemptCleaned": true,
+    "prodTransportAttemptCleaned": true,
+    "reason": "The first test attempt used a structural JPEG parser fixture without decodable image data. Acceptance was rerun using the real repository JPEG with synthetic EXIF; application source did not change."
+  },
+  "limitations": [
+    "Public acceptance covered HTTP and deployed resources using new isolated accounts and synthetic originals only.",
+    "Browser interaction was verified earlier on dev using isolated local data; this promotion did not add real iPhone/Safari or official App device acceptance.",
+    "No accounts, passwords, sessions or media were copied between environments. GitHub branches were not pushed."
+  ]
+}
