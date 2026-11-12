@@ -1,0 +1,241 @@
+{
+  "checkedAt": "2026-11-12T01:41:25.976Z",
+  "domain": "https://immich.185036.xyz",
+  "original": "https://immich-cf-api.fun.workers.dev",
+  "complete": true,
+  "checks": [
+    {
+      "label": "new-domain-/healthz",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-domain-/.well-known/immich",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-domain-/api/server/ping",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-domain-/api/server/version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-domain-home",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-domain-home",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/login",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/photos",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/albums",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/map",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/memories",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/shares",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "spa-/share",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "custom-host-fingerprinted-asset",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-host-fingerprinted-asset",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "custom-host-fingerprinted-asset",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-host-fingerprinted-asset",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "anonymous-private-/bootstrap",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-private-/assets",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-private-/map",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-private-/timeline",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-private-/memories",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "anonymous-private-/gps-jobs",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "login-on-new-domain",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "new-domain-cookie-bootstrap",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "original-domain-same-account",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "production-migration-status",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "new-origin-cookie-validation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "foreign-origin-cookie-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "production-token-rejected-by-other-environment",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "production-token-rejected-by-other-environment",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "new-domain-usage-after",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-new-domain-session",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logged-out-cookie-rejected",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "logged-out-token-rejected-on-original-host",
+      "status": 401,
+      "expected": 401
+    }
+  ],
+  "certificateVerified": true,
+  "accountAndUsageUnchanged": true,
+  "sessionCleaned": true,
+  "realDeviceVerified": false,
+  "sameFrontend": true,
+  "migrations": 38,
+  "publicChecks": 35,
+  "workerVersion": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+  "workerVersionUnchanged": true,
+  "runtimeRedeployed": false,
+  "baseCommit": "55e18eec210ba3303f71ced788de0fbe503e8c84",
+  "localChecks": {
+    "environmentTests": 1,
+    "failed": 0,
+    "contracts": {
+      "operations": 279,
+      "sources": 53,
+      "passed": true
+    },
+    "productionDryRun": true,
+    "onlyProductionRouteChanged": true
+  },
+  "controlPlane": {
+    "domain": {
+      "id": "706916555a47cc4b4df594b270550005a269008f",
+      "hostname": "immich.185036.xyz",
+      "service": "immich-cf-api",
+      "enabled": true,
+      "previews_enabled": false,
+      "cert_id": "ca63d818-8143-4ed3-bacc-51912da00548"
+    },
+    "dns": [
+      {
+        "id": "3106d1f220dfe6199b854ef5fad81a91",
+        "name": "immich.185036.xyz",
+        "type": "AAAA",
+        "proxied": true
+      }
+    ],
+    "certificates": [
+      {
+        "id": "ca63d818-8143-4ed3-bacc-51912da00548",
+        "status": "active",
+        "type": "advanced",
+        "hosts": ["immich.185036.xyz"]
+      }
+    ],
+    "activeVersion": [
+      {
+        "version_id": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+        "percentage": 100
+      }
+    ]
+  },
+  "limitations": [
+    "Validation covered actual HTTPS, public frontend resources, production account authentication and API origin checks. Physical phone and official App device behavior were not revalidated.",
+    "Only a temporary login session was created and revoked; no photo, album or user-password changes were made."
+  ]
+}

@@ -8,9 +8,11 @@
 | ---- | ------------------------------------------ | ------------------------------------------------------------- | ------------------------ |
 | dev  | https://immich-cf-api-dev.fun.workers.dev  | immich-cf-api-dev / immich-cf-db-dev / immich-cf-media-dev    | 已发布并开启 P1 入口     |
 | test | https://immich-cf-api-test.fun.workers.dev | immich-cf-api-test / immich-cf-db-test / immich-cf-media-test | 已发布，独立数据库与媒体 |
-| prod | https://immich-cf-api.fun.workers.dev      | immich-cf-api / immich-cf-db / immich-cf-media                | 已发布，独立数据库与媒体 |
+| prod | https://immich.185036.xyz                  | immich-cf-api / immich-cf-db / immich-cf-media                | 已发布，独立数据库与媒体 |
 
 官方 App 填写根地址即可，不需要自行加 `/api`。切换环境使用 App 现有服务器/账号入口；各环境分别登录，禁止复用 token。用户、图库、备份状态和同步检查点独立，首次切换后的本地缓存/重同步行为仍须 iOS 3.3.1 build 23 真机验收，不能把开发测试数据当作生产备份。
+
+生产增加 `https://immich.185036.xyz`，原 `https://immich-cf-api.fun.workers.dev` 继续可用，两者访问同一生产 Worker、账号和图库。浏览器登录 Cookie 按主机隔离，首次访问新域名需重新登录。域名配置仅在 `env.prod.routes` 中维护；后续生产发布会保留该绑定，dev/test 不绑定此域名。绑定与证书、验证结果见[生产域名说明](prod-custom-domain.md)。
 
 dev 测试邮箱为 `dev@immich-cf.test`，随机密码保存在本机忽略目录 `work/dev-access.txt`，不纳入 Git。现有功能包含网页图库、账号管理、JPEG/PNG/HEIC 上传与预览、Live Photo 配对和 Sync；完整真机、容量与灾备验收仍按阶段文档推进。test/prod 初始登录信息仅保存在本机忽略文件 `work/test-prod-initial-access.txt`。
 

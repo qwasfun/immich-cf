@@ -111,6 +111,7 @@
     },
     "prod": {
       "name": "immich-cf-api",
+      "routes": [{ "pattern": "immich.185036.xyz", "custom_domain": true }],
       "assets": {
         "directory": "./dist/web",
         "binding": "WEB_ASSETS",
