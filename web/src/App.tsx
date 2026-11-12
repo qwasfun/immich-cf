@@ -215,6 +215,26 @@ export function App() {
   useEffect(() => {
     document.title = `${path.startsWith('/map') ? '照片地图' : path.startsWith('/memories') ? '往年今日' : path.startsWith('/albums') ? '相册' : path === '/favorites' ? '收藏' : path === '/archive' ? '归档' : path === '/trash' ? '回收站' : path === '/shares' ? '分享管理' : path === '/account' ? '账号设置' : path === '/admin/users' ? '账号管理' : '我的照片'} · Immich CF`;
   }, [path]);
+  useEffect(() => {
+    if (!boot) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (document.querySelector('dialog[open]')) return;
+      const target = event.target as HTMLElement;
+      if (target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.key.toLowerCase() === 'u') {
+        event.preventDefault();
+        setUploadOpen(true);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [!!boot]);
+  useEffect(() => {
+    if (!message || !boot) return;
+    const timer = window.setTimeout(() => setMessage(''), 5500);
+    return () => clearTimeout(timer);
+  }, [message, !!boot]);
   function changed(text: string) {
     setMessage(text);
     setRefresh((v) => v + 1);
@@ -261,7 +281,15 @@ export function App() {
       path,
     );
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onDragOver={(e) => {
+        if (!uploadOpen && e.dataTransfer?.types.includes('Files')) {
+          e.preventDefault();
+          setUploadOpen(true);
+        }
+      }}
+    >
       {mobile && (
         <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setMobile(false)} />
       )}
@@ -373,6 +401,7 @@ export function App() {
             <button
               className="upload-trigger"
               aria-label="上传照片"
+              title="上传照片（快捷键：U 或直接拖拽文件到页面）"
               onClick={() => setUploadOpen(true)}
             >
               <Icon name="upload" size={18} />
@@ -475,6 +504,42 @@ export function App() {
             </div>
           )}
         </main>
+        <nav className="mobile-bottom-nav" aria-label="移动端快捷导航">
+          {[
+            { path: '/photos', label: '照片', icon: 'photos' },
+            { path: '/memories', label: '回忆', icon: 'memories' },
+            { path: '/map', label: '地图', icon: 'map' },
+            { path: '/albums', label: '相册', icon: 'album' },
+          ].map((item) => {
+            const active =
+              path === item.path ||
+              (item.path === '/albums' && !!albumId) ||
+              (item.path === '/memories' && !!memoryPath) ||
+              (item.path === '/map' && !!mapPath);
+            return (
+              <a
+                key={item.path}
+                href={item.path}
+                className={active ? 'active' : ''}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(item.path);
+                }}
+              >
+                <Icon name={item.icon} size={20} />
+                <span>{item.label}</span>
+              </a>
+            );
+          })}
+          <button
+            type="button"
+            className={mobile ? 'active' : ''}
+            onClick={() => setMobile((v) => !v)}
+          >
+            <Icon name="menu" size={20} />
+            <span>更多</span>
+          </button>
+        </nav>
       </div>
       {uploadOpen && (
         <Upload

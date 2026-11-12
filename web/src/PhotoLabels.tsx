@@ -155,6 +155,7 @@ export function EditPhotoLabels({
     <Modal
       title={ids.length === 1 ? '设置标签与评分' : '批量设置标签与评分'}
       close={close}
+      drawer
       busy={busy}
     >
       <form className="photo-metadata-form photo-label-form" onSubmit={submit} noValidate>
@@ -229,9 +230,46 @@ export function EditPhotoLabels({
                   </button>
                 </>
               )}
-              <label className="field label-rating">
-                评分
-                <select value={rating} disabled={busy} onChange={(e) => setRating(e.target.value)}>
+              <div className="field label-rating">
+                <label htmlFor={`${suggestions}-rating-select`}>评分</label>
+                <div className="star-picker" role="group" aria-label="快捷选择星级">
+                  {ids.length > 1 && (
+                    <button
+                      type="button"
+                      className={`star-pill ${rating === 'keep' ? 'active' : ''}`}
+                      disabled={busy}
+                      onClick={() => setRating('keep')}
+                    >
+                      不修改
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`star-pill ${rating === 'none' ? 'active' : ''}`}
+                    disabled={busy}
+                    onClick={() => setRating('none')}
+                  >
+                    未评分
+                  </button>
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      className={`star-btn ${Number(rating) >= value ? 'filled' : ''} ${rating === String(value) ? 'active' : ''}`}
+                      disabled={busy}
+                      onClick={() => setRating(String(value))}
+                      title={`${value} 星`}
+                    >
+                      ★ {value}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  id={`${suggestions}-rating-select`}
+                  value={rating}
+                  disabled={busy}
+                  onChange={(e) => setRating(e.target.value)}
+                >
                   <option value="keep">不修改评分</option>
                   <option value="none">清除评分（未评分）</option>
                   {[1, 2, 3, 4, 5].map((value) => (
@@ -240,7 +278,7 @@ export function EditPhotoLabels({
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
             </>
           )}
           <ErrorBox error={error} />

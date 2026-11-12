@@ -96,6 +96,7 @@ export function AlbumTransfer({
     <Modal
       title={moving ? '移动到相册' : source ? '复制到相册' : '添加到相册'}
       close={close}
+      drawer
       busy={busy}
     >
       <div className="form-body album-transfer-body">
