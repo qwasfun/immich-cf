@@ -58,6 +58,10 @@ const labels: Record<string, string> = {
   bounds: '地图范围',
   mapView: '位置范围',
   zoom: '地图缩放',
+  scope: '读取范围',
+  jobId: '读取任务',
+  action: '任务操作',
+  failureAfter: '失败列表',
 };
 function readable(message: string) {
   return message.replace(/^([a-zA-Z/-]+)([：:])/, (all, key: string) => {

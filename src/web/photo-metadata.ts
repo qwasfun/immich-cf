@@ -1,8 +1,7 @@
 import { authenticate, type Identity } from '../poc/auth';
 import { body, HttpError } from '../poc/http';
 import type { Asset } from '../poc/assets';
-import { originalMatches } from '../poc/integrity';
-import { inspectMedia } from '../poc/media-format';
+import { readPhotoExif } from './photo-extraction';
 import { photoRecord, photoExifDto } from '../poc/photo-details';
 import { PhotoTimeError, photoTimeZone, photoWallTime, resolvePhotoTime } from '../photo-time';
 import { field, only, sameOrigin, uuid } from './common';
@@ -116,13 +115,10 @@ export async function photoMetadata(
       row = found.rows[0]!;
     if (String(version) !== found.version)
       throw new HttpError(409, '照片资料：图库已变化，请重新打开窗口后读取', 'version');
-    const head = await env.IMMICH_CF_MEDIA.head(row.object_key);
-    if (!originalMatches(head, row.bytes, row.checksum, !!row.r2_sha1_verified))
-      throw new HttpError(503, '照片原件：尚不可用或校验不符，请稍后重试；已保存的资料保持不变');
-    const media = await inspectMedia(env.IMMICH_CF_MEDIA, row.object_key, row.bytes);
+    const exif = await readPhotoExif(env, row);
     const record = photoRecord(row);
     record.extracted = true;
-    record.source = media.exif ?? {};
+    record.source = exif;
     await commit(
       db,
       identity,

@@ -7,6 +7,7 @@ import { MapCanvas, type MapViewport } from './MapCanvas';
 import { PhotoFilters } from './PhotoFilters';
 import { Gallery } from './Gallery';
 import { Empty, ErrorBox, Icon, Preview } from './ui';
+import { GpsReader } from './GpsReader';
 
 interface MapData {
   version: string;
@@ -57,6 +58,7 @@ export default function PhotoMap({
     [tileError, setTileError] = useState(false),
     [tileRetry, setTileRetry] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(!!saved && hasPhotoFilters(saved.query));
+  const [gpsScope, setGpsScope] = useState<string | null>(null);
   const [fit, setFit] = useState<{ bounds: GeoBounds; nonce: number } | null>(null);
   const needsFit = useRef(!saved),
     current = useRef(state),
@@ -177,13 +179,25 @@ export default function PhotoMap({
           <h1>照片地图</h1>
           <p className="muted">在地图上重访去过的地方，按位置回看照片。</p>
         </div>
-        <button
-          disabled={!data?.extent || loading}
-          onClick={() => data?.extent && setFit({ bounds: data.extent, nonce: Date.now() })}
-        >
-          <Icon name="map" />
-          显示全部位置
-        </button>
+        <div className="heading-actions">
+          <button
+            onClick={() => {
+              const params = new URLSearchParams(photoQueryParams(state.query));
+              params.set('mapView', state.mapView);
+              if (state.albumId) params.set('albumId', state.albumId);
+              setGpsScope(params.toString());
+            }}
+          >
+            批量读取旧照片 GPS
+          </button>
+          <button
+            disabled={!data?.extent || loading}
+            onClick={() => data?.extent && setFit({ bounds: data.extent, nonce: Date.now() })}
+          >
+            <Icon name="map" />
+            显示全部位置
+          </button>
+        </div>
       </div>
       <section className="map-filters">
         <label className="field">
@@ -335,6 +349,16 @@ export default function PhotoMap({
         <Empty icon="map" title="还没有符合条件的定位照片">
           可调整筛选，或在照片资料中读取原件信息、补填经纬度后再查看。
         </Empty>
+      )}
+      {gpsScope !== null && (
+        <GpsReader
+          scope={gpsScope}
+          close={() => setGpsScope(null)}
+          updated={() => {
+            needsFit.current = true;
+            setRetry((value) => value + 1);
+          }}
+        />
       )}
     </>
   );

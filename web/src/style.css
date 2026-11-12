@@ -834,6 +834,81 @@ main {
   padding: 2px 8px;
   flex-shrink: 0;
 }
+.gps-progress,
+.gps-new-task,
+.gps-failures {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.gps-progress h3,
+.gps-new-task h3,
+.gps-failures h3 {
+  margin: 0 0 10px;
+}
+.gps-progress progress {
+  width: 100%;
+  height: 18px;
+  accent-color: var(--blue);
+}
+.gps-counter {
+  font-weight: 600;
+}
+.gps-counts,
+.gps-actions {
+  display: flex;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+}
+.gps-counts {
+  color: #66718a;
+}
+.gps-file {
+  overflow-wrap: anywhere;
+}
+.gps-actions {
+  margin-top: 16px;
+}
+.gps-failure {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.gps-failure > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gps-failure p {
+  margin: 5px 0;
+  color: #965044;
+}
+.gps-failure small {
+  color: var(--muted);
+}
+.gps-failure button {
+  flex-shrink: 0;
+}
+.modal:has(.gps-reader-body) {
+  overflow: hidden;
+}
+.modal:has(.gps-reader-body) .modal-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(90dvh - 2px);
+}
+.modal:has(.gps-reader-body) .modal-inner > header,
+.modal:has(.gps-reader-body) .modal-actions {
+  flex-shrink: 0;
+}
+.gps-reader-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
 .map-filters {
   display: flex;
   align-items: end;

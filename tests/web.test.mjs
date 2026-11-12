@@ -531,11 +531,601 @@ test('初始化权限独立于官方 isAdmin，名额来自服务端且无密码
 const shares = root + '/shares';
 const shared = root + '/shared';
 const previewOf = (id) => `${shared}/assets/${id}/preview`;
+const gpsRoot = root + '/gps-jobs';
+async function gpsPlan(u, scope = 'mapView=library') {
+  const response = await call(gpsRoot + '/preview?' + scope, u);
+  assert.equal(response.status, 200);
+  return response.json();
+}
+async function gpsStart(u, scope = 'mapView=library') {
+  const plan = await gpsPlan(u, scope),
+    response = await call(gpsRoot, u, 'POST', { scope, version: plan.version });
+  assert.equal(response.status, 201);
+  return response.json();
+}
+async function gpsStep(u, id, headers = {}) {
+  const response = await call(gpsRoot + '/' + id + '/step', u, 'POST', {}, headers);
+  assert.equal(response.status, 200);
+  return response.json();
+}
+async function gpsControl(u, id, action, ids) {
+  const response = await call(gpsRoot + '/' + id, u, 'PATCH', { action, ...(ids ? { ids } : {}) });
+  assert.equal(response.status, 200);
+  return response.json();
+}
+test('旧照片 GPS 批量计划包含尚未定位的完整来源，组合筛选/相册/归档与账号隔离', async () => {
+  const u = await user(),
+    foreign = await user(),
+    a = await seed(u, photoJpeg(), undefined, { filename: 'GPS旧照_a.jpg' }),
+    b = await seed(u),
+    fresh = await seed(u),
+    trash = await seed(u);
+  await db
+    .prepare('UPDATE assets SET favorite=1,tags=?,rating=4 WHERE id=?')
+    .bind('["旅行"]', a.id)
+    .run();
+  await db.prepare('UPDATE assets SET archived=1 WHERE id=?').bind(b.id).run();
+  await db
+    .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')
+    .bind('{"extracted":true,"source":{}}', fresh.id)
+    .run();
+  await db
+    .prepare('UPDATE assets SET deleted_at=? WHERE id=?')
+    .bind(new Date().toISOString(), trash.id)
+    .run();
+  const pair = pairId();
+  await seed(u, liveMov(pair), 'video/quicktime', { type: 'VIDEO', visibility: 'hidden', pair });
+  await seed(foreign);
+  const album = await (
+    await call('/api/albums', u, 'POST', { albumName: '旧照', assetIds: [a.id, b.id] })
+  ).json();
+  assert.equal((await gpsPlan(u)).count, 2);
+  assert.equal((await gpsPlan(u, 'mapView=photos')).count, 1);
+  assert.equal((await gpsPlan(u, 'mapView=archive')).count, 1);
+  assert.equal((await gpsPlan(u, 'mapView=favorites')).count, 1);
+  const scope =
+    'mapView=album&albumId=' +
+    album.id +
+    '&tag=' +
+    encodeURIComponent('旅行') +
+    '&rating=gte4&type=jpeg&q=GPS';
+  assert.equal((await gpsPlan(u, scope)).count, 1);
+  assert.equal(
+    (await call(gpsRoot + '/preview?mapView=album&albumId=' + album.id, foreign)).status,
+    404,
+  );
+  const job = await gpsStart(u, scope);
+  assert.equal(job.total, 1);
+  assert.equal(job.pending, 1);
+  assert.doesNotMatch(JSON.stringify(job), /object_key|checksum|session_id|token|lease":/);
+  assert.equal((await call(gpsRoot + '/' + job.id, foreign)).status, 404);
+  assert.equal((await call(gpsRoot + '/' + job.id + '/step', foreign, 'POST', {})).status, 404);
+  assert.equal(
+    (await call(gpsRoot + '/' + job.id, foreign, 'PATCH', { action: 'cancel' })).status,
+    404,
+  );
+});
+test('批量 GPS 读取进度区分可定位/无定位，保留手动覆盖清除、时间、原件和 App 私有资料', async () => {
+  const u = await user(),
+    a = await seed(u, photoJpeg()),
+    b = await seed(u),
+    cleared = await seed(u, photoJpeg({ local: '2021:01:01 00:00:00' })),
+    overridden = await seed(u, photoJpeg({ local: '2022:01:01 00:00:00' }));
+  const opaque = JSON.stringify([
+    { key: 'mobile-app', value: { opaqueCloudId: 'unchanged-private-id' } },
+  ]);
+  await db
+    .prepare('UPDATE assets SET metadata=?,favorite=1,tags=?,rating=5 WHERE id=?')
+    .bind(opaque, '["保持"]', a.id)
+    .run();
+  await db
+    .prepare('UPDATE assets SET photo_metadata=?,local_date_time=?,archived=1 WHERE id=?')
+    .bind(
+      JSON.stringify({
+        extracted: false,
+        source: {},
+        overrides: { latitude: null, longitude: null, description: '手动说明' },
+        timeZone: 'Asia/Shanghai',
+        timeSource: 'manual',
+      }),
+      '2026-11-02T08:00:00.000Z',
+      cleared.id,
+    )
+    .run();
+  await db
+    .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')
+    .bind(JSON.stringify({ overrides: { latitude: 0, longitude: 0 } }), overridden.id)
+    .run();
+  const before = await db
+    .prepare(
+      'SELECT id,file_created_at,local_date_time,metadata FROM assets WHERE owner_id=? ORDER BY id',
+    )
+    .bind(u.id)
+    .all();
+  let job = await gpsStart(u);
+  assert.equal(job.total, 4);
+  const sourceVersion = (await (await call(root + '/map', u)).json()).version;
+  for (let i = 0; i < 4; i++) {
+    job = await gpsStep(u, job.id);
+    assert.equal(job.processed, i + 1);
+    assert.equal(job.pending, 3 - i);
+  }
+  assert.equal(job.state, 'complete');
+  assert.equal(job.succeeded, 4);
+  assert.equal(job.located, 2);
+  assert.equal(job.noGps, 2);
+  assert.equal(job.failed, 0);
+  assert.equal((await gpsPlan(u)).count, 0);
+  const after = await db
+    .prepare(
+      'SELECT id,file_created_at,local_date_time,metadata FROM assets WHERE owner_id=? ORDER BY id',
+    )
+    .bind(u.id)
+    .all();
+  assert.deepEqual(after.results, before.results);
+  const manual = await (await call(root + '/assets/' + cleared.id + '/metadata', u)).json();
+  assert.equal(manual.latitude, null);
+  assert.equal(manual.description, '手动说明');
+  assert.equal(manual.timeSource, 'manual');
+  assert.equal(manual.timeZone, 'Asia/Shanghai');
+  const override = await (await call(root + '/assets/' + overridden.id + '/metadata', u)).json();
+  assert.equal(override.latitude, 0);
+  assert.equal(override.longitude, 0);
+  const photo = await (await call('/api/assets/' + a.id, u)).json();
+  assert.equal(photo.isFavorite, true);
+  assert.equal(photo.exifInfo.rating, 5);
+  assert.equal(photo.exifInfo.make, 'Example Camera');
+  const map = await (await call(root + '/map', u)).json();
+  assert.equal(map.total, 2);
+  assert.notEqual(map.version, sourceVersion);
+  for (const seeded of [a, b, cleared, overridden])
+    assert.deepEqual(
+      Buffer.from(await (await call(root + '/assets/' + seeded.id + '/download', u)).arrayBuffer()),
+      seeded.content,
+    );
+  assert.equal((await gpsStep(u, job.id)).succeeded, 4);
+});
+test('GPS 批量失败记录具体原因，单张/全部重试只重读失败照片并保留成功进度', async () => {
+  const u = await user(),
+    success = await seed(u, photoJpeg()),
+    missing = await seed(u, photoJpeg({ local: '2020:02:01 00:00:00' })),
+    corrupt = await seed(u, photoJpeg({ local: '2020:03:01 00:00:00' }));
+  await bucket.delete(missing.key);
+  await bucket.put(corrupt.key, Buffer.from('wrong-bytes'));
+  let job = await gpsStart(u);
+  while (job.state === 'running') job = await gpsStep(u, job.id);
+  assert.equal(job.succeeded, 1);
+  assert.equal(job.failed, 2);
+  assert.equal(job.processed, 3);
+  assert.ok(job.failures.every((f) => f.message.includes('照片原件：') && f.tries === 1));
+  await bucket.delete(success.key);
+  for (const photo of [missing, corrupt])
+    await bucket.put(photo.key, photo.content, {
+      sha1: createHash('sha1').update(photo.content).digest(),
+    });
+  job = await gpsControl(u, job.id, 'retry', [missing.id]);
+  assert.equal(job.pending, 1);
+  assert.equal(job.failed, 1);
+  assert.equal(job.succeeded, 1);
+  job = await gpsStep(u, job.id);
+  assert.equal(job.succeeded, 2);
+  assert.equal(job.failed, 1);
+  assert.equal(job.state, 'complete');
+  job = await gpsControl(u, job.id, 'retry');
+  job = await gpsStep(u, job.id);
+  assert.equal(job.succeeded, 3);
+  assert.equal(job.failed, 0);
+  assert.equal(job.located, 3);
+  assert.equal(job.processed, 3);
+  const rows = await db
+    .prepare('SELECT asset_id,tries FROM web_gps_items WHERE job_id=?')
+    .bind(job.id)
+    .all();
+  assert.equal(rows.results.find((r) => r.asset_id === success.id).tries, 1);
+  assert.equal(rows.results.find((r) => r.asset_id === missing.id).tries, 2);
+});
+test('GPS 任务暂停、重开进度、结束和替换有界，原筛选快照不随之后编辑变化', async () => {
+  const u = await user(),
+    a = await seed(u, photoJpeg()),
+    b = await seed(u, photoJpeg({ local: '2021:01:01 00:00:00' }));
+  let job = await gpsStart(u);
+  job = await gpsControl(u, job.id, 'pause');
+  assert.equal(job.state, 'paused');
+  assert.equal((await gpsStep(u, job.id)).processed, 0);
+  const preview = await gpsPlan(u);
+  assert.equal(
+    (await call(gpsRoot, u, 'POST', { scope: 'mapView=library', version: preview.version })).status,
+    409,
+  );
+  job = await (await call(gpsRoot, u)).json();
+  assert.equal(job.id, (await (await call(gpsRoot + '/' + job.id, u)).json()).id);
+  await db.prepare('UPDATE assets SET archived=1 WHERE id=?').bind(a.id).run();
+  job = await gpsControl(u, job.id, 'resume');
+  job = await gpsStep(u, job.id);
+  assert.equal(job.succeeded, 1);
+  assert.equal(job.pending, 1);
+  const previous = job.id;
+  job = await gpsControl(u, job.id, 'cancel');
+  assert.equal(job.state, 'cancelled');
+  assert.equal(job.pending, 1);
+  assert.equal((await gpsStep(u, job.id)).processed, 1);
+  job = await gpsStart(u);
+  assert.equal(job.total, 1);
+  assert.equal((await call(gpsRoot + '/' + previous, u)).status, 404);
+  job = await gpsStep(u, job.id);
+  assert.equal(job.state, 'complete');
+  assert.equal((await gpsPlan(u)).count, 0);
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM web_gps_jobs WHERE owner_id=?').bind(u.id).first()).n,
+    1,
+  );
+  assert.equal(
+    (await db.prepare('SELECT COUNT(*) n FROM web_gps_items WHERE job_id=?').bind(job.id).first())
+      .n,
+    1,
+  );
+  assert.ok(
+    [a.id, b.id].includes(
+      job.lastResult
+        ? (
+            await db
+              .prepare('SELECT last_asset_id id FROM web_gps_jobs WHERE id=?')
+              .bind(job.id)
+              .first()
+          ).id
+        : '',
+    ),
+  );
+});
 const mapRead = async (u, suffix = '') => {
   const response = await call(`${root}/map${suffix ? '?' + suffix : ''}`, u);
   assert.equal(response.status, 200);
   return response.json();
 };
+test('GPS 1001 张旧照片完整读取，暂停恢复与进度计数准确且每张只处理一次', async () => {
+  const u = await user(),
+    ids = [];
+  for (let start = 0; start < 1001; start += 25) {
+    const statements = [];
+    for (let i = start; i < Math.min(start + 25, 1001); i++) {
+      const id = randomUUID(),
+        key = u.id + '/' + id,
+        date = '2026-01-01T00:00:00.000Z',
+        local = new Date(Date.UTC(2020, 0, 1, 0, 0, i))
+          .toISOString()
+          .slice(0, 19)
+          .replace(/-/g, ':')
+          .replace('T', ' '),
+        content = photoJpeg({ local }),
+        hash = createHash('sha1').update(content).digest();
+      ids.push(id);
+      await bucket.put(key, content, { sha1: hash });
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO assets(id,owner_id,checksum,object_key,filename,mime,bytes,width,height,created_at,file_created_at,file_modified_at,favorite,r2_sha1_verified)
+        VALUES(?,?,?,?,?,'image/jpeg',?,64,48,?,?,?,0,1)`,
+          )
+          .bind(
+            id,
+            u.id,
+            hash.toString('base64'),
+            key,
+            'gps-old-' + i + '.jpg',
+            content.length,
+            date,
+            date,
+            date,
+          ),
+      );
+    }
+    await db.batch(statements);
+  }
+  let job = await gpsStart(u);
+  assert.equal(job.total, 1001);
+  assert.equal(job.pending, 1001);
+  for (let processed = 0; processed < 1001; processed++) {
+    if (processed === 127) {
+      job = await gpsControl(u, job.id, 'pause');
+      const saved = await (await call(gpsRoot, u)).json();
+      assert.equal(saved.processed, 127);
+      assert.equal(saved.pending, 874);
+      job = await gpsControl(u, saved.id, 'resume');
+    }
+    job = await gpsStep(u, job.id);
+    assert.equal(job.processed, processed + 1);
+    assert.equal(job.succeeded, processed + 1);
+    assert.equal(job.pending, 1000 - processed);
+  }
+  assert.equal(job.state, 'complete');
+  assert.equal(job.located, 1001);
+  assert.equal(job.failed, 0);
+  assert.equal(job.skipped, 0);
+  assert.equal(
+    (await db.prepare('SELECT SUM(tries) n FROM web_gps_items WHERE job_id=?').bind(job.id).first())
+      .n,
+    1001,
+  );
+  assert.equal(
+    (
+      await db
+        .prepare(
+          "SELECT COUNT(*) n FROM assets WHERE owner_id=? AND json_extract(photo_metadata,'$.extracted')=1 AND file_created_at='2026-01-01T00:00:00.000Z'",
+        )
+        .bind(u.id)
+        .first()
+    ).n,
+    1001,
+  );
+  const map = await (await call(root + '/map?zoom=19', u)).json();
+  assert.equal(map.total, 1001);
+  assert.equal(map.clusters[0].count, 1001);
+  assert.equal((await gpsPlan(u)).count, 0);
+});
+test('GPS 批量兼容 PNG、HEIC 和配对照片，保持 MOV 原件并进入官方 EXIF 同步', async () => {
+  const u = await user(),
+    pictures = [],
+    all = [];
+  const png = await seed(u, pngWithExif(await readFile('tests/fixtures/small.png')), 'image/png');
+  pictures.push(png);
+  all.push(png);
+  for (const mime of ['image/jpeg', 'image/heic']) {
+    const pair = pairId(),
+      video = await seed(u, liveMov(pair), 'video/quicktime', {
+        pair,
+        type: 'VIDEO',
+        visibility: 'hidden',
+      });
+    const content =
+      mime === 'image/heic'
+        ? liveHeic(pair, photoTiff({ pair, local: '2021:01:01 00:00:00' }))
+        : photoJpeg({ pair });
+    const still = await seed(u, content, mime, { pair, video: video.id });
+    pictures.push(still);
+    all.push(still, video);
+  }
+  let job = await gpsStart(u);
+  assert.equal(job.total, 3);
+  while (job.state === 'running') job = await gpsStep(u, job.id);
+  assert.equal(job.located, 3);
+  assert.equal(job.failed, 0);
+  const response = await call('/api/sync/stream', u, 'POST', {
+    types: ['AssetsV2', 'AssetExifsV1'],
+    reset: true,
+  });
+  assert.equal(response.status, 200);
+  const events = (await response.text()).trim().split('\n').map(JSON.parse);
+  assert.equal(events.at(-1).type, 'SyncCompleteV1');
+  for (const image of pictures)
+    assert.ok(
+      events.some(
+        (e) =>
+          e.type === 'AssetExifV1' &&
+          e.data.assetId === image.id &&
+          e.data.latitude === 31.2083333 &&
+          e.data.longitude === 121.5,
+      ),
+    );
+  for (const original of all)
+    assert.deepEqual(
+      Buffer.from(await (await bucket.get(original.key)).arrayBuffer()),
+      original.content,
+    );
+  assert.equal((await (await call(root + '/map', u)).json()).total, 3);
+});
+test('GPS 读取提交前并发编辑会合并最新手动资料，暂停在途读取只完成当前照片', async () => {
+  for (const mode of ['edit', 'pause']) {
+    const u = await user(),
+      a = await seed(u, photoJpeg()),
+      b = await seed(u, photoJpeg({ local: '2021:02:01 00:00:00' }));
+    let job = await gpsStart(u);
+    const first = await db
+      .prepare('SELECT asset_id id FROM web_gps_items WHERE job_id=? ORDER BY seq LIMIT 1')
+      .bind(job.id)
+      .first();
+    job = await gpsStep(u, job.id, {
+      'x-test-gps-commit': mode,
+      'x-test-gps-session': u.sessionId,
+      'x-test-gps-job': job.id,
+      'x-test-gps-asset': first.id,
+    });
+    assert.equal(job.succeeded, 1);
+    assert.equal(job.pending, 1);
+    if (mode === 'edit') {
+      const detail = await (await call(root + '/assets/' + first.id + '/metadata', u)).json();
+      assert.equal(detail.extracted, true);
+      assert.equal(detail.latitude, null);
+      assert.equal(detail.longitude, null);
+      assert.equal(detail.description, '并发手动说明');
+      assert.equal(detail.fileCreatedAt, '2010-01-02T03:04:05.000Z');
+      assert.equal(job.noGps, 1);
+    } else {
+      assert.equal(job.state, 'paused');
+      assert.equal((await gpsStep(u, job.id)).succeeded, 1);
+      job = await gpsControl(u, job.id, 'resume');
+    }
+    job = await gpsStep(u, job.id);
+    assert.equal(job.state, 'complete');
+    assert.equal(job.succeeded, 2);
+    assert.equal(job.failed, 0);
+    assert.ok([a.id, b.id].includes(first.id));
+  }
+});
+test('GPS 撤销、结束、过期租约及提交失败不产生半份资料或错误进度，租约可安全恢复', async () => {
+  await db.prepare('CREATE TABLE gps_test_rollback(flag INTEGER CHECK(flag=0))').run();
+  for (const mode of ['revoke', 'cancel', 'expire', 'rollback']) {
+    const u = await user(),
+      a = await seed(u, photoJpeg());
+    const job = await gpsStart(u);
+    const before = await db
+      .prepare('SELECT photo_metadata,sync_seq FROM assets WHERE id=?')
+      .bind(a.id)
+      .first();
+    const response = await call(
+      gpsRoot + '/' + job.id + '/step',
+      u,
+      'POST',
+      {},
+      {
+        'x-test-gps-commit': mode,
+        'x-test-gps-session': u.sessionId,
+        'x-test-gps-job': job.id,
+        'x-test-gps-asset': a.id,
+      },
+    );
+    assert.equal(response.status, mode === 'revoke' ? 401 : mode === 'rollback' ? 503 : 409);
+    assert.deepEqual(
+      await db.prepare('SELECT photo_metadata,sync_seq FROM assets WHERE id=?').bind(a.id).first(),
+      before,
+    );
+    const progress = await db
+      .prepare('SELECT pending,succeeded,failed FROM web_gps_jobs WHERE id=?')
+      .bind(job.id)
+      .first();
+    assert.deepEqual(progress, { pending: 1, succeeded: 0, failed: 0 });
+    if (mode === 'expire' || mode === 'rollback') {
+      await db.prepare('UPDATE web_gps_jobs SET lease_until=0 WHERE id=?').bind(job.id).run();
+      const resumed = await gpsStep(u, job.id);
+      assert.equal(resumed.succeeded, 1);
+      assert.equal(resumed.processed, 1);
+      assert.equal(resumed.state, 'complete');
+    }
+  }
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM web_gps_guards').first()).n, 0);
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM web_photo_guards').first()).n, 0);
+});
+test('GPS 双标签页租约不会重复推进同一照片，删除和其他操作已读取的照片会跳过', async () => {
+  const u = await user(),
+    a = await seed(u, photoJpeg()),
+    b = await seed(u, photoJpeg({ local: '2021:03:01 00:00:00' })),
+    c = await seed(u, photoJpeg({ local: '2021:04:01 00:00:00' }));
+  let job = await gpsStart(u);
+  await db
+    .prepare('UPDATE web_gps_jobs SET lease=?,lease_until=?,current_asset_id=? WHERE id=?')
+    .bind(randomUUID(), Date.now() + 120000, a.id, job.id)
+    .run();
+  assert.equal((await call(gpsRoot + '/' + job.id + '/step', u, 'POST', {})).status, 409);
+  await db.prepare('UPDATE web_gps_jobs SET lease_until=0 WHERE id=?').bind(job.id).run();
+  await db
+    .prepare('UPDATE assets SET deleted_at=? WHERE id=?')
+    .bind(new Date().toISOString(), b.id)
+    .run();
+  await db
+    .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')
+    .bind('{"extracted":true,"source":{}}', c.id)
+    .run();
+  await bucket.delete(c.key); // already-read entries must not fetch this missing original.
+  while (job.state === 'running') job = await gpsStep(u, job.id);
+  assert.equal(job.succeeded, 1);
+  assert.equal(job.skipped, 2);
+  assert.equal(job.failed, 0);
+  assert.equal(job.processed, 3);
+  const again = await gpsStep(u, job.id);
+  assert.equal(again.processed, 3);
+});
+test('GPS 失败列表超过一页保持完整计数，重试整批失败且拒绝混入成功或其他照片', async () => {
+  const u = await user(),
+    photos = [];
+  for (let i = 0; i < 53; i++) {
+    const photo = await seed(u);
+    photos.push(photo);
+    await bucket.delete(photo.key);
+  }
+  let job = await gpsStart(u);
+  while (job.state === 'running') job = await gpsStep(u, job.id);
+  assert.equal(job.failed, 53);
+  assert.equal(job.failures.length, 50);
+  assert.ok(job.nextFailure);
+  const rest = await (
+    await call(gpsRoot + '/' + job.id + '?failureAfter=' + job.nextFailure, u)
+  ).json();
+  assert.equal(rest.failures.length, 3);
+  assert.equal(rest.nextFailure, null);
+  assert.equal(new Set([...job.failures, ...rest.failures].map((f) => f.id)).size, 53);
+  assert.equal(
+    (await call(gpsRoot + '/' + job.id, u, 'PATCH', { action: 'retry', ids: [randomUUID()] }))
+      .status,
+    400,
+  );
+  for (const photo of photos)
+    await bucket.put(photo.key, photo.content, {
+      sha1: createHash('sha1').update(photo.content).digest(),
+    });
+  job = await gpsControl(u, job.id, 'retry');
+  while (job.state === 'running') job = await gpsStep(u, job.id);
+  assert.equal(job.failed, 0);
+  assert.equal(job.succeeded, 53);
+  assert.equal(job.processed, 53);
+  assert.equal(job.pending, 0);
+  assert.equal(
+    (await call(gpsRoot + '/' + job.id, u, 'PATCH', { action: 'retry', ids: [photos[0].id] }))
+      .status,
+    400,
+  );
+});
+test('GPS 任务字段错误、同源保护、计划版本和会话隔离均可定位', async () => {
+  const u = await user();
+  await seed(u);
+  assert.equal((await call(gpsRoot, null)).status, 401);
+  assert.equal((await call(gpsRoot + '/preview', null)).status, 401);
+  for (const [path, field] of [
+    ['/preview?bounds=0,0,1,1', 'bounds'],
+    ['/preview?zoom=1', 'zoom'],
+    ['/preview?mapView=trash', 'mapView'],
+    ['/preview?mapView=photos&mapView=archive', 'mapView'],
+  ]) {
+    const response = await call(gpsRoot + path, u);
+    assert.equal(response.status, 400);
+    const error = await response.json();
+    assert.equal(error.errors[0].path[0], field);
+    assert.match(error.message, /：/);
+  }
+  const plan = await gpsPlan(u);
+  await seed(u);
+  assert.equal(
+    (await call(gpsRoot, u, 'POST', { scope: 'mapView=library', version: plan.version })).status,
+    409,
+  );
+  const current = await gpsPlan(u);
+  assert.equal(
+    (
+      await call(
+        gpsRoot,
+        u,
+        'POST',
+        { scope: 'mapView=library', version: current.version },
+        { Origin: 'https://foreign.invalid' },
+      )
+    ).status,
+    403,
+  );
+  for (const data of [
+    { scope: 'mapView=library' },
+    { scope: 123, version: current.version },
+    { scope: 'mapView=library', version: 'private-invalid-token' },
+    { scope: 'mapView=library', version: current.version, password: 'private-secret' },
+  ]) {
+    const response = await call(gpsRoot, u, 'POST', data);
+    assert.equal(response.status, 400);
+    assert.doesNotMatch(await response.text(), /private-secret|private-invalid-token/);
+  }
+  const job = await gpsStart(u);
+  for (const data of [
+    { action: 'invalid' },
+    { action: 'pause', ids: [randomUUID()] },
+    { action: 'retry', ids: [] },
+    { action: 'retry', ids: [randomUUID(), randomUUID()] },
+  ]) {
+    const response = await call(gpsRoot + '/' + job.id, u, 'PATCH', data);
+    assert.equal(response.status, 400);
+    assert.ok((await response.json()).errors[0].path.length);
+  }
+  assert.equal((await call(gpsRoot + '/' + job.id + '?failureAfter=10001', u)).status, 400);
+  assert.equal((await call(gpsRoot + '/preview/step', u)).status, 404);
+  await db.prepare('UPDATE users SET disabled=1 WHERE id=?').bind(u.id).run();
+  assert.equal((await call(gpsRoot + '/' + job.id, u)).status, 401);
+  assert.equal((await call(gpsRoot + '/' + job.id + '/step', u, 'POST', {})).status, 401);
+});
 async function locate(photo, latitude, longitude, overrides = {}) {
   await db
     .prepare('UPDATE assets SET photo_metadata=? WHERE id=?')

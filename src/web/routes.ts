@@ -15,6 +15,7 @@ import { photoArchive } from './archive';
 import { labels, tagSuggestions } from './photo-labels';
 import { memories } from './memories';
 import { photoMap } from './photo-map';
+import { gpsJobs } from './gps-jobs';
 
 export async function webRoute(
   request: Request,
@@ -40,8 +41,19 @@ export async function webRoute(
   );
   const unlock = path === '/api/immich-cf/web/shared/unlock';
   const webPath = path.slice('/api/immich-cf/web/'.length);
+  const gps = /^gps-jobs(?:\/(preview|[^/]+)(?:\/(step))?)?$/.exec(webPath);
   let methods: string[] = [];
-  if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
+  if (gps && gps[1] === 'preview' && gps[2]) methods = [];
+  else if (gps)
+    methods =
+      gps[1] === 'preview'
+        ? ['GET']
+        : gps[2]
+          ? ['POST']
+          : gps[1]
+            ? ['GET', 'PATCH']
+            : ['GET', 'POST'];
+  else if (metadata) methods = metadata[2] ? ['POST'] : ['GET'];
   else if (webPath === 'photo-metadata') methods = ['PATCH'];
   else if (webPath === 'archive') methods = ['PATCH'];
   else if (webPath === 'labels') methods = ['PATCH'];
@@ -77,7 +89,15 @@ export async function webRoute(
       response = await sharedPhotos(request, env, shared[1], shared[2], ctx);
     } else {
       const identity = await authenticate(request, env.IMMICH_CF_DB);
-      if (metadata)
+      if (gps)
+        response = await gpsJobs(
+          request,
+          env,
+          identity,
+          gps[1] === 'preview' ? undefined : gps[1],
+          gps[1] === 'preview' ? 'preview' : gps[2],
+        );
+      else if (metadata)
         response = await photoMetadata(request, env, identity, metadata[1], !!metadata[2]);
       else if (webPath === 'albums')
         response = await webAlbums(request, env.IMMICH_CF_DB, identity);
