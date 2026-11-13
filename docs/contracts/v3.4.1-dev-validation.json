@@ -1,0 +1,282 @@
+{
+  "checkedAt": "2026-11-13T10:04:57.501Z",
+  "environment": "dev",
+  "complete": true,
+  "checks": [
+    {
+      "label": "health",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "discovery",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ping",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "protocol-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "feature-negotiation",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "server-config",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "media-types",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "password-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "bearer-identity",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "cookie-identity",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "web-bootstrap",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "sync-current-families",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-current-session",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "sync-current-families",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "password-login",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "label": "sync-current-families",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-current-session",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "explicit-reset",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "ack-current-session",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "ack-current-session",
+      "status": 204,
+      "expected": 204
+    },
+    {
+      "label": "sync-current-families",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "sync-current-families",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-original-integrity",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-original-integrity",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/albums",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/timeline",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/map",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/memories",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/tags",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "existing-web-/gps-jobs",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "preferences",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "sessions",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "field-specific-validation",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "label": "private-anonymous-denied",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "foreign-origin-cookie-denied",
+      "status": 403,
+      "expected": 403
+    },
+    {
+      "label": "unsupported-passkey-closed",
+      "status": 501,
+      "expected": 501
+    },
+    {
+      "label": "unpromoted-environment-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "dev-token-isolated",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "unpromoted-environment-version",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "dev-token-isolated",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "usage-after-verification",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "revoked-verification-session",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "label": "logout-verification-session",
+      "status": 200,
+      "expected": 200
+    },
+    {
+      "label": "revoked-verification-session",
+      "status": 401,
+      "expected": 401
+    }
+  ],
+  "sessionsCleaned": true,
+  "mediaWritesPerformed": false,
+  "officialAppVerified": false,
+  "officialReferenceRuntimeVerified": false,
+  "protocolVersion": {
+    "major": 3,
+    "minor": 4,
+    "patch": 1,
+    "prerelease": null,
+    "featureLevel": 1
+  },
+  "existingInventoryAndUsageUnchanged": true,
+  "twoSessionResetAckIsolation": true,
+  "originalSamplesVerified": 2,
+  "sourceCommit": "1c3fa128bfa64b648b2d9ef1a367b9884f44fa74",
+  "workerVersion": "5efa9e8b-f89a-4534-a903-c3d122e17331",
+  "deploymentId": "1e5314c0-9188-46e7-ad66-4b4d9898b86a",
+  "trafficPercentage": 100,
+  "migrations": 38,
+  "newMigrations": 0,
+  "baselinePublicChecks": 16,
+  "localValidation": {
+    "command": "pnpm check",
+    "tests": 328,
+    "passed": 328,
+    "failed": 0,
+    "skipped": 0,
+    "format": true,
+    "lint": true,
+    "typecheck": true,
+    "webBuild": true,
+    "workerDryRun": true,
+    "contractsVerify": {
+      "operations": 287,
+      "sourceFiles": 64
+    }
+  },
+  "unpromotedEnvironments": {
+    "test": {
+      "protocolVersion": "3.3.1",
+      "workerVersion": "7a0d0b7e-a4ef-4d1f-ae5f-dcf1e809e72f",
+      "deploymentUnchanged": true
+    },
+    "prod": {
+      "protocolVersion": "3.3.1",
+      "workerVersion": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+      "deploymentUnchanged": true
+    }
+  },
+  "fullCompatibilityVerified": false
+}

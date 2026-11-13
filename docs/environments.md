@@ -1,6 +1,8 @@
 # dev → test → prod 开发与发布
 
-更新：2026-11-12。开发使用 dev，验收环境统一命名 test（替代旧规划 staging），生产资源不加 prod 后缀。环境间只晋升代码和迁移，不复制用户、密码、会话或媒体。
+更新：2026-11-13。开发使用 dev，验收环境统一命名 test（替代旧规划 staging），生产资源不加 prod 后缀。环境间只晋升代码和迁移，不复制用户、密码、会话或媒体。
+
+2026-11-13 dev 兼容协议已升级至官方 3.4.1，328 项完整检查和 45 项公网检查通过；test/prod 继续运行 3.3.1 协议版本，未随本次适配晋升。功能边界和实际版本见 [3.4.1 对齐记录](upstream-v3.4.1.md)。
 
 ## 客户端地址与资源
 
@@ -10,7 +12,7 @@
 | test | https://immich-cf-api-test.fun.workers.dev | immich-cf-api-test / immich-cf-db-test / immich-cf-media-test | 已发布，独立数据库与媒体 |
 | prod | https://immich.185036.xyz                  | immich-cf-api / immich-cf-db / immich-cf-media                | 已发布，独立数据库与媒体 |
 
-官方 App 填写根地址即可，不需要自行加 `/api`。切换环境使用 App 现有服务器/账号入口；各环境分别登录，禁止复用 token。用户、图库、备份状态和同步检查点独立，首次切换后的本地缓存/重同步行为仍须 iOS 3.3.1 build 23 真机验收，不能把开发测试数据当作生产备份。
+官方 App 填写根地址即可，不需要自行加 `/api`。切换环境使用 App 现有服务器/账号入口；各环境分别登录，禁止复用 token。用户、图库、备份状态和同步检查点独立，首次切换后的本地缓存/重同步行为仍须当前所用 App 真机验收（dev 升级目标为 3.4.1），不能把开发测试数据当作生产备份。
 
 生产增加 `https://immich.185036.xyz`，原 `https://immich-cf-api.fun.workers.dev` 继续可用，两者访问同一生产 Worker、账号和图库。浏览器登录 Cookie 按主机隔离，首次访问新域名需重新登录。域名配置仅在 `env.prod.routes` 中维护；后续生产发布会保留该绑定，dev/test 不绑定此域名。绑定与证书、验证结果见[生产域名说明](prod-custom-domain.md)。
 

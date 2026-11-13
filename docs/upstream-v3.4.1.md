@@ -19,6 +19,21 @@
 
 `pnpm check` 完整通过：328 项测试，0 失败、0 跳过，格式、规范、前后端类型检查及 Web/Worker dry-run 构建均通过。新版能力协商、登录/偏好/会话、JPEG/PNG/HEIC/Live Photo、资产/EXIF/相册 Sync、ACK/reset、越权与失败恢复及现有 Web 功能均包含在回归内。首轮受限执行环境无法连接本机测试端口（curl 连接错误），切换至允许本机连接的运行环境后完整通过，未改动业务代码或放宽断言。
 
-dev 发布前完成 16 项公网检查，记录既有账号用量和资产同步内容的摘要，并退出临时会话。发布与升级后验证结果在完成后补记。本机 Docker Linux 引擎当前不可连接，因此未将官方 3.4.1 容器差分标为通过；manifest 已将当前参考版本的 `runtimeVerified` 设为 false。真实 iOS/Android 3.4.1 的登录、备份、播放、恢复和双设备同步仍待真机验收。
+dev 发布前完成 16 项公网检查，记录既有账号用量和资产同步内容的摘要，并退出临时会话。
+
+## dev 发布与公网验证
+
+发布提交 `1c3fa128bfa64b648b2d9ef1a367b9884f44fa74`；通过项目发布脚本构建并部署。Worker 版本 `5efa9e8b-f89a-4534-a903-c3d122e17331`，deployment `1e5314c0-9188-46e7-ad66-4b4d9898b86a`，控制面确认承接 100% 流量。38 项既有迁移无需追加，D1/R2/Images/Assets 绑定及每 5 分钟 Cron 保持开发环境配置。
+
+地址：[dev](https://immich-cf-api-dev.fun.workers.dev)。升级后 45 项公网检查全部通过：
+
+- 实际返回 3.4.1、featureLevel 1 和 backups false，发现、配置、媒体类型及密码登录正常，Bearer/Cookie 身份一致。
+- 官方当前 22 个同步家族可读取，ACK 后增量为空；独立新会话具有相同图库，显式 reset 重放一致，旧 ACK 被拒绝，另一会话检查点保持正常。
+- 升级前后资产同步内容摘要及账号用量一致，两份现有原件的实际下载 SHA-1 与同步 checksum 一致。相册、时间线、地图、回忆、标签、GPS 任务、偏好及会话接口正常。
+- 字段校验指出具体 email 字段且不回显无效提交值；匿名私有访问、跨站 Cookie 操作、跨环境 dev 凭据被拒绝；未实现的通行密钥入口继续返回 501。
+- test/prod 公网仍为 3.3.1，控制面部署 ID 和 Worker 版本与升级前一致。本次仅发布 dev，未晋升 test/生产。
+- 验证不写入媒体，所有临时登录会话均已退出且再访问返回 401。验证前后用量保持。
+
+结构化脱敏证据见 [dev 验证记录](contracts/v3.4.1-dev-validation.json)。本机 Docker Linux 引擎当前不可连接，因此未将官方 3.4.1 容器差分标为通过；manifest 已将当前参考版本的 `runtimeVerified` 设为 false。真实 iOS/Android 3.4.1 的登录、备份、播放、恢复和双设备同步仍待真机验收。
 
 静态证据：[来源与差异记录](contracts/v3.4.1-source-review.json)、[当前冻结清单](compatibility-manifest.json)、[契约说明](contracts/README.md)。
