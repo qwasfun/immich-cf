@@ -1,5 +1,7 @@
 # immich-cf
 
+新版网页界面已发布至 dev、test、prod，支持桌面与手机布局、底部快捷导航、网格密度切换、侧栏编辑和键盘操作；发布版本及验证见 [新版界面三环境发布](docs/ui-refactor-deployment-2026-11-13.md)。
+
 兼容协议基线已更新至官方 [Immich 3.4.1](docs/upstream-v3.4.1.md)，覆盖现有登录、上传、相册与 Sync 范围；官方新增通行密钥、FUTO 备份及新增媒体格式仍未开放，真机与完整兼容验收独立记录。
 
 Web 支持[照片标签与评分](docs/web-photo-labels.md)：单张/批量标签操作、1～5 星评分与组合筛选。

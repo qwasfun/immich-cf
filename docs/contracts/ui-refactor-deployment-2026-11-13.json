@@ -1,0 +1,1247 @@
+{
+  "checkedAt": "2026-11-13T11:49:10.276Z",
+  "sourceCommit": "90d78640ad41dcef1dc052f50f18765bdd580592",
+  "mergedSourceCommit": "b0c27c3eff442da4577be22a47aef634ab1ef123",
+  "protocolVersion": "3.4.1",
+  "preflight": {
+    "sameCodeFullCheck": {
+      "tests": 328,
+      "passed": 328,
+      "failed": 0,
+      "skipped": 0,
+      "format": true,
+      "lint": true,
+      "typecheck": true,
+      "build": true
+    },
+    "contracts": {
+      "operations": 287,
+      "sources": 64
+    },
+    "isolatedLocalBrowserChecks": 30
+  },
+  "build": {
+    "sourceCommit": "90d78640ad41dcef1dc052f50f18765bdd580592",
+    "files": [
+      {
+        "path": "/assets/index-BG4KpARq.js",
+        "sha256": "b1254a5dd54e372b5c12d6a7bcd7370829cbe943ede952113bc4123a0644b1f4"
+      },
+      {
+        "path": "/assets/index-CvgZDqMQ.css",
+        "sha256": "1be3acdd0185d17c504200005ca5ccbaed49779db463463f6c45191de520ac5a"
+      },
+      {
+        "path": "/assets/leaflet-1.9.4-license.txt",
+        "sha256": "bbc959aaef7488b38942e7f05cfd1244351f8bce54261951ea17dd7cf60f894b"
+      },
+      {
+        "path": "/assets/PhotoMap-CRgcYK0y.js",
+        "sha256": "f48bb2afa7fb1a25f3c4fb3f4831435f0d17aadd99d64b6507833478b45d1420"
+      },
+      {
+        "path": "/assets/PhotoMap-vh-t_kPv.css",
+        "sha256": "86d3d093fad979e1d185c8a93258f5f124d863fd13ca894c0b9f50bb68b66997"
+      },
+      {
+        "path": "/favicon.svg",
+        "sha256": "bd4358d534def2196884b8e7854f994af64cec926aae0bc3b461f394df5f69e9"
+      },
+      {
+        "path": "/index.html",
+        "sha256": "4cf5cb797d0ec5fa3c9a7c7da9d0106d1355073d5d5d543d74e93fd52d3a7d84"
+      }
+    ]
+  },
+  "environments": {
+    "dev": {
+      "url": "https://immich-cf-api-dev.fun.workers.dev",
+      "deploymentId": "2ee7c59d-ea65-4275-bce1-f743c57375cf",
+      "workerVersion": "3636dfd2-b906-4640-b5b2-abb726a86a94",
+      "trafficPercentage": 100,
+      "previousWorkerVersion": "5efa9e8b-f89a-4534-a903-c3d122e17331",
+      "migrations": 38,
+      "newMigrations": 0,
+      "globalDatabaseStatisticsUnchanged": true,
+      "globalStatisticsBefore": {
+        "users": 20,
+        "assets": 43,
+        "trashed": 0,
+        "bytes": 86841732,
+        "albums": 1,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "globalStatisticsAfter": {
+        "users": 20,
+        "assets": 43,
+        "trashed": 0,
+        "bytes": 86841732,
+        "albums": 1,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "baselineHttpChecks": 17,
+      "http": {
+        "environment": "dev",
+        "mode": "verify",
+        "checkedAt": "2026-11-13T11:38:26.491Z",
+        "complete": true,
+        "checks": [
+          {
+            "label": "health",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "discovery",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ping",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "protocol-version",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "features",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "server-config",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "media-types",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "bearer-identity",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "cookie-identity",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-bootstrap",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-document",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-txt",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-svg",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "explicit-reset",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "original-integrity",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "original-integrity",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/albums",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/timeline",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/map",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/memories",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/tags",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/gps-jobs",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "preferences",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sessions",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "specific-field-error",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "anonymous-private-denied",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "cross-site-cookie-denied",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 403,
+            "expected": 403
+          },
+          {
+            "label": "token-rejected-by-test",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "token-rejected-by-prod",
+            "host": "immich.185036.xyz",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "usage-after-verification",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          }
+        ],
+        "transportAttempts": [],
+        "sessionsCleaned": true,
+        "mediaWritesPerformed": false,
+        "realDeviceVerified": false,
+        "protocolVersion": {
+          "major": 3,
+          "minor": 4,
+          "patch": 1,
+          "prerelease": null,
+          "featureLevel": 1
+        },
+        "existingInventoryAndUsageUnchanged": true,
+        "webResourcesMatchBuiltSource": true,
+        "webResourceCount": 7,
+        "sourceCommit": "90d78640ad41dcef1dc052f50f18765bdd580592",
+        "twoSessionResetAckIsolation": true,
+        "originalSamplesVerified": 2,
+        "environmentIsolationVerified": true
+      },
+      "browser": {
+        "environment": "dev",
+        "base": "https://immich-cf-api-dev.fun.workers.dev",
+        "complete": true,
+        "checks": [
+          "Authenticated deployed browser",
+          "3.4.1 protocol",
+          "New gallery view controls rendered",
+          "Grid density state rendered",
+          "Desktop has no horizontal overflow",
+          "Deployed upload shortcut",
+          "Upload dialog dismisses",
+          "Deployed search shortcut",
+          "Typing does not trigger upload",
+          "Specific multi-field validation",
+          "Filter validation reset",
+          "Deployed mobile bottom navigation",
+          "Mobile has no horizontal overflow",
+          "Mobile sidebar opens",
+          "Mobile sidebar dismisses",
+          "Mobile album navigation",
+          "Deployed required-field validation",
+          "Mobile form dismisses",
+          "Mobile returns to photos",
+          "No browser runtime exceptions",
+          "Settled desktop gallery rendered",
+          "Settled mobile gallery rendered"
+        ],
+        "viewports": [
+          {
+            "width": 1440,
+            "height": 960
+          },
+          {
+            "width": 390,
+            "height": 844
+          }
+        ],
+        "remoteMediaWritesPerformed": false,
+        "realDeviceVerified": false,
+        "settledVisiblePhotoPreviews": 4,
+        "completedAcrossTwoBrowserPhases": true
+      },
+      "browserSessionsCleaned": true
+    },
+    "test": {
+      "url": "https://immich-cf-api-test.fun.workers.dev",
+      "deploymentId": "25225344-7a49-4009-b093-ec8d46f86ab2",
+      "workerVersion": "25deadc6-c1f5-453e-8911-e981147a6857",
+      "trafficPercentage": 100,
+      "previousWorkerVersion": "f07786f2-7d64-4f8b-8824-acff96922135",
+      "migrations": 38,
+      "newMigrations": 0,
+      "globalDatabaseStatisticsUnchanged": true,
+      "globalStatisticsBefore": {
+        "users": 5,
+        "assets": 0,
+        "trashed": 0,
+        "bytes": 0,
+        "albums": 0,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "globalStatisticsAfter": {
+        "users": 5,
+        "assets": 0,
+        "trashed": 0,
+        "bytes": 0,
+        "albums": 0,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "baselineHttpChecks": 17,
+      "http": {
+        "environment": "test",
+        "mode": "verify",
+        "checkedAt": "2026-11-13T11:41:39.899Z",
+        "complete": true,
+        "checks": [
+          {
+            "label": "health",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "discovery",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ping",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "protocol-version",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "features",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "server-config",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "media-types",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "bearer-identity",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "cookie-identity",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-bootstrap",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-document",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-txt",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-svg",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "explicit-reset",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/albums",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/timeline",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/map",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/memories",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/tags",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/gps-jobs",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "preferences",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sessions",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "specific-field-error",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "anonymous-private-denied",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "cross-site-cookie-denied",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 403,
+            "expected": 403
+          },
+          {
+            "label": "token-rejected-by-dev",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "token-rejected-by-prod",
+            "host": "immich.185036.xyz",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "usage-after-verification",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          }
+        ],
+        "transportAttempts": [],
+        "sessionsCleaned": true,
+        "mediaWritesPerformed": false,
+        "realDeviceVerified": false,
+        "protocolVersion": {
+          "major": 3,
+          "minor": 4,
+          "patch": 1,
+          "prerelease": null,
+          "featureLevel": 1
+        },
+        "existingInventoryAndUsageUnchanged": true,
+        "webResourcesMatchBuiltSource": true,
+        "webResourceCount": 7,
+        "sourceCommit": "90d78640ad41dcef1dc052f50f18765bdd580592",
+        "twoSessionResetAckIsolation": true,
+        "originalSamplesVerified": 0,
+        "environmentIsolationVerified": true
+      },
+      "browser": {
+        "environment": "test",
+        "base": "https://immich-cf-api-test.fun.workers.dev",
+        "complete": true,
+        "checks": [
+          "Authenticated deployed browser",
+          "3.4.1 protocol",
+          "New gallery view controls rendered",
+          "Grid density state rendered",
+          "Desktop has no horizontal overflow",
+          "Deployed upload shortcut",
+          "Upload dialog dismisses",
+          "Deployed search shortcut",
+          "Typing does not trigger upload",
+          "Specific multi-field validation",
+          "Filter validation reset",
+          "Settled desktop gallery rendered",
+          "Deployed mobile bottom navigation",
+          "Mobile has no horizontal overflow",
+          "Mobile sidebar opens",
+          "Mobile sidebar dismisses",
+          "Mobile album navigation",
+          "Deployed required-field validation",
+          "Mobile form dismisses",
+          "Mobile returns to photos",
+          "Settled mobile gallery rendered",
+          "No browser runtime exceptions"
+        ],
+        "viewports": [
+          {
+            "width": 1440,
+            "height": 960
+          },
+          {
+            "width": 390,
+            "height": 844
+          }
+        ],
+        "remoteMediaWritesPerformed": false,
+        "realDeviceVerified": false
+      },
+      "browserSessionsCleaned": true
+    },
+    "prod": {
+      "url": "https://immich.185036.xyz",
+      "deploymentId": "b07fdbf0-d226-46cf-8db4-ae6ed606aeaf",
+      "workerVersion": "95eb2db8-949e-4c54-8cac-714449cfb8a7",
+      "trafficPercentage": 100,
+      "previousWorkerVersion": "6134e276-547f-4118-b6ac-061e906b053e",
+      "migrations": 38,
+      "newMigrations": 0,
+      "globalDatabaseStatisticsUnchanged": true,
+      "globalStatisticsBefore": {
+        "users": 5,
+        "assets": 0,
+        "trashed": 0,
+        "bytes": 0,
+        "albums": 0,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "globalStatisticsAfter": {
+        "users": 5,
+        "assets": 0,
+        "trashed": 0,
+        "bytes": 0,
+        "albums": 0,
+        "uploadReservations": 0,
+        "copyReservations": 0,
+        "migrations": 38
+      },
+      "baselineHttpChecks": 17,
+      "http": {
+        "environment": "prod",
+        "mode": "verify",
+        "checkedAt": "2026-11-13T11:45:11.743Z",
+        "complete": true,
+        "checks": [
+          {
+            "label": "health",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "discovery",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ping",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "protocol-version",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "features",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "server-config",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "media-types",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich.185036.xyz",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "bearer-identity",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "cookie-identity",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-bootstrap",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich.185036.xyz",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "web-document",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-txt",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-css",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "built-resource-integrity-svg",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "password-login",
+            "host": "immich.185036.xyz",
+            "status": 201,
+            "expected": 201
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich.185036.xyz",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "explicit-reset",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich.185036.xyz",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "ack-current-session",
+            "host": "immich.185036.xyz",
+            "status": 204,
+            "expected": 204
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sync-current-families",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/albums",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/timeline",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/map",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/memories",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/tags",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "existing-web-/gps-jobs",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "preferences",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "sessions",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "specific-field-error",
+            "host": "immich.185036.xyz",
+            "status": 400,
+            "expected": 400
+          },
+          {
+            "label": "anonymous-private-denied",
+            "host": "immich.185036.xyz",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "cross-site-cookie-denied",
+            "host": "immich.185036.xyz",
+            "status": 403,
+            "expected": 403
+          },
+          {
+            "label": "token-rejected-by-dev",
+            "host": "immich-cf-api-dev.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "token-rejected-by-test",
+            "host": "immich-cf-api-test.fun.workers.dev",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "production-original-host-document",
+            "host": "immich-cf-api.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "production-original-host-account",
+            "host": "immich-cf-api.fun.workers.dev",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "usage-after-verification",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich.185036.xyz",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "label": "logout-verification-session",
+            "host": "immich.185036.xyz",
+            "status": 200,
+            "expected": 200
+          },
+          {
+            "label": "verification-session-revoked",
+            "host": "immich.185036.xyz",
+            "status": 401,
+            "expected": 401
+          }
+        ],
+        "transportAttempts": [
+          {
+            "label": "built-resource-integrity-js",
+            "host": "immich.185036.xyz",
+            "attempt": 1,
+            "errorCode": "CURL_28",
+            "safeConnectionRetry": false,
+            "proxy": "http",
+            "tls12": false
+          }
+        ],
+        "sessionsCleaned": true,
+        "mediaWritesPerformed": false,
+        "realDeviceVerified": false,
+        "protocolVersion": {
+          "major": 3,
+          "minor": 4,
+          "patch": 1,
+          "prerelease": null,
+          "featureLevel": 1
+        },
+        "existingInventoryAndUsageUnchanged": true,
+        "webResourcesMatchBuiltSource": true,
+        "webResourceCount": 7,
+        "sourceCommit": "90d78640ad41dcef1dc052f50f18765bdd580592",
+        "twoSessionResetAckIsolation": true,
+        "originalSamplesVerified": 0,
+        "environmentIsolationVerified": true,
+        "productionBothHostsVerified": true
+      },
+      "browser": {
+        "environment": "prod",
+        "base": "https://immich.185036.xyz",
+        "complete": true,
+        "checks": [
+          "Authenticated deployed browser",
+          "3.4.1 protocol",
+          "New gallery view controls rendered",
+          "Grid density state rendered",
+          "Desktop has no horizontal overflow",
+          "Deployed upload shortcut",
+          "Upload dialog dismisses",
+          "Deployed search shortcut",
+          "Typing does not trigger upload",
+          "Specific multi-field validation",
+          "Filter validation reset",
+          "Settled desktop gallery rendered",
+          "Deployed mobile bottom navigation",
+          "Mobile has no horizontal overflow",
+          "Mobile sidebar opens",
+          "Mobile sidebar dismisses",
+          "Mobile album navigation",
+          "Deployed required-field validation",
+          "Mobile form dismisses",
+          "Mobile returns to photos",
+          "Settled mobile gallery rendered",
+          "No browser runtime exceptions"
+        ],
+        "viewports": [
+          {
+            "width": 1440,
+            "height": 960
+          },
+          {
+            "width": 390,
+            "height": 844
+          }
+        ],
+        "remoteMediaWritesPerformed": false,
+        "realDeviceVerified": false
+      },
+      "browserSessionsCleaned": true
+    }
+  },
+  "observations": [
+    "A read-only production JavaScript download timed out once; bounded GET retry returned the complete matching SHA-256.",
+    "The production custom domain injects a Cloudflare analytics beacon that is blocked by the existing script-src self policy. Application pageerror checks passed; the policy was preserved."
+  ],
+  "privateMediaUploaded": false,
+  "originalsEditedOrDeleted": false,
+  "realDeviceVerified": false,
+  "officialReferenceRuntimeVerified": false,
+  "fullImmichCompatibilityVerified": false
+}
