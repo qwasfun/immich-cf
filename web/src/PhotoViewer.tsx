@@ -18,6 +18,7 @@ export function PhotoViewer({
   video,
   actions,
   onStartSlideshow,
+  onKeyShortcut,
 }: {
   id: string;
   name: string;
@@ -33,6 +34,7 @@ export function PhotoViewer({
   video?: ReactNode;
   actions?: (act: (callback: () => void) => void) => ReactNode;
   onStartSlideshow?: () => void;
+  onKeyShortcut?: (key: string, act: (callback: () => void) => void) => void;
 }) {
   const shell = useRef<HTMLDivElement>(null),
     mounted = useRef(false),
@@ -43,10 +45,29 @@ export function PhotoViewer({
   const [fullscreen, setFullscreen] = useState(false),
     [fullscreenError, setFullscreenError] = useState('');
   const [moveError, setMoveError] = useState('');
+  const [immersive, setImmersive] = useState(false);
   const runningRef = useRef(running);
   runningRef.current = running;
-  const latest = useRef({ previous, next, loading, error, video, sidebar, id });
-  latest.current = { previous, next, loading, error, video, sidebar, id };
+  const latest = useRef({
+    previous,
+    next,
+    loading,
+    error,
+    video,
+    sidebar,
+    id,
+    onKeyShortcut,
+  });
+  latest.current = {
+    previous,
+    next,
+    loading,
+    error,
+    video,
+    sidebar,
+    id,
+    onKeyShortcut,
+  };
   function pause() {
     setRunning(false);
     setMessage('');
@@ -209,6 +230,9 @@ export function PhotoViewer({
       } else if (event.key.toLowerCase() === 'f') {
         event.preventDefault();
         void toggleFullscreen();
+      } else if (event.key.toLowerCase() === 'h') {
+        event.preventDefault();
+        setImmersive((v) => !v);
       } else if (event.key === ' ' && !target.closest('button,a')) {
         event.preventDefault();
         if (!latest.current.video && !image.failed) {
@@ -220,6 +244,8 @@ export function PhotoViewer({
             setMessage('');
           }
         }
+      } else if (latest.current.onKeyShortcut) {
+        latest.current.onKeyShortcut(event.key, act);
       }
     }
     window.addEventListener('keydown', keydown);
@@ -227,7 +253,8 @@ export function PhotoViewer({
   }, []);
   function escape() {
     pause();
-    if (canvas.view.scale > 1) canvas.reset();
+    if (immersive) setImmersive(false);
+    else if (canvas.view.scale > 1) canvas.reset();
     else if (document.fullscreenElement === shell.current) void leaveFullscreen();
     else requestClose();
   }
@@ -239,64 +266,82 @@ export function PhotoViewer({
       onEscape={escape}
       wide
       contentRef={shell}
-      contentClassName="viewer-shell"
+      contentClassName={`viewer-shell ${immersive ? 'is-immersive' : ''}`}
     >
       <div className="viewer-tools" role="toolbar" aria-label="大图浏览工具">
-        <button
-          aria-label="缩小"
-          disabled={!canvas.ready || !!video || canvas.view.scale <= 1}
-          onClick={() => canvas.zoom(canvas.view.scale - 0.25)}
-          title="缩小（-）"
-        >
-          −
-        </button>
-        <output aria-label="放大比例">{Math.round(canvas.view.scale * 100)}%</output>
-        <button
-          aria-label="放大"
-          disabled={!canvas.ready || !!video || canvas.view.scale >= 4}
-          onClick={() => canvas.zoom(canvas.view.scale + 0.25)}
-          title="放大（+）"
-        >
-          ＋
-        </button>
-        <button
-          disabled={!!video || !canvas.ready}
-          onClick={() => {
-            pause();
-            canvas.reset();
-          }}
-          title="适应窗口（0）；双击照片切换缩放"
-        >
-          适应窗口
-        </button>
-        <button onClick={() => void toggleFullscreen()} aria-pressed={fullscreen} title="全屏（F）">
-          {fullscreen ? '退出全屏' : '全屏'}
-        </button>
-        <button
-          disabled={!!video || canvas.failed}
-          onClick={toggleSlideshow}
-          aria-pressed={running}
-        >
-          {running ? '暂停幻灯片' : '开始幻灯片'}
-        </button>
-        <label className="viewer-interval">
-          每张
-          <select
-            aria-label="幻灯片间隔"
-            value={seconds}
-            onChange={(e) => {
-              pause();
-              setSeconds(Number(e.target.value));
-            }}
+        <div className="viewer-zoom-group">
+          <button
+            aria-label="缩小"
+            disabled={!canvas.ready || !!video || canvas.view.scale <= 1}
+            onClick={() => canvas.zoom(canvas.view.scale - 0.25)}
+            title="缩小（-）"
           >
-            {[3, 5, 10].map((value) => (
-              <option key={value} value={value}>
-                {value} 秒
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="viewer-shortcuts">双击缩放 · 放大后拖动 · ← → 翻页</span>
+            −
+          </button>
+          <output aria-label="放大比例">{Math.round(canvas.view.scale * 100)}%</output>
+          <button
+            aria-label="放大"
+            disabled={!canvas.ready || !!video || canvas.view.scale >= 4}
+            onClick={() => canvas.zoom(canvas.view.scale + 0.25)}
+            title="放大（+）"
+          >
+            ＋
+          </button>
+          <button
+            disabled={!!video || !canvas.ready}
+            onClick={() => {
+              pause();
+              canvas.reset();
+            }}
+            title="适应窗口（0）；双击照片切换缩放"
+          >
+            适应窗口
+          </button>
+        </div>
+        <div className="viewer-mode-group">
+          <button
+            onClick={() => void toggleFullscreen()}
+            aria-pressed={fullscreen}
+            title="全屏（F）"
+          >
+            <Icon name="expand" size={14} />
+            {fullscreen ? '退出全屏' : '全屏'}
+          </button>
+          <button
+            disabled={!!video || canvas.failed}
+            onClick={toggleSlideshow}
+            aria-pressed={running}
+          >
+            <Icon name={running ? 'pause' : 'play'} size={14} />
+            {running ? '暂停幻灯片' : '开始幻灯片'}
+          </button>
+          <label className="viewer-interval">
+            每张
+            <select
+              aria-label="幻灯片间隔"
+              value={seconds}
+              onChange={(e) => {
+                pause();
+                setSeconds(Number(e.target.value));
+              }}
+            >
+              {[3, 5, 10].map((value) => (
+                <option key={value} value={value}>
+                  {value} 秒
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setImmersive((v) => !v)}
+            aria-pressed={immersive}
+            title="沉浸无干扰视图（H）"
+          >
+            {immersive ? '显示工具栏' : '纯净视图'}
+          </button>
+        </div>
+        <span className="viewer-shortcuts">双击缩放 · ← → 翻页 · I 详情 · L 收藏 · H 纯净视图</span>
       </div>
       {(loading || error || moveError || fullscreenError || message) && (
         <div className="viewer-feedback">

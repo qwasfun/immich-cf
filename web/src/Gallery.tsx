@@ -23,12 +23,14 @@ function PhotoCard({
   selected,
   select,
   open,
+  quickFavorite,
   disabled = false,
 }: {
   photo: Photo;
   selected: boolean;
   select: (shift: boolean) => void;
   open: (shift: boolean) => void;
+  quickFavorite?: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -57,8 +59,23 @@ function PhotoCard({
           if (event.shiftKey) event.preventDefault();
         }}
       >
-        {selected ? <Icon name="check" size={17} /> : <span />}
+        {selected ? <Icon name="check" size={15} /> : <span />}
       </button>
+      {quickFavorite && !photo.isTrashed && (
+        <button
+          type="button"
+          className={`photo-quick-fav ${photo.isFavorite ? 'active' : ''}`}
+          aria-label={`${photo.isFavorite ? '取消收藏' : '收藏'} ${photo.originalFileName}`}
+          aria-pressed={photo.isFavorite}
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            quickFavorite();
+          }}
+        >
+          <Icon name="heart" size={14} />
+        </button>
+      )}
       <div className="photo-badges">
         {photo.rating !== null && (
           <span className="rating-badge" aria-label={`评分 ${photo.rating} 星`}>
@@ -67,17 +84,17 @@ function PhotoCard({
         )}
         {photo.isArchived && (
           <span className="archive-badge">
-            <Icon name="archive" size={12} />
+            <Icon name="archive" size={11} />
             归档
           </span>
         )}
         {photo.livePhotoVideoId && (
-          <span>
-            <Icon name="play" size={12} />
+          <span className="live-badge">
+            <Icon name="play" size={11} />
             LIVE
           </span>
         )}
-        {photo.isFavorite && (
+        {photo.isFavorite && !quickFavorite && (
           <span className="favorite-badge">
             <Icon name="heart" size={14} />
           </span>
@@ -255,6 +272,18 @@ function Viewer({
         setInfo(false);
         setPlay(false);
       }}
+      onKeyShortcut={(key, act) => {
+        const lower = key.toLowerCase();
+        if (lower === 'i') {
+          setInfo((v) => !v);
+        } else if (!photo.isTrashed) {
+          if (lower === 'l') act(favorite);
+          else if (lower === 'a' && !busy && !loading) act(archive);
+          else if (lower === 't' && !busy && !loading) act(labels);
+          else if (lower === 'e') act(edit);
+          else if (key === 'Delete' || key === 'Backspace') act(remove);
+        }
+      }}
       video={
         play && photo.livePhotoVideoId ? (
           <div className="video-wrap">
@@ -277,7 +306,29 @@ function Viewer({
       sidebar={
         info ? (
           <aside className="photo-info">
-            <h3>照片信息</h3>
+            <div className="photo-info-header">
+              <h3>照片信息</h3>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="关闭详情"
+                onClick={() => setInfo(false)}
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+            {!photo.isTrashed && (
+              <div className="photo-info-quick">
+                <button type="button" onClick={edit}>
+                  <Icon name="edit" size={14} />
+                  编辑资料
+                </button>
+                <button type="button" disabled={busy || loading} onClick={labels}>
+                  <Icon name="tag" size={14} />
+                  标签与评分
+                </button>
+              </div>
+            )}
             <dl>
               <dt>文件名</dt>
               <dd>{photo.originalFileName}</dd>
@@ -286,9 +337,25 @@ function Viewer({
               <dt>归档状态</dt>
               <dd>{photo.isArchived ? '已归档' : '未归档'}</dd>
               <dt>标签</dt>
-              <dd className="photo-label-summary">{photo.tags.join('、') || '未设置'}</dd>
+              <dd className="photo-label-summary">
+                {photo.tags.length ? (
+                  <span className="info-tag-list">
+                    {photo.tags.map((t) => (
+                      <span key={t} className="info-tag-chip">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  '未设置'
+                )}
+              </dd>
               <dt>评分</dt>
-              <dd>{photo.rating === null ? '未评分' : `${photo.rating} 星`}</dd>
+              <dd>
+                {photo.rating === null
+                  ? '未评分'
+                  : `${'★'.repeat(photo.rating)} (${photo.rating} 星)`}
+              </dd>
               <dt>尺寸</dt>
               <dd>
                 {photo.width} × {photo.height}
@@ -321,6 +388,7 @@ function Viewer({
               <button
                 onClick={() => act(favorite)}
                 className={photo.isFavorite ? 'is-favorite' : ''}
+                title="快捷键：L"
               >
                 <Icon name="heart" />
                 {photo.isFavorite ? '取消收藏' : '收藏'}
@@ -331,23 +399,29 @@ function Viewer({
               </button>
               {moveAlbum && (
                 <button disabled={busy} onClick={() => act(moveAlbum)}>
+                  <Icon name="right" />
                   移动到相册
                 </button>
               )}
               {cover && (
                 <button disabled={busy || isCover} onClick={() => act(cover)}>
+                  <Icon name="star" />
                   {isCover ? '已是封面' : '设为封面'}
                 </button>
               )}
-              <button onClick={() => act(edit)}>编辑资料</button>
-              <button disabled={busy || loading} onClick={() => act(labels)}>
+              <button onClick={() => act(edit)} title="快捷键：E">
+                <Icon name="edit" />
+                编辑资料
+              </button>
+              <button disabled={busy || loading} onClick={() => act(labels)} title="快捷键：T">
+                <Icon name="tag" />
                 标签与评分
               </button>
-              <button disabled={busy || loading} onClick={() => act(archive)}>
+              <button disabled={busy || loading} onClick={() => act(archive)} title="快捷键：A">
                 <Icon name="archive" />
                 {photo.isArchived ? '取消归档' : '归档照片'}
               </button>
-              <button onClick={() => act(remove)}>
+              <button className="viewer-danger-btn" onClick={() => act(remove)} title="快捷键：Del">
                 <Icon name="trash" />
                 删除
               </button>
@@ -373,7 +447,11 @@ function Viewer({
               </a>
             </>
           )}
-          <button onClick={() => act(() => setInfo((v) => !v))} aria-pressed={info}>
+          <button
+            onClick={() => act(() => setInfo((v) => !v))}
+            aria-pressed={info}
+            title="快捷键：I"
+          >
             <Icon name="info" />
             详情
           </button>
@@ -413,6 +491,8 @@ export function Gallery({
     [dialog, setDialog] = useState(''),
     [targets, setTargets] = useState<string[]>([]),
     [busy, setBusy] = useState(false);
+  const [gridDensity, setGridDensity] = useState<'compact' | 'standard' | 'large'>('standard');
+  const [gridAspect, setGridAspect] = useState<'square' | 'ratio'>('square');
   const title = location
     ? '此区域的照片'
     : memory
@@ -426,6 +506,29 @@ export function Gallery({
             : view === 'trash'
               ? '回收站'
               : (album?.albumName ?? '相册');
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (document.querySelector('dialog[open]')) return;
+      const target = event.target as HTMLElement;
+      const inInput = Boolean(target.closest('input,textarea,select,[contenteditable="true"]'));
+      if (event.key === '/' && !inInput) {
+        const searchInput = timeline.root.current?.querySelector<HTMLInputElement>(
+          '.photo-filters input[name="q"]',
+        );
+        if (searchInput) {
+          event.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+        }
+      } else if (event.key === 'Escape' && !inInput && selected.size > 0) {
+        event.preventDefault();
+        setSelected(new Set());
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selected.size, setSelected, timeline.root]);
   useEffect(() => {
     viewerRequest.current++;
     let live = true;
@@ -451,18 +554,8 @@ export function Gallery({
   }, [items, loading]);
   useLayoutEffect(() => {
     const root = timeline.root.current;
-    const toolbar = root?.querySelector<HTMLElement>('.selection-toolbar');
     if (!root) return;
-    const update = () =>
-      root.style.setProperty(
-        '--timeline-top',
-        toolbar ? toolbar.getBoundingClientRect().height + 20 + 'px' : '0px',
-      );
-    update();
-    if (!toolbar) return;
-    const observer = new ResizeObserver(update);
-    observer.observe(toolbar);
-    return () => observer.disconnect();
+    root.style.setProperty('--timeline-top', '64px');
   }, [selected.size > 0]);
   async function moveViewer(side: 'previous' | 'next') {
     if (!opened || loading) return false;
@@ -642,6 +735,38 @@ export function Gallery({
         initialQuery={query}
         disabled={busy}
         trash={view === 'trash'}
+        extraActions={
+          <div className="gallery-view-controls" role="group" aria-label="视图布局控制">
+            <div className="segmented-control" role="group" aria-label="网格大小">
+              {(
+                [
+                  ['compact', '紧凑'],
+                  ['standard', '标准'],
+                  ['large', '大图'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  type="button"
+                  key={mode}
+                  className={gridDensity === mode ? 'active' : ''}
+                  aria-pressed={gridDensity === mode}
+                  onClick={() => setGridDensity(mode)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="aspect-toggle-btn"
+              onClick={() => setGridAspect((a) => (a === 'square' ? 'ratio' : 'square'))}
+              title={gridAspect === 'square' ? '切换为宽幅卡片' : '切换为方格卡片'}
+            >
+              <Icon name="grid" size={15} />
+              <span>{gridAspect === 'square' ? '方格' : '宽幅'}</span>
+            </button>
+          </div>
+        }
       />
       {view === 'photos' && (query.q || query.tag || query.rating !== 'all') && (
         <p className="fine-print">文件名、标签或评分筛选也包含已归档照片，卡片会标记归档状态。</p>
@@ -655,71 +780,92 @@ export function Gallery({
         />
       )}
       {selected.size > 0 && (
-        <div className="selection-toolbar">
-          <strong>已选择 {selected.size} 项</strong>
-          <button onClick={() => setSelected(new Set())}>取消选择</button>
-          <button disabled={busy || loading} onClick={() => ask('download')}>
-            <Icon name="download" size={16} />
-            打包下载
-          </button>
-          {view === 'trash' ? (
-            <>
-              <button onClick={() => ask('restore')}>恢复所选</button>
-              <button className="danger" onClick={() => ask('purge')}>
-                永久删除
-              </button>
-            </>
-          ) : (
-            <>
-              <button disabled={busy || loading} onClick={() => ask('share')}>
-                <Icon name="link" size={16} />
-                分享所选
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => void favorite([...selected], sourceView !== 'favorites')}
-              >
-                {sourceView === 'favorites' ? '取消收藏' : '收藏'}
-              </button>
-              <button disabled={busy || loading} onClick={() => ask('album')}>
-                {albumId ? '复制到相册' : '加入相册'}
-              </button>
-              {sourceView !== 'archive' && (
+        <div className="selection-toolbar" role="toolbar" aria-label="批量操作工具栏">
+          <div className="selection-count-pill">
+            <strong>已选择 {selected.size} 项</strong>
+            <button
+              type="button"
+              className="selection-clear-btn"
+              onClick={() => setSelected(new Set())}
+              title="按 Esc 也可取消选择"
+            >
+              取消选择
+            </button>
+          </div>
+          <div className="selection-actions-group">
+            <button disabled={busy || loading} onClick={() => ask('download')}>
+              <Icon name="download" size={16} />
+              打包下载
+            </button>
+            {view === 'trash' ? (
+              <>
+                <button onClick={() => ask('restore')}>
+                  <Icon name="refresh" size={15} />
+                  恢复所选
+                </button>
+                <button className="danger" onClick={() => ask('purge')}>
+                  <Icon name="trash" size={15} />
+                  永久删除
+                </button>
+              </>
+            ) : (
+              <>
+                <button disabled={busy || loading} onClick={() => ask('share')}>
+                  <Icon name="link" size={16} />
+                  分享所选
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => void favorite([...selected], sourceView !== 'favorites')}
+                >
+                  <Icon name="heart" size={15} />
+                  {sourceView === 'favorites' ? '取消收藏' : '收藏'}
+                </button>
+                <button disabled={busy || loading} onClick={() => ask('album')}>
+                  <Icon name="album" size={15} />
+                  {albumId ? '复制到相册' : '加入相册'}
+                </button>
+                {sourceView !== 'archive' && (
+                  <button
+                    disabled={busy || loading}
+                    onClick={() => void archivePhotos([...selected], true)}
+                  >
+                    <Icon name="archive" size={15} />
+                    归档所选
+                  </button>
+                )}
                 <button
                   disabled={busy || loading}
-                  onClick={() => void archivePhotos([...selected], true)}
+                  onClick={() => void archivePhotos([...selected], false)}
                 >
-                  归档所选
+                  取消归档
                 </button>
-              )}
-              <button
-                disabled={busy || loading}
-                onClick={() => void archivePhotos([...selected], false)}
-              >
-                取消归档
-              </button>
-              {albumId && (
-                <button disabled={busy || loading} onClick={() => ask('move-album')}>
-                  移动到相册
+                {albumId && (
+                  <button disabled={busy || loading} onClick={() => ask('move-album')}>
+                    移动到相册
+                  </button>
+                )}
+                <button disabled={busy || loading} onClick={() => ask('correct-time')}>
+                  <Icon name="clock" size={15} />
+                  修正拍摄时间
                 </button>
-              )}
-              <button disabled={busy || loading} onClick={() => ask('correct-time')}>
-                修正拍摄时间
-              </button>
-              <button disabled={busy || loading} onClick={() => ask('labels')}>
-                标签与评分
-              </button>
-              {albumId && <button onClick={() => ask('remove-album')}>移出相册</button>}
-              {albumId && selected.size === 1 && (
-                <button disabled={busy} onClick={() => void setCover([...selected][0])}>
-                  设为封面
+                <button disabled={busy || loading} onClick={() => ask('labels')}>
+                  <Icon name="tag" size={15} />
+                  标签与评分
                 </button>
-              )}
-              <button className="danger" onClick={() => ask('trash')}>
-                移入回收站
-              </button>
-            </>
-          )}
+                {albumId && <button onClick={() => ask('remove-album')}>移出相册</button>}
+                {albumId && selected.size === 1 && (
+                  <button disabled={busy} onClick={() => void setCover([...selected][0])}>
+                    设为封面
+                  </button>
+                )}
+                <button className="danger" onClick={() => ask('trash')}>
+                  <Icon name="trash" size={15} />
+                  移入回收站
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
       <div className="list-summary">
@@ -745,7 +891,7 @@ export function Gallery({
         )}
       </div>
       <p className="selection-keyboard-hint">
-        按住 Shift 点击照片或选择按钮，可连续增选或取消当前已加载区间。
+        按住 Shift 点击照片或选择按钮可连续区间选择 · 按 / 搜索 · 按 Esc 取消选择
       </p>
       <ErrorBox error={error} retry={timeline.retry} />
       <div ref={timeline.before} className="timeline-edge">
@@ -763,7 +909,7 @@ export function Gallery({
               <span>{photos.length}</span>
             </h2>
             <button
-              className="text-button"
+              className="text-button day-select-btn"
               disabled={busy || loading}
               aria-label={`${photos.every((p) => selected.has(p.id)) ? '取消选择' : '选择'}${label}已加载照片`}
               aria-pressed={photos.every((p) => selected.has(p.id))}
@@ -772,7 +918,7 @@ export function Gallery({
               {photos.every((p) => selected.has(p.id)) ? '取消当天选择' : '选择当天已加载'}
             </button>
           </div>
-          <div className="photo-grid">
+          <div className={`photo-grid density-${gridDensity} aspect-${gridAspect}`}>
             {photos.map((p) => (
               <PhotoCard
                 key={p.id}
@@ -780,6 +926,9 @@ export function Gallery({
                 selected={selected.has(p.id)}
                 select={(shift) => toggle(p.id, shift)}
                 open={(shift) => (shift ? toggle(p.id, true) : openPhoto(p))}
+                quickFavorite={
+                  view !== 'trash' ? () => void favorite([p.id], !p.isFavorite) : undefined
+                }
                 disabled={busy}
               />
             ))}

@@ -65,12 +65,23 @@ function useDetails(id: string, extract = true) {
 }
 export function PhotoMetadataInfo({ id }: { id: string }) {
   const { data, error, retry } = useDetails(id);
+  const hasSpecs = Boolean(
+    data && (data.fNumber || data.exposureTime || data.iso || data.focalLength),
+  );
   return (
     <div className="photo-metadata-info">
       {!data && !error && <p role="status">正在读取照片资料…</p>}
       <ErrorBox error={error} retry={retry} />
       {data && (
         <>
+          {hasSpecs && (
+            <div className="exif-pills" aria-label="拍摄参数速览">
+              {data.fNumber ? <span>ƒ/{data.fNumber}</span> : null}
+              {data.exposureTime ? <span>{data.exposureTime}s</span> : null}
+              {data.iso ? <span>ISO {data.iso}</span> : null}
+              {data.focalLength ? <span>{data.focalLength}mm</span> : null}
+            </div>
+          )}
           <dl>
             <dt>时间来源 / 拍摄时区</dt>
             <dd>
@@ -259,7 +270,7 @@ export function EditPhotoMetadata({
     }
   }
   return (
-    <Modal title="编辑照片资料" close={close} busy={busy}>
+    <Modal title="编辑照片资料" close={close} drawer busy={busy}>
       <form className="photo-metadata-form" onSubmit={submit} noValidate>
         <div className="form-body">
           <ErrorBox error={loadError} retry={retry} />
@@ -415,7 +426,7 @@ export function CorrectPhotoTime({
       ? new Date(Date.parse(data.fileCreatedAt) + Number(minutes) * 60000)
       : null;
   return (
-    <Modal title="批量修正拍摄时间" close={close} busy={busy}>
+    <Modal title="批量修正拍摄时间" close={close} drawer busy={busy}>
       <form className="photo-metadata-form" onSubmit={submit} noValidate>
         <div className="form-body">
           <p>将修改所选 {ids.length} 张照片的图库拍摄时间，原件保持不变。</p>

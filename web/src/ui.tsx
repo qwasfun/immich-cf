@@ -99,11 +99,60 @@ const shapes: Record<string, ReactNode> = {
     </>
   ),
   play: <path d="m8 4 13 8-13 8Z" />,
+  pause: (
+    <>
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </>
+  ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   shield: (
     <>
       <path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z" />
       <path d="m8 12 3 3 5-6" />
+    </>
+  ),
+  filter: (
+    <>
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M12.6 2.6a2 2 0 0 0-1.4-.6H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.8 8.8a2 2 0 0 0 2.8 0l7.2-7.2a2 2 0 0 0 0-2.8Z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </>
+  ),
+  star: <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.3-6.2 3.3 1.2-6.8-5-4.9 6.9-1Z" />,
+  expand: (
+    <>
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+      <circle cx="12" cy="13" r="3.5" />
     </>
   ),
 };
@@ -171,6 +220,7 @@ export function Modal({
   close,
   children,
   wide = false,
+  drawer = false,
   busy = false,
   contentRef,
   contentClassName,
@@ -180,6 +230,7 @@ export function Modal({
   close: () => void;
   children: ReactNode;
   wide?: boolean;
+  drawer?: boolean;
   busy?: boolean;
   contentRef?: RefObject<HTMLDivElement | null>;
   contentClassName?: string;
@@ -192,10 +243,13 @@ export function Modal({
     dialog.showModal();
     return () => dialog.close();
   }, []);
+  const modalClass = ['modal', wide ? 'wide' : '', drawer ? 'drawer' : '']
+    .filter(Boolean)
+    .join(' ');
   return (
     <dialog
       ref={ref}
-      className={wide ? 'modal wide' : 'modal'}
+      className={modalClass}
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
