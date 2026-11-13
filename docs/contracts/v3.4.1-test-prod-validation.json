@@ -1,0 +1,619 @@
+{
+  "checkedAt": "2026-11-13T10:25:24.919Z",
+  "sourceCommit": "4dd3bc19045fdf8eebffeb8a2a8b32f5cd14465d",
+  "runtimeCodeEquivalentTo": "1c3fa128bfa64b648b2d9ef1a367b9884f44fa74",
+  "protocolVersion": "3.4.1",
+  "localChecks": {
+    "reusedSameRuntimeCode": true,
+    "testsPassed": 328,
+    "contractsVerified": {
+      "operations": 287,
+      "sources": 64
+    },
+    "targetBuildsPassed": true
+  },
+  "environments": {
+    "test": {
+      "workerVersion": "f07786f2-7d64-4f8b-8824-acff96922135",
+      "deploymentId": "473c2ccc-97b4-4b4a-b85d-56a740e1a657",
+      "previousWorkerVersion": "7a0d0b7e-a4ef-4d1f-ae5f-dcf1e809e72f",
+      "base": "https://immich-cf-api-test.fun.workers.dev",
+      "trafficPercentage": 100,
+      "migrations": 38,
+      "newMigrations": 0,
+      "baselineChecks": 17,
+      "globalAssetsBefore": 0,
+      "globalAlbumsBefore": 0,
+      "checkedAt": "2026-11-13T10:15:30.602Z",
+      "environment": "test",
+      "complete": true,
+      "checks": [
+        {
+          "label": "health",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "discovery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "protocol-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "feature-negotiation",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-config",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "media-types",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "password-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "bearer-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cookie-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "global-admin-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-document",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-resource",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-resource",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "password-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "explicit-reset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/albums",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/timeline",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/map",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/memories",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/tags",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/gps-jobs",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "preferences",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sessions",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "field-specific-validation",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "private-anonymous-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "foreign-origin-cookie-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "unsupported-passkey-closed",
+          "status": 501,
+          "expected": 501
+        },
+        {
+          "label": "other-environment-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "environment-token-isolated",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "other-environment-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "environment-token-isolated",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "usage-after-verification",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "revoked-verification-session",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "revoked-verification-session",
+          "status": 401,
+          "expected": 401
+        }
+      ],
+      "sessionsCleaned": true,
+      "mediaWritesPerformed": false,
+      "officialAppVerified": false,
+      "officialReferenceRuntimeVerified": false,
+      "protocolVersion": {
+        "major": 3,
+        "minor": 4,
+        "patch": 1,
+        "prerelease": null,
+        "featureLevel": 1
+      },
+      "webAssetsVerified": true,
+      "globalInventoryAndLimitsUnchanged": true,
+      "globalOriginalHealthUnchanged": true,
+      "globalOriginalsChecked": 0,
+      "existingInventoryAndUsageUnchanged": true,
+      "twoSessionResetAckIsolation": true,
+      "originalSamplesVerified": 0
+    },
+    "prod": {
+      "workerVersion": "6134e276-547f-4118-b6ac-061e906b053e",
+      "deploymentId": "752d72d1-3e0a-4d36-8ca5-e1091e47f926",
+      "previousWorkerVersion": "5359af04-c4e8-455e-9f0e-4dc762c97e96",
+      "base": "https://immich.185036.xyz",
+      "originalBase": "https://immich-cf-api.fun.workers.dev",
+      "trafficPercentage": 100,
+      "migrations": 38,
+      "newMigrations": 0,
+      "baselineChecks": 17,
+      "globalAssetsBefore": 0,
+      "globalAlbumsBefore": 0,
+      "checkedAt": "2026-11-13T10:19:39.624Z",
+      "environment": "prod",
+      "complete": true,
+      "checks": [
+        {
+          "label": "health",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "discovery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ping",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "protocol-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "feature-negotiation",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "server-config",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "media-types",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "password-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "bearer-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "cookie-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-bootstrap",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "global-admin-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-document",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-resource",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "web-static-resource",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "password-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "explicit-reset",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "ack-current-session",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "ack-current-session",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sync-current-families",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/albums",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/timeline",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/map",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/memories",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/tags",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "existing-web-/gps-jobs",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "preferences",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "sessions",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "field-specific-validation",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "private-anonymous-denied",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "foreign-origin-cookie-denied",
+          "status": 403,
+          "expected": 403
+        },
+        {
+          "label": "unsupported-passkey-closed",
+          "status": 501,
+          "expected": 501
+        },
+        {
+          "label": "other-environment-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "environment-token-isolated",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "other-environment-version",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "revoked-verification-session",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "logout-verification-session",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "revoked-verification-session",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "production-password-login",
+          "host": "immich.185036.xyz",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "production-usage-before-final-checks",
+          "host": "immich.185036.xyz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "production-token-rejected-by-test",
+          "host": "immich-cf-api-test.fun.workers.dev",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "label": "original-production-host-version",
+          "host": "immich-cf-api.fun.workers.dev",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-production-host-account",
+          "host": "immich-cf-api.fun.workers.dev",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "production-usage-after-final-checks",
+          "host": "immich.185036.xyz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "logout-final-verification-session",
+          "host": "immich.185036.xyz",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "final-session-revoked",
+          "host": "immich.185036.xyz",
+          "status": 401,
+          "expected": 401
+        }
+      ],
+      "sessionsCleaned": true,
+      "mediaWritesPerformed": false,
+      "officialAppVerified": false,
+      "officialReferenceRuntimeVerified": false,
+      "protocolVersion": {
+        "major": 3,
+        "minor": 4,
+        "patch": 1,
+        "prerelease": null,
+        "featureLevel": 1
+      },
+      "webAssetsVerified": true,
+      "globalInventoryAndLimitsUnchanged": true,
+      "globalOriginalHealthUnchanged": true,
+      "globalOriginalsChecked": 0,
+      "existingInventoryAndUsageUnchanged": true,
+      "twoSessionResetAckIsolation": true,
+      "originalSamplesVerified": 0,
+      "customDomainAndOriginalHostVerified": true,
+      "environmentTokenIsolationVerified": true,
+      "completedAcrossPhases": true,
+      "validationPhases": [
+        {
+          "checks": 45,
+          "coreAssertionsPassed": true,
+          "interruption": "TLS connection failed before sending the cross-environment request; temporary sessions were logged out"
+        },
+        {
+          "checks": 8,
+          "remainingAssertionsPassed": true,
+          "sessionsCleaned": true
+        }
+      ]
+    }
+  },
+  "devDeploymentUnchanged": {
+    "workerVersion": "5efa9e8b-f89a-4534-a903-c3d122e17331",
+    "deploymentId": "1e5314c0-9188-46e7-ad66-4b4d9898b86a"
+  },
+  "mediaWritesPerformed": false,
+  "realDeviceVerified": false,
+  "officialReferenceRuntimeVerified": false,
+  "fullCompatibilityVerified": false
+}
