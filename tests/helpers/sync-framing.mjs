@@ -1,4 +1,4 @@
-// Framing model of frozen v3.3.1 SyncApiRepository: streaming UTF-8, newline-only
+// Framing model of frozen v3.4.1 SyncApiRepository: streaming UTF-8, newline-only
 // records, and an unterminated tail ignored at EOF. Not the Dart runtime/DTO layer.
 export function decodeFrozenFraming(chunks) {
   const decoder = new TextDecoder('utf-8', { fatal: true });

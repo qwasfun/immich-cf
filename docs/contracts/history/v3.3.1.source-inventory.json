@@ -1,0 +1,271 @@
+{
+  "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
+  "checkedAt": "2026-10-13",
+  "files": [
+    {
+      "path": ".github/workflows/build-mobile.yml",
+      "sha256": "bde32f0e5517a90658a4c9200eea99bb77df9f7597ef4bff1c6092bc68a7fccf",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/.github/workflows/build-mobile.yml"
+    },
+    {
+      "path": ".github/workflows/draft-release.yml",
+      "sha256": "a64d0d8e251e58228dc5c577b22c6157af57107efd668a139c575025133502a8",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/.github/workflows/draft-release.yml"
+    },
+    {
+      "path": ".github/workflows/prepare-release.yml",
+      "sha256": "800850dc98ac27c5d47b0e812685d146d0f33a6af801b60fc7862f170510621c",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/.github/workflows/prepare-release.yml"
+    },
+    {
+      "path": "docker/docker-compose.yml",
+      "sha256": "2601c893aa3217d3c0c7284c23aaa1699aac75b533c84c0315fd16b7889fd552",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/docker/docker-compose.yml"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "a3bad629f67f442b23b5224419e49edafc32e6b9c876b89464f7aafe6091ccde",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/LICENSE"
+    },
+    {
+      "path": "mobile/ios/fastlane/Fastfile",
+      "sha256": "08912acdc5d92a080f4abd0e857eac8205bbfdc481674960ffb395d6e0600438",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/ios/fastlane/Fastfile"
+    },
+    {
+      "path": "mobile/ios/Runner/Core/NetworkApiImpl.swift",
+      "sha256": "a5ca8fa4bac48ff06d47a378a9bb4340d85a476218277ddcfeb6f8843edd19ae",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/ios/Runner/Core/NetworkApiImpl.swift"
+    },
+    {
+      "path": "mobile/ios/Runner/Core/URLSessionManager.swift",
+      "sha256": "500e28636ba6488595bdfd9ae3185b8ac0b470603034a0cd38799aba6b282c31",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/ios/Runner/Core/URLSessionManager.swift"
+    },
+    {
+      "path": "mobile/ios/Runner/Info.plist",
+      "sha256": "dffe4a7a8726f462d89d00864b706ff3a0e69b596b4a9722fd1ae8b2058d160a",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/ios/Runner/Info.plist"
+    },
+    {
+      "path": "mobile/lib/constants/constants.dart",
+      "sha256": "31e73d9214c43f44633a699ac4938a6e2cbb1e9f97d4b499aa7ff2becfb3d857",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/constants/constants.dart"
+    },
+    {
+      "path": "mobile/lib/domain/models/server_capability.model.dart",
+      "sha256": "cac6a052c04c59bdffc706e769523b09c106ac3fbedbe757a7cdbe08b506d57d",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/models/server_capability.model.dart"
+    },
+    {
+      "path": "mobile/lib/domain/models/sync_event.model.dart",
+      "sha256": "babdbe2b3122fbca31442f12d5e1ebd2c0541cca92806a2c4e7d6d45c996d7ba",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/models/sync_event.model.dart"
+    },
+    {
+      "path": "mobile/lib/domain/services/hash.service.dart",
+      "sha256": "99a7341f392a7e35c338c065e785b5d17574dc03b9e858719fe02c7a3ff132e7",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/services/hash.service.dart"
+    },
+    {
+      "path": "mobile/lib/domain/services/sync_stream.service.dart",
+      "sha256": "752cc65d3a75385adc82bf91405b4170bfc027860783b54bfa3cb30231bffd9e",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/domain/services/sync_stream.service.dart"
+    },
+    {
+      "path": "mobile/lib/infrastructure/repositories/network.repository.dart",
+      "sha256": "fc7cd3e25bde740717a11366d754a25d3e22a93e54201fa50a28967f8855e16a",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/network.repository.dart"
+    },
+    {
+      "path": "mobile/lib/infrastructure/repositories/sync_api.repository.dart",
+      "sha256": "9f4b01deaa6ca24e141ee786b07d5a69062d295d4ab255aca0047710ed7bc2aa",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/sync_api.repository.dart"
+    },
+    {
+      "path": "mobile/lib/infrastructure/repositories/sync_stream.repository.dart",
+      "sha256": "432863d171adb12cba054b8715c3c20e4189295b6b7945fa0e62830f8b5239e0",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/infrastructure/repositories/sync_stream.repository.dart"
+    },
+    {
+      "path": "mobile/lib/providers/auth.provider.dart",
+      "sha256": "0f9b6aecd235e20fe56eb9dc0a02132dcab6b5733f13b8ce649c6275d156fc6b",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/auth.provider.dart"
+    },
+    {
+      "path": "mobile/lib/providers/infrastructure/sync.provider.dart",
+      "sha256": "e10501ba596fb940e23e63e82617ecc7d34a57bbded6f3815327fa50a37b2458",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/infrastructure/sync.provider.dart"
+    },
+    {
+      "path": "mobile/lib/providers/server_info.provider.dart",
+      "sha256": "5c0f47e188b3d5bbc54be4c2d984d925bb5c55f3a06974b6e23cc8ed1aa5af41",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/server_info.provider.dart"
+    },
+    {
+      "path": "mobile/lib/providers/websocket.provider.dart",
+      "sha256": "abfd3daf2e48eaee149ac45b63f7ffe9f6a9e6b92ece6c9da0aa9b105845fd74",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/providers/websocket.provider.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/api.repository.dart",
+      "sha256": "016a6333bc3be36ef16c730ed0aa28a3bf13c1e5837e9fc411c5f51ecf0fe66c",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/api.repository.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/asset_api.repository.dart",
+      "sha256": "3f1ccc911785af65b024f7990b259809ece18f97fe7bff1346f4271e37243612",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/asset_api.repository.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/asset_media.repository.dart",
+      "sha256": "9828e3236996704a02dc053a73c098d73b724f461c6c9e29dc47dbbd3dfc135c",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/asset_media.repository.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/auth_api.repository.dart",
+      "sha256": "2227ff4ab270c233e8a64bacd1b10a1b87e1e6e8bfe906ff11100b3b1be6859e",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/auth_api.repository.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/sessions_api.repository.dart",
+      "sha256": "28b09c84c0f79c40491073a20dfc34c18ed39d7313e1f67f3ba2a333cd625901",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/sessions_api.repository.dart"
+    },
+    {
+      "path": "mobile/lib/repositories/upload.repository.dart",
+      "sha256": "46bafe24d952a768f5f6452c0caf928ae81c690badd27c95233d6c39275fa557",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/repositories/upload.repository.dart"
+    },
+    {
+      "path": "mobile/lib/services/api.service.dart",
+      "sha256": "91eed374c3d90dbcae5df96765d2b38c6d299b9c602464e0b937cf683c20196d",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/api.service.dart"
+    },
+    {
+      "path": "mobile/lib/services/auth.service.dart",
+      "sha256": "ceddd0216b2a82b93ed37f6a4a9c6514abe4652676936eb4d0db1363151c3366",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/auth.service.dart"
+    },
+    {
+      "path": "mobile/lib/services/background_upload.service.dart",
+      "sha256": "488ab9d327486cf901eef68f33a1514f94010afc700a213c5881631a58a7cd92",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/background_upload.service.dart"
+    },
+    {
+      "path": "mobile/lib/services/foreground_upload.service.dart",
+      "sha256": "db066b2a8ece802035c3d9311319e1283d1ddf6c89d532244d38ed6ab083ab3a",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/foreground_upload.service.dart"
+    },
+    {
+      "path": "mobile/lib/services/server_info.service.dart",
+      "sha256": "6b805e6c51796069f82c9ace82b6298ec5b72337cc85faa0d64bb70fa63be71e",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/services/server_info.service.dart"
+    },
+    {
+      "path": "mobile/lib/utils/image_url_builder.dart",
+      "sha256": "7df073b71b22ef5ade7b1506f1e7086d608b35cf573516cfcf576c81511f9826",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/utils/image_url_builder.dart"
+    },
+    {
+      "path": "mobile/lib/utils/semver.dart",
+      "sha256": "cfab89b8364b8fa4c476e02adc8a9728b3db487a5f7c44d2e428757ac7664164",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/utils/semver.dart"
+    },
+    {
+      "path": "mobile/lib/utils/url_helper.dart",
+      "sha256": "44a75d1a9fbb7ea52e6ac499b54bf0011ee57fb2b567c18ccce469c0fe0a4b91",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/utils/url_helper.dart"
+    },
+    {
+      "path": "mobile/lib/utils/version_compatibility.dart",
+      "sha256": "4c672b4fbd944103434fbfb20eb90e3f2bd7ed85d38989dbbe50be3f4427b7cb",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/lib/utils/version_compatibility.dart"
+    },
+    {
+      "path": "mobile/pubspec.yaml",
+      "sha256": "4ed7da809e8658a4abbe50301e2a5a6de68c08842b154ee7f6d2672474e53363",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/pubspec.yaml"
+    },
+    {
+      "path": "mobile/test/fixtures/sync_stream.stub.dart",
+      "sha256": "d350f4326bcb256057bb2a0763d49b841df3b63746818834cdcb2d59aa12869f",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/test/fixtures/sync_stream.stub.dart"
+    },
+    {
+      "path": "mobile/test/infrastructure/repositories/sync_api_repository_test.dart",
+      "sha256": "9d254c921193ae4438fd57394a57c6b2f5d550ba7e24dc063923b61f7e1448fd",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/mobile/test/infrastructure/repositories/sync_api_repository_test.dart"
+    },
+    {
+      "path": "open-api/immich-openapi-specs.json",
+      "sha256": "489ad9bf7120d97bcf2edac2f5ca461aaca0826e9165554ac717c39fa9621c04",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/open-api/immich-openapi-specs.json"
+    },
+    {
+      "path": "server/src/controllers/asset-media.controller.ts",
+      "sha256": "a4d16981f825e5f7389e218761ba17f2bf7d33363a501426d454693c5f1086d8",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/controllers/asset-media.controller.ts"
+    },
+    {
+      "path": "server/src/controllers/sync.controller.ts",
+      "sha256": "c606ae5d9c08a80a625d82fbc5357f778d85512a48e664cccb5a325f0cdb2872",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/controllers/sync.controller.ts"
+    },
+    {
+      "path": "server/src/dtos/sync.dto.ts",
+      "sha256": "271a0a12fbde91d41205dbc5806a9e58f2f8499525aef2db5494fd0bd72f0f37",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/dtos/sync.dto.ts"
+    },
+    {
+      "path": "server/src/enum.ts",
+      "sha256": "22f11f7b5b064a1ccc5dadbb85490858bc3e7459e4ddbd6448cc9ba693345761",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/enum.ts"
+    },
+    {
+      "path": "server/src/middleware/asset-upload.interceptor.ts",
+      "sha256": "9533ef63f4f30bd65b1433b8033547c7c764ae835c18dc18b2f522e0229e7a81",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/middleware/asset-upload.interceptor.ts"
+    },
+    {
+      "path": "server/src/middleware/auth.guard.ts",
+      "sha256": "7bd60355de34f1b45e46c95e9812bff808a7009baa7079d4ae8d2ee197da2a5f",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/middleware/auth.guard.ts"
+    },
+    {
+      "path": "server/src/middleware/global-exception.filter.ts",
+      "sha256": "889710c0b6b2c2014764e99f40d055acc21e772b56ebf1120ad56456a61e2483",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/middleware/global-exception.filter.ts"
+    },
+    {
+      "path": "server/src/repositories/sync-checkpoint.repository.ts",
+      "sha256": "6dbc44009d95d6ecab3164653e28aaf4634944652f2ff6b0d08957c457654308",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/repositories/sync-checkpoint.repository.ts"
+    },
+    {
+      "path": "server/src/repositories/sync.repository.ts",
+      "sha256": "c4a98c9b42b028fce7547501e36c97f6c161c0e7e314fa640a40eadba8b4ce0a",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/repositories/sync.repository.ts"
+    },
+    {
+      "path": "server/src/services/asset-media.service.ts",
+      "sha256": "0ecd85dee7a35f6823da6d6d159fe4706f232c06549229943fed36e15a6c456f",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/asset-media.service.ts"
+    },
+    {
+      "path": "server/src/services/sync.service.ts",
+      "sha256": "b79fff69b6081fa1e19e48ce415ed3ae7ec89292430a57bb19dcf41aac323c14",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/services/sync.service.ts"
+    },
+    {
+      "path": "server/src/utils/bytes.ts",
+      "sha256": "86cac7c57b83c5692ee196af4f03fa061f6aca89bcf34136ac80dd40ddb604e8",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/utils/bytes.ts"
+    },
+    {
+      "path": "server/src/utils/sync.ts",
+      "sha256": "c301ba444ccd419c0853d0bca351e029e81167cd187a8208591d6be6faf814f8",
+      "url": "https://raw.githubusercontent.com/immich-app/immich/db6e11ecc851228aec9c525abb0ee026d1f5055e/server/src/utils/sync.ts"
+    }
+  ]
+}

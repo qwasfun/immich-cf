@@ -65,8 +65,8 @@ const refFetch = (endpoint, options) => fetch(`${reference}${endpoint}`, options
 const version = await request(refFetch, '/api/server/version');
 assert.deepEqual(
   [version.value.major, version.value.minor, version.value.patch],
-  [3, 3, 1],
-  'Reference must be frozen v3.3.1',
+  manifest.upstream.openapi.version.split('.').map(Number),
+  `Reference must be frozen ${manifest.upstream.tag}`,
 );
 let admin;
 try {

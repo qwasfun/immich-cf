@@ -1,50 +1,48 @@
 {
   "project": "immich-cf",
   "schemaVersion": 1,
-  "checkedAt": "2026-10-13",
-  "freezeStatus": "source-contract-frozen-device-build-user-reported",
+  "checkedAt": "2026-11-13",
+  "freezeStatus": "source-contract-frozen-target-device-not-validated",
   "upstream": {
     "repository": "https://github.com/immich-app/immich",
-    "tag": "v3.3.1",
-    "commit": "db6e11ecc851228aec9c525abb0ee026d1f5055e",
-    "releaseUrl": "https://github.com/immich-app/immich/releases/tag/v3.3.1",
-    "sourceMobileVersion": "3.3.1+3030199",
+    "tag": "v3.4.1",
+    "commit": "22b95194c80a2f2e6201093916b6c8c3d6d271dd",
+    "releaseUrl": "https://github.com/immich-app/immich/releases/tag/v3.4.1",
+    "sourceMobileVersion": "3.4.1+3040199",
     "openapi": {
-      "file": "contracts/upstream/immich-v3.3.1.openapi.json",
-      "sha256": "489ad9bf7120d97bcf2edac2f5ca461aaca0826e9165554ac717c39fa9621c04",
-      "version": "3.3.1"
+      "file": "contracts/upstream/immich-v3.4.1.openapi.json",
+      "sha256": "e98acf387b5ffe2c239cb6619a82ef8ce7092447baab22c1f223744aad79858e",
+      "version": "3.4.1"
     },
     "license": "contracts/upstream/LICENSE.immich"
   },
   "client": {
     "platform": "iOS",
-    "reportedVersion": "3.3.1",
-    "evidence": "user-reported",
-    "installedBuild": "23",
+    "targetVersion": "3.4.1",
+    "reportedVersion": null,
+    "installedBuild": null,
+    "evidence": "target-version-not-reported-or-device-validated",
     "osVersion": null,
     "distributionChannel": null,
     "binaryVerified": false,
-    "androidStatus": "not-validated"
+    "androidStatus": "not-validated",
+    "previousEvidence": "contracts/history/v3.3.1.manifest.json"
   },
   "referenceServer": {
     "image": "ghcr.io/immich-app/immich-server",
-    "tag": "v3.3.1",
-    "indexDigest": "sha256:db996e352359771c6a3db121a0ed8761516b22f727fc092a0f46dcfef82c1bc1",
+    "tag": "v3.4.1",
+    "indexDigest": "sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b",
     "platformDigests": {
-      "linux/amd64": "sha256:96c6ec77cdea5a3c90539b81baf8c276b834deb595b1603c4aefc1903ab6a05b",
-      "linux/arm64": "sha256:79bebf8e2cb9a727016c3f4fe51ab6fd531b2d1075ef8e618bffc00204010de9"
+      "linux/arm64": "sha256:918d0ef2490fe2379c4826fd884228f456d57689ab05493472fee1d049be3ffd",
+      "linux/amd64": "sha256:4351dd621899ecc8ed317ae87cdcaeb968ec8ba4f9d8053d913a73eb6f6dd7c2"
     },
-    "evidence": "registry digests plus isolated linux/amd64 container and API verification; see runtimeEvidence",
-    "runtimeVerified": true,
-    "runtimeEvidence": {
-      "checkedAt": "2026-10-14",
-      "scope": "isolated-identity-and-two-image-library-http-and-sync",
-      "report": "contracts/p1-nonempty-reference-comparison.json",
-      "fullCompatibilityVerified": false
-    }
+    "evidence": "immutable ghcr.io v3.4.1 registry index and platform digests; runtime validation pending",
+    "runtimeVerified": false,
+    "runtimeEvidence": null,
+    "previousEvidence": "contracts/history/v3.3.1.manifest.json"
   },
   "sync": {
-    "serverVersionForSourceAnalysis": "3.3.1",
+    "serverVersionForSourceAnalysis": "3.4.1",
     "contentType": "application/jsonlines+json",
     "requestedTypes": [
       "AuthUsersV2",
@@ -177,10 +175,17 @@
     "G1": "not-run"
   },
   "pending": [
-    "iOS distribution channel and OS; installed build independently unverified",
-    "Reference server runtime and dependency image freeze",
+    "Official iOS 3.4.1 installed build, distribution channel and OS; binary and device flow unverified",
+    "Isolated official v3.4.1 reference runtime and differential verification",
     "Real device HTTP, cookie and Socket.IO capture",
-    "Reset, interrupted stream and replay differential tests",
-    "Workers resource and free-budget measurements"
-  ]
+    "Real device reset, interrupted stream, replay, Live Photo playback and restore",
+    "Paid Workers real-scale resource measurements and full compatibility gates"
+  ],
+  "adapter": {
+    "featureLevel": 1,
+    "upstreamFeatureLevel": 2,
+    "rationale": "Passkeys require feature level 2 in the official mobile app; this adapter keeps password login and does not implement passkeys.",
+    "backups": false,
+    "sourceReview": "contracts/v3.4.1-source-review.json"
+  }
 }

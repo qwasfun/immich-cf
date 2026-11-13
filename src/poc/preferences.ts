@@ -1,4 +1,4 @@
-// Frozen v3.3.1 server/src/utils/preferences.ts defaults (UTC).
+// Frozen v3.4.1 server/src/utils/preferences.ts defaults (UTC).
 // Preferences describe user choices, not server feature availability.
 export function defaultPreferences() {
   return {

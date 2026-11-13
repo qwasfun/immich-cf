@@ -1,6 +1,6 @@
 import { digest, HttpError, invalid } from './http';
 
-// Official v3.3.1 foreground uploads reuse these fields for both halves.
+// Official v3.4.1 foreground uploads reuse these fields for both halves.
 // This is negative evidence, not a claim that unmarked files are standalone photos.
 export async function guardLivePhoto(form: FormData, db: D1Database, owner: string) {
   const device = form.get('deviceId');

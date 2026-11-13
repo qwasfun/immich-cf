@@ -6796,6 +6796,294 @@
     }
   },
   {
+    "operationId": "searchPasskeys",
+    "method": "GET",
+    "path": "/api/passkeys",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "required": false,
+        "in": "query",
+        "description": "Filter by passkey ID",
+        "schema": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": null,
+    "responses": {
+      "200": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/PasskeyResponseDto"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "finishAuthentication",
+    "method": "POST",
+    "path": "/api/passkeys/authentication/finish",
+    "security": [],
+    "parameters": [],
+    "requestBody": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/PasskeyAuthenticationFinishDto"
+          }
+        }
+      },
+      "required": true
+    },
+    "responses": {
+      "201": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LoginResponseDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "startAuthentication",
+    "method": "POST",
+    "path": "/api/passkeys/authentication/start",
+    "security": [],
+    "parameters": [],
+    "requestBody": null,
+    "responses": {
+      "200": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PasskeyAuthenticationOptionsDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "finishRegistration",
+    "method": "POST",
+    "path": "/api/passkeys/registration/finish",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [],
+    "requestBody": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/PasskeyRegistrationFinishDto"
+          }
+        }
+      },
+      "required": true
+    },
+    "responses": {
+      "201": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PasskeyResponseDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "startRegistration",
+    "method": "POST",
+    "path": "/api/passkeys/registration/start",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [],
+    "requestBody": null,
+    "responses": {
+      "200": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PasskeyRegistrationOptionsDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "deletePasskey",
+    "method": "DELETE",
+    "path": "/api/passkeys/{id}",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "in": "path",
+        "schema": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": null,
+    "responses": {
+      "204": {
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "getPasskey",
+    "method": "GET",
+    "path": "/api/passkeys/{id}",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "in": "path",
+        "schema": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": null,
+    "responses": {
+      "200": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PasskeyResponseDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
+    "operationId": "updatePasskey",
+    "method": "PATCH",
+    "path": "/api/passkeys/{id}",
+    "security": [
+      {
+        "bearer": []
+      },
+      {
+        "cookie": []
+      },
+      {
+        "api_key": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "in": "path",
+        "schema": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/PasskeyUpdateDto"
+          }
+        }
+      },
+      "required": true
+    },
+    "responses": {
+      "200": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PasskeyResponseDto"
+            }
+          }
+        },
+        "description": ""
+      }
+    }
+  },
+  {
     "operationId": "deletePeople",
     "method": "DELETE",
     "path": "/api/people",

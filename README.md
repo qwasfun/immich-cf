@@ -1,5 +1,7 @@
 # immich-cf
 
+兼容协议基线已更新至官方 [Immich 3.4.1](docs/upstream-v3.4.1.md)，覆盖现有登录、上传、相册与 Sync 范围；官方新增通行密钥、FUTO 备份及新增媒体格式仍未开放，真机与完整兼容验收独立记录。
+
 Web 支持[照片标签与评分](docs/web-photo-labels.md)：单张/批量标签操作、1～5 星评分与组合筛选。
 
 Web 支持[照片归档管理](docs/web-photo-archive.md)：单张/整批归档与取消、独立归档列表和年月定位。
@@ -62,7 +64,7 @@ Web 可为所选照片或整本相册生成带有效期的链接。持有链接�
 
 - [完整中文需求文档](outputs/immich-cf-完整需求文档.md)：纳入 Git 管理，作为需求基线。
 - [开发与环境说明](docs/development.md)：命令、目录、资源配置和验证边界。
-- [P0 调查报告与版本冻结](docs/p0-report.md)：v3.3.1 源码契约已冻结；iOS 3.3.1 build 23 已由用户确认，实机验证待完成。
+- [P0 调查报告与版本冻结](docs/p0-report.md)：保留 v3.3.1 初始调查；当前基线与升级差异见 [v3.4.1 对齐记录](docs/upstream-v3.4.1.md)。
 - [P0 契约验证清单](docs/p0-checklist.md)：源码调查、运行验证及关口状态。
 - [P1 本地 PoC](docs/p1-local-poc.md)：启用方式、创建测试用户、验证结果与未完成范围。
 - [P1 用户初始化与会话管理](docs/p1-initialization.md)：偏好读取、会话列表与撤销、迁移及验证边界。
@@ -103,7 +105,7 @@ pnpm check
 
 开发环境健康检查：<https://immich-cf-api-dev.fun.workers.dev/healthz>。资源、验证结果和后续部署步骤见[开发环境部署记录](docs/deployment-dev.md)。
 
-项目版本 `0.1.0` 是自身版本。dev/test/prod 已开启现有功能，仅已实现路由开放；版本接口的 3.3.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。
+项目版本 `0.1.0` 是自身版本。dev/test/prod 已开启现有功能，仅已实现路由开放；当前源码版本接口的 3.4.1 用于选择被调查的协议分支，不代表完整兼容，未实现写操作仍返回 501。各环境实际发布版本见 [v3.4.1 对齐记录](docs/upstream-v3.4.1.md)。
 
 - [P1 显式 reset 对齐](docs/p1-explicit-reset.md)：直接快照、并发隔离、失败恢复与验收。
 

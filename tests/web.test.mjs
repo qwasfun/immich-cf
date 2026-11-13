@@ -14,6 +14,7 @@ const state = path.resolve('work', `web-v1-${randomUUID()}`),
   root = '/api/immich-cf/web',
   adminRoot = '/api/immich-cf/admin/users';
 const password = 'web-v1-test-private-password';
+const manifest = JSON.parse(await readFile('docs/compatibility-manifest.json', 'utf8'));
 let worker, platform, db, bucket, passwordHash, origin;
 before(async () => {
   await mkdir(state, { recursive: true });
@@ -251,9 +252,8 @@ test('照片资料修改同步官方 EXIF 与本地拍摄时间，重定位跟�
   assert.equal(exif.data.dateTimeOriginal, updated.fileCreatedAt);
   assert.equal(exif.data.timeZone, 'Asia/Shanghai');
   assert.ok(events.some((e) => e.type === 'AlbumAssetExifCreateV1' && e.data.assetId === photo.id));
-  const spec = JSON.parse(
-    await readFile('docs/contracts/upstream/immich-v3.3.1.openapi.json', 'utf8'),
-  ).components.schemas.SyncAssetExifV1;
+  const spec = JSON.parse(await readFile(`docs/${manifest.upstream.openapi.file}`, 'utf8'))
+    .components.schemas.SyncAssetExifV1;
   for (const key of spec.required) assert.ok(Object.hasOwn(exif.data, key), key);
   assert.equal(events.at(-1).type, 'SyncCompleteV1');
   assert.equal(

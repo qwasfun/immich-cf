@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { requestTypes, entityTypes, supportedTypes } from '../src/poc/types.ts';
+import { serverVersion } from '../src/poc/version.ts';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url));
 const json = (path) => JSON.parse(read(path));
@@ -14,6 +16,27 @@ assert.equal(
 const spec = JSON.parse(raw);
 assert.equal(spec.info.version, manifest.upstream.openapi.version);
 assert.equal(`v${spec.info.version}`, manifest.upstream.tag);
+assert.equal(manifest.referenceServer.tag, manifest.upstream.tag);
+assert.ok(
+  read('infra/reference/compose.yaml')
+    .toString()
+    .includes(
+      `${manifest.referenceServer.image}@${manifest.referenceServer.platformDigests['linux/amd64']}`,
+    ),
+  '参考镜像与当前版本冻结摘要不一致',
+);
+assert.equal(
+  `${serverVersion.major}.${serverVersion.minor}.${serverVersion.patch}`,
+  spec.info.version,
+  '服务端协议版本与冻结契约不一致',
+);
+assert.equal(serverVersion.featureLevel, manifest.adapter.featureLevel);
+assert.ok(spec.components.schemas.ServerFeatureLevel.enum.includes(serverVersion.featureLevel));
+const passkeyLevel =
+  spec.components.schemas.ServerFeatureLevel['x-enum-varnames'].indexOf('Passkeys');
+assert.ok(
+  serverVersion.featureLevel < spec.components.schemas.ServerFeatureLevel.enum[passkeyLevel],
+);
 assert.deepEqual(spec.servers, [{ url: '/api' }]);
 const operations = [];
 for (const [path, methods] of Object.entries(spec.paths)) {
@@ -34,6 +57,9 @@ assert.deepEqual(json('docs/contracts/operations.json'), operations, '操作清�
 assert.equal(new Set(operations.map((o) => o.operationId)).size, operations.length);
 assert.deepEqual(manifest.sync.requestEnum, spec.components.schemas.SyncRequestType.enum);
 assert.deepEqual(manifest.sync.entityEnum, spec.components.schemas.SyncEntityType.enum);
+assert.deepEqual(requestTypes, manifest.sync.requestEnum, '运行时请求枚举与契约不一致');
+assert.deepEqual(entityTypes, manifest.sync.entityEnum, '运行时事件枚举与契约不一致');
+assert.deepEqual(supportedTypes, manifest.sync.requestedTypes, '运行时同步家族与客户端分支不一致');
 assert.equal(new Set(manifest.sync.requestedTypes).size, manifest.sync.requestedTypes.length);
 for (const type of manifest.sync.requestedTypes)
   assert.ok(manifest.sync.requestEnum.includes(type), type);

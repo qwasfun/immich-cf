@@ -3,7 +3,7 @@ import { type Asset, assetDetailDto } from './assets';
 import { body, HttpError, invalid } from './http';
 import { archiveIds, commitArchive } from './archive';
 
-// Frozen v3.3.1 UpdateAssetDto / AssetBulkUpdateDto subset. Unsupported edits fail
+// Frozen v3.4.1 UpdateAssetDto / AssetBulkUpdateDto subset. Unsupported edits fail
 // before any write; favorites and archive never alter capture dates or R2 bytes.
 export async function updateFavorite(
   request: Request,

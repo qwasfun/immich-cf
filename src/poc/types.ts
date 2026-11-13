@@ -1,4 +1,4 @@
-// 固定 v3.3.1 枚举；更新时运行契约校验并重新审计。
+// 固定 v3.4.1 枚举；更新时运行契约校验并重新审计。
 export const requestTypes = [
   'AlbumsV1',
   'AlbumsV2',

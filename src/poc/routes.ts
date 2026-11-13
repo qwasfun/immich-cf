@@ -16,6 +16,7 @@ import { storageAudit } from './storage-audit';
 import { admin } from './admin';
 import { upgradeIntegrity } from './upgrade-integrity';
 import { runPreviews } from './previews';
+import { serverVersion } from './version';
 
 const methods: Record<string, string[]> = {
   '/api/immich-cf/admin/status': ['GET'],
@@ -135,10 +136,10 @@ async function dispatch(
       video: String(env.ENABLE_LIVE_PHOTO) === 'true' ? ['video/quicktime'] : [],
       sidecar: [],
     });
-  if (path === '/api/server/version')
-    return Response.json({ major: 3, minor: 3, patch: 1, prerelease: null });
+  if (path === '/api/server/version') return Response.json(serverVersion);
   if (path === '/api/server/features')
     return Response.json({
+      backups: false,
       configFile: false,
       duplicateDetection: false,
       email: false,

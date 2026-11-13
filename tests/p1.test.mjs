@@ -14,10 +14,8 @@ let worker, platform, db;
 const state = path.resolve('work', `p1-test-${crypto.randomUUID()}`);
 const password = 'P1-test-only-password-2026';
 const userId = crypto.randomUUID();
-const spec = JSON.parse(
-  await readFile('docs/contracts/upstream/immich-v3.3.1.openapi.json', 'utf8'),
-);
 const manifest = JSON.parse(await readFile('docs/compatibility-manifest.json', 'utf8'));
+const spec = JSON.parse(await readFile(`docs/${manifest.upstream.openapi.file}`, 'utf8'));
 const config = {
   config: 'wrangler.json',
   env: 'dev',
@@ -137,6 +135,19 @@ test('发现、版本、能力和配置符合冻结 schema，非目标写入明�
   }
   assert.equal((await send('/api/assets', {})).status, 401);
   assert.equal((await send('/api/server/ping', {})).status, 405);
+});
+
+test('3.4.1 版本与能力协商：关闭尚未实现的通行密钥和官方备份入口', async () => {
+  const version = await (await worker.fetch('/api/server/version')).json();
+  assert.equal(`${version.major}.${version.minor}.${version.patch}`, spec.info.version);
+  assert.equal(version.prerelease, null);
+  assert.equal(version.featureLevel, manifest.adapter.featureLevel);
+  const levels = spec.components.schemas.ServerFeatureLevel;
+  const passkeys = levels.enum[levels['x-enum-varnames'].indexOf('Passkeys')];
+  // ServerVersion.fromDto / PasskeyStore.enabled use this threshold before fetching config.
+  assert.ok(version.featureLevel < passkeys);
+  assert.equal((await (await worker.fetch('/api/server/features')).json()).backups, false);
+  assert.equal((await send('/api/passkeys/authentication/start', {})).status, 501);
 });
 
 test('字段校验具体且不泄露提交值；错误凭据一致', async () => {
@@ -1181,7 +1192,7 @@ test('真实非空同步按字节重分块、半行中断、前缀 ACK 后重连
   );
 });
 
-test('参考 3.3.1 初始化字段：OAuth 空管理地址，会话到期与 PIN 提权到期不混淆', async () => {
+test('参考 3.4.1 初始化字段：OAuth 空管理地址，会话到期与 PIN 提权到期不混淆', async () => {
   const config = await (await worker.fetch('/api/server/config')).json();
   assert.equal(config.oauthAccountManagementUrl, '');
   const { token } = await reliabilityAccount();
