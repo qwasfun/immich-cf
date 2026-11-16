@@ -94,7 +94,7 @@ export function imageHeader(bytes: Uint8Array) {
         ['iTXt', 'tEXt', 'zTXt'].includes(type) &&
         checkPngXmp(bytes.subarray(offset + 8, offset + 8 + length), type)
       ) {
-        if (sawXmp) xmpFailure();
+        if (sawXmp) xmpFailure('同一图片只能包含一个元数据块');
         sawXmp = true;
       }
       if (type === 'eXIf') readExif(bytes.subarray(offset + 8, offset + 8 + length));
@@ -150,8 +150,9 @@ export function imageHeader(bytes: Uint8Array) {
         else {
           const data = bytes.subarray(offset + 2, offset + length);
           const signature = 'http://ns.adobe.com/xap/1.0/\0';
-          if (sawXmp || !Array.from(signature).every((c, i) => data[i] === c.charCodeAt(0)))
-            xmpFailure();
+          if (sawXmp) xmpFailure('同一图片只能包含一个元数据块');
+          if (!Array.from(signature).every((c, i) => data[i] === c.charCodeAt(0)))
+            xmpFailure('仅支持标准 JPEG XMP APP1 签名');
           sawXmp = true;
           checkStaticXmp(data.subarray(signature.length));
         }

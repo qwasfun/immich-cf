@@ -2,6 +2,8 @@
 
 日期：2026-10-16。
 
+2026-11-16 更新：新增 iOS 截图中的 `xmp:ModifyDate` 和 `tiff:Orientation` 简单字段，并细化拒绝原因；下文记录为首次放行时的范围。详见 [截图 XMP 修复](p2-screenshot-xmp-2026-11-16.md)。
+
 ## 真实样本结论
 
 用户提供的 IMG_0096.PNG 为 682,722 字节、828×1792。其未压缩 PNG iTXt XMP 只含 exif:UserComment（截图说明）和 photoshop:DateCreated。此前遇到任何 XMP 都拒绝，导致普通静态图误拦截。该结论只针对提供的样本，不由扩展名或截图说明推断所有文件来源。

@@ -211,7 +211,9 @@ export async function inspectMedia(
             if (text(data.subarray(0, 6)) === 'Exif\0\0') exif(data.subarray(6));
             else {
               const signature = 'http://ns.adobe.com/xap/1.0/\0';
-              if (sawXmp || text(data.subarray(0, signature.length)) !== signature) xmpFailure();
+              if (sawXmp) xmpFailure('同一图片只能包含一个元数据块');
+              if (text(data.subarray(0, signature.length)) !== signature)
+                xmpFailure('仅支持标准 JPEG XMP APP1 签名');
               sawXmp = true;
               checkStaticXmp(data.subarray(signature.length));
             }
@@ -293,7 +295,7 @@ export async function inspectMedia(
             invalid('assetData', '暂不支持动画 PNG，请选择静态图片');
           if (name === 'eXIf') exif(data!);
           if (['iTXt', 'tEXt', 'zTXt'].includes(name) && checkPngXmp(data!, name)) {
-            if (sawXmp) xmpFailure();
+            if (sawXmp) xmpFailure('同一图片只能包含一个元数据块');
             sawXmp = true;
           }
           if (name === 'IDAT') {

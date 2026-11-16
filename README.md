@@ -42,7 +42,7 @@ Web 可为所选照片或整本相册生成带有效期的链接。持有链接�
 
 - [P2 混合队列恢复](docs/p2-mixed-queue.md)：大小边界、格式拒绝、重复失败、存储对账及官方 App/Live Photo 未验证风险。
 - [P2 Live Photo 防护](docs/p2-live-photo.md)：已识别动态请求的持久拦截与无法覆盖的部分备份边界。
-- [普通静态 XMP 修复](docs/p2-static-xmp.md)：放行经验证的截图说明和创建时间，保留动态照片防护。
+- [普通静态 XMP 修复](docs/p2-static-xmp.md)：放行经验证的截图说明和日期；[iOS 截图补充](docs/p2-screenshot-xmp-2026-11-16.md)支持修改时间与方向，保留动态照片防护。
 - [JPEG 扫描结构检查](docs/p2-jpeg-structure.md)：检查扫描段后的元数据和截断结构，覆盖渐进式与重启标记。
 - [PNG 结构检查](docs/p2-png-structure.md)：校验图片头、调色板和数据块顺序，拒绝残缺动画结构。
 - [备份预检查恢复](docs/p2-bulk-recovery.md)：原图缺失或大小异常时允许重传，恢复已有资产。

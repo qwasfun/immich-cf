@@ -2141,7 +2141,7 @@ test('私有元数据越界、循环、未知格式和 XMP 保守拒绝，不能
 
 test('普通 XMP 命名空间别名、文本及属性形式允许，原图和同步保留', async () => {
   const { withXmp } = await import('./fixtures/live-photo-exif.mjs');
-  const { staticXmp } = await import('./fixtures/static-xmp.mjs');
+  const { staticXmp, screenshotXmp } = await import('./fixtures/static-xmp.mjs');
   const a = await reliabilityAccount();
   const xmls = [
     staticXmp,
@@ -2150,6 +2150,19 @@ test('普通 XMP 命名空间别名、文本及属性形式允许，原图和同
       .replace('<exif:UserComment>Screenshot</exif:UserComment>', '')
       .replace('rdf:about=""', 'rdf:about="" exif:UserComment="Screenshot"'),
     staticXmp.replace('Screenshot', 'Text &amp; &#83;creenshot'),
+    screenshotXmp,
+    screenshotXmp
+      .replaceAll('xmp:', 'dates:')
+      .replace('xmlns:xmp', 'xmlns:dates')
+      .replaceAll('tiff:', 'image:')
+      .replace('xmlns:tiff', 'xmlns:image'),
+    screenshotXmp
+      .replace('<xmp:ModifyDate>2026-01-01T00:00:00</xmp:ModifyDate>', '')
+      .replace('<tiff:Orientation>1</tiff:Orientation>', '')
+      .replace(
+        'rdf:about=""',
+        'rdf:about="" xmp:ModifyDate="2026-01-01T00:00:00" tiff:Orientation="1"',
+      ),
   ];
   for (const format of ['png', 'jpg'])
     for (const xml of xmls) {
@@ -2173,7 +2186,7 @@ test('普通 XMP 命名空间别名、文本及属性形式允许，原图和同
 test('XMP 未知动态字段、命名空间欺骗、实体、结构和资源边界仍拒绝', async () => {
   const { withXmp, appleExif } = await import('./fixtures/live-photo-exif.mjs');
   const { withExif } = await import('./fixtures/exif.mjs');
-  const { staticXmp } = await import('./fixtures/static-xmp.mjs');
+  const { staticXmp, screenshotXmp } = await import('./fixtures/static-xmp.mjs');
   const a = await reliabilityAccount();
   const png = await readFile('tests/fixtures/small.png');
   const bad = [
@@ -2187,6 +2200,22 @@ test('XMP 未知动态字段、命名空间欺骗、实体、结构和资源边�
     staticXmp.replace('Screenshot', '<exif:UserComment>nested</exif:UserComment>'),
     staticXmp.replace('Screenshot', 'x'.repeat(32768)),
     staticXmp.replace('Screenshot', '<?unexpected value?>'),
+    screenshotXmp.replaceAll('xmp:ModifyDate', 'xmp:ContentIdentifier'),
+    screenshotXmp.replaceAll('tiff:Orientation', 'tiff:MotionPhoto'),
+    screenshotXmp.replace(
+      'http://ns.adobe.com/xap/1.0/',
+      'http://ns.google.com/photos/1.0/camera/',
+    ),
+    screenshotXmp.replace(
+      'http://ns.adobe.com/tiff/1.0/',
+      'https://example.invalid/private-secret/',
+    ),
+    screenshotXmp.replace('rdf:about=""', 'rdf:about="" xmp:ModifyDate="private-secret"'),
+    screenshotXmp.replace('rdf:about=""', 'rdf:about="" tiff:Orientation="private-secret"'),
+    screenshotXmp.replace(
+      '<tiff:Orientation>1',
+      '<tiff:Orientation><xmp:ModifyDate>private-secret</xmp:ModifyDate>1',
+    ),
   ];
   for (const xml of bad) {
     const r = await uploadBytes(a.token, withXmp(png, 'png', 'iTXt', xml));
@@ -2199,6 +2228,7 @@ test('XMP 未知动态字段、命名空间欺骗、实体、结构和资源边�
     withXmp(png, 'png', 'zTXt', staticXmp),
     withXmp(withXmp(png, 'png', 'iTXt', staticXmp), 'png', 'iTXt', staticXmp),
     withExif(withXmp(png, 'png', 'iTXt', staticXmp), appleExif(), 'png'),
+    withExif(withXmp(png, 'png', 'iTXt', screenshotXmp), appleExif(), 'png'),
   ])
     assert.equal((await uploadBytes(a.token, bytes)).status, 400);
   assert.equal(
@@ -2213,35 +2243,70 @@ test('XMP 未知动态字段、命名空间欺骗、实体、结构和资源边�
   assert.equal((await platform.env.IMMICH_CF_MEDIA.list({ prefix: `${a.id}/` })).objects.length, 0);
 });
 
-test('本机私有 PNG 样本上传、去重、原图及 Sync 验证', async (t) => {
-  let bytes;
-  try {
-    bytes = await readFile('tests/private-fixtures/xmp/IMG_0096.PNG');
-  } catch (e) {
-    if (e.code === 'ENOENT') {
-      t.skip('private fixture unavailable');
-      return;
-    }
-    throw e;
-  }
+test('XMP 拒绝返回具体原因及修正要求，不回显元数据值或解析器内容', async () => {
+  const { withXmp } = await import('./fixtures/live-photo-exif.mjs');
+  const { screenshotXmp } = await import('./fixtures/static-xmp.mjs');
   const a = await reliabilityAccount();
-  const r = await uploadBytes(a.token, bytes);
-  assert.equal(r.status, 201);
-  const id = (await r.json()).id;
-  assert.equal((await uploadBytes(a.token, bytes)).status, 200);
-  const original = await worker.fetch(`/api/assets/${id}/original`, {
-    headers: { Authorization: `Bearer ${a.token}` },
-  });
-  assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
-  const events = await syncEvents(a.token);
-  const asset = events.find((e) => e.type === 'AssetV2' && e.data.id === id);
-  assert.ok(asset);
-  assert.deepEqual([asset.data.width, asset.data.height], [828, 1792]);
-  assert.equal(
-    (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
-    204,
-  );
+  const png = await readFile('tests/fixtures/small.png');
+  const cases = [
+    [screenshotXmp.replaceAll('xmp:ModifyDate', 'xmp:ContentIdentifier'), /不支持的元数据字段/],
+    [
+      screenshotXmp.replace('http://ns.adobe.com/xap/1.0/', 'https://private-secret.invalid/'),
+      /不支持的命名空间/,
+    ],
+    [
+      screenshotXmp.replace('rdf:about=""', 'rdf:about="" tiff:Orientation="private-secret"'),
+      /字段不能重复/,
+    ],
+    [screenshotXmp.replace('Screenshot', '&private-secret;'), /XML 格式不完整或无效/],
+    ['<!DOCTYPE private-secret>' + screenshotXmp, /不支持 DTD/],
+  ];
+  for (const [xml, reason] of cases) {
+    const response = await uploadBytes(a.token, withXmp(png, 'png', 'iTXt', xml));
+    assert.equal(response.status, 400);
+    const error = await response.json();
+    assert.deepEqual(error.errors[0].path, ['assetData']);
+    assert.equal(error.errors[0].message, error.message);
+    assert.match(error.message, reason);
+    assert.match(error.message, /保留原件并联系管理员/);
+    assert.ok(!JSON.stringify(error).includes('private-secret'));
+    assert.doesNotMatch(error.message, /从当前备份相册移除/);
+  }
 });
+
+for (const sample of [
+  { file: 'IMG_0096.PNG', width: 828, height: 1792 },
+  { file: 'IMG_9093.png', width: 1170, height: 2532 },
+])
+  test(`本机私有 PNG ${sample.file} 上传、去重、原图及 Sync 验证`, async (t) => {
+    let bytes;
+    try {
+      bytes = await readFile(`tests/private-fixtures/xmp/${sample.file}`);
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        t.skip('private fixture unavailable');
+        return;
+      }
+      throw e;
+    }
+    const a = await reliabilityAccount();
+    const r = await uploadBytes(a.token, bytes);
+    assert.equal(r.status, 201);
+    const id = (await r.json()).id;
+    assert.equal((await uploadBytes(a.token, bytes)).status, 200);
+    const original = await worker.fetch(`/api/assets/${id}/original`, {
+      headers: { Authorization: `Bearer ${a.token}` },
+    });
+    assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+    const events = await syncEvents(a.token);
+    const asset = events.find((e) => e.type === 'AssetV2' && e.data.id === id);
+    assert.ok(asset);
+    assert.deepEqual([asset.data.width, asset.data.height], [sample.width, sample.height]);
+    assert.equal(
+      (await send('/api/sync/ack', { acks: events.map((e) => e.ack) }, a.token)).status,
+      204,
+    );
+  });
 
 test('JPEG 全扫描结构、渐进式、多扫描后元数据与截断拒绝', async () => {
   const { jpegCases } = await import('./fixtures/jpeg-structure.mjs');

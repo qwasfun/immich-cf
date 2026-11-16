@@ -120,6 +120,59 @@ async function pair(u, format = 'jpeg', padding = 0) {
   assert.equal(r.status, 201, await r.clone().text());
   return { photo, motion, id: (await r.json()).id, video };
 }
+
+async function verifyScreenshot(u, bytes, filename, dimensions) {
+  const response = await upload(u, bytes, {}, filename);
+  assert.equal(response.status, 201, await response.clone().text());
+  const id = (await response.json()).id;
+  const duplicate = await upload(u, bytes, {}, filename);
+  assert.equal(duplicate.status, 200);
+  assert.equal((await duplicate.json()).id, id);
+  const original = await worker.fetch(`/api/assets/${id}/original`, {
+    headers: { Authorization: `Bearer ${u.token}` },
+  });
+  assert.equal(original.status, 200);
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), bytes);
+  const stream = await api('/api/sync/stream', { types: ['AssetsV2'] }, u.token);
+  assert.equal(stream.status, 200);
+  const parsed = (await stream.text())
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  const asset = parsed.find((event) => event.type === 'AssetV2' && event.data.id === id);
+  assert.ok(asset);
+  if (dimensions) assert.deepEqual([asset.data.width, asset.data.height], dimensions);
+  assert.equal(
+    (await api('/api/sync/ack', { acks: parsed.map((event) => event.ack) }, u.token)).status,
+    204,
+  );
+}
+
+test('Live Photo 开启时截图 XMP 修改时间和方向允许，原图、去重及同步保留', async () => {
+  const { withXmp } = await import('./fixtures/live-photo-exif.mjs');
+  const { screenshotXmp } = await import('./fixtures/static-xmp.mjs');
+  const u = await user();
+  for (const format of ['png', 'jpg']) {
+    const bytes = withXmp(
+      await readFile(`tests/fixtures/small.${format}`),
+      format,
+      'iTXt',
+      screenshotXmp,
+    );
+    await verifyScreenshot(u, bytes, `screenshot.${format}`);
+  }
+});
+
+test('Live Photo 开启时本机私有 IMG_9093.png 原图上传、去重及 Sync 验证', async (t) => {
+  let bytes;
+  try {
+    bytes = await readFile('tests/private-fixtures/xmp/IMG_9093.png');
+  } catch (error) {
+    if (error.code === 'ENOENT') return t.skip('private fixture unavailable');
+    throw error;
+  }
+  await verifyScreenshot(await user(), bytes, 'IMG_9093.png', [1170, 2532]);
+});
 test('JPEG/MOV 完整配对、>4MiB 流式上传、原件摘要、隐藏统计、播放 Range 与重复上传', async () => {
   const u = await user(),
     p = await pair(u, 'jpeg', 5 * 1024 * 1024);
