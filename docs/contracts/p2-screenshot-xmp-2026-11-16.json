@@ -1,0 +1,728 @@
+{
+  "recordedAt": "2026-11-16T01:45:54.948Z",
+  "sourceCommit": "d287a9aa1d0f0283d0f82915f4f1a794e269e0fb",
+  "rootCause": "Strict XMP allowlist rejected xmp:ModifyDate and tiff:Orientation in an iOS screenshot.",
+  "privateOriginal": {
+    "validationScope": "local-only",
+    "bytes": 1963968,
+    "dimensions": [1170, 2532],
+    "unchangedOriginalBytes": true,
+    "duplicateUpload": true,
+    "syncAndAck": true,
+    "livePhotoEnabledAndDisabled": true,
+    "uploadedToRemoteEnvironment": false
+  },
+  "local": {
+    "beforeFix": {
+      "regressionTests": 3,
+      "expectedFailures": 3,
+      "status": 400
+    },
+    "focused": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "check": {
+      "passed": 332,
+      "failed": 0,
+      "skipped": 0,
+      "formatting": true,
+      "lint": true,
+      "types": true,
+      "build": true
+    },
+    "contracts": {
+      "operations": 287,
+      "sources": 64,
+      "passed": true
+    }
+  },
+  "metadataFieldsAdded": [
+    "http://ns.adobe.com/xap/1.0/|ModifyDate",
+    "http://ns.adobe.com/tiff/1.0/|Orientation"
+  ],
+  "schemaMigrationsAdded": 0,
+  "webAssetsChanged": false,
+  "realDeviceVerified": false,
+  "environments": [
+    {
+      "environment": "dev",
+      "worker": "immich-cf-api-dev",
+      "deploymentId": "48dccd1a-2727-4320-9e1b-22f11ca4a71e",
+      "version": "ee85635d-e912-447b-b903-62bf906f4722",
+      "trafficPercentage": 100,
+      "checkedAt": "2026-11-16T01:36:56.775Z",
+      "checks": [
+        {
+          "label": "health",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "operator-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "operator-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "find-own-probe",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "provision-isolated-probe",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "empty-probe-gallery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "reject-0",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-1",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-2",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-3",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-4",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "rejects-created-no-assets",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-sync",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-ack",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "ack-empty-delta",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "remove-only-own-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-own-usage",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-logout",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "disable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "operator-logout",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "complete": true,
+      "cleanup": true,
+      "physicalCleanup": true,
+      "privateSamplesUploaded": false
+    },
+    {
+      "environment": "test",
+      "worker": "immich-cf-api-test",
+      "deploymentId": "31dfea50-90b9-479f-9019-a9a05c1de2ea",
+      "version": "6be253d4-c008-444f-a92d-8284d37894dc",
+      "trafficPercentage": 100,
+      "checkedAt": "2026-11-16T01:38:27.716Z",
+      "checks": [
+        {
+          "label": "health",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "operator-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "operator-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "find-own-probe",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "enable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "empty-probe-gallery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "reject-0",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-1",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-2",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-3",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-4",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "rejects-created-no-assets",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-sync",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-ack",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "ack-empty-delta",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "remove-only-own-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-own-usage",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-logout",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "disable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "operator-logout",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "complete": true,
+      "cleanup": true,
+      "physicalCleanup": true,
+      "privateSamplesUploaded": false
+    },
+    {
+      "environment": "prod",
+      "worker": "immich-cf-api",
+      "deploymentId": "45edc4a2-94c8-4ce0-977a-fa9aefd65fcd",
+      "version": "a17ea4ac-1b5a-4966-9c4d-a8a6ad591871",
+      "trafficPercentage": 100,
+      "checkedAt": "2026-11-16T01:41:35.712Z",
+      "checks": [
+        {
+          "label": "health",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "operator-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "operator-identity",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "find-own-probe",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "enable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "probe-login",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "empty-probe-gallery",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-png-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-png-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-0",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-0",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "create-jpg-1",
+          "status": 201,
+          "expected": 201
+        },
+        {
+          "label": "duplicate-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "original-jpg-1",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "reject-0",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-1",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-2",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-3",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "reject-4",
+          "status": 400,
+          "expected": 400
+        },
+        {
+          "label": "rejects-created-no-assets",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-sync",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "official-ack",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "ack-empty-delta",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "remove-only-own-fixtures",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "resume-only-own-authorized-purge",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "own-purge-status",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "empty-own-usage",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "probe-logout",
+          "status": 200,
+          "expected": 200
+        },
+        {
+          "label": "disable-own-probe",
+          "status": 204,
+          "expected": 204
+        },
+        {
+          "label": "operator-logout",
+          "status": 200,
+          "expected": 200
+        }
+      ],
+      "complete": true,
+      "cleanup": true,
+      "physicalCleanup": true,
+      "privateSamplesUploaded": false
+    }
+  ],
+  "ci": {
+    "sourceCommit": "d287a9aa1d0f0283d0f82915f4f1a794e269e0fb",
+    "test": {
+      "runId": 43787423812,
+      "conclusion": "success"
+    },
+    "prod": {
+      "runId": 43787716342,
+      "conclusion": "success"
+    },
+    "dev": {
+      "runId": 43787185807,
+      "firstAttempt": "failure: local SQLite SQLITE_BUSY_SNAPSHOT in existing web labels cleanup test",
+      "retryRequested": true
+    }
+  }
+}
