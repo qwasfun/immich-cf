@@ -1,6 +1,6 @@
 # immich-cf P0 调查报告与版本冻结
 
-日期：2026-10-13。依据[完整需求](../outputs/immich-cf-完整需求文档.md)的 P0-01～P0-06 与 G0。生产资源继续使用 `immich-cf-api`、`immich-cf-db`、`immich-cf-media`，不加 `-prod`；开发环境保留 `-dev`。
+日期：2026-10-13。依据[完整需求](immich-cf-完整需求文档.md)的 P0-01～P0-06 与 G0。生产资源继续使用 `immich-cf-api`、`immich-cf-db`、`immich-cf-media`，不加 `-prod`；开发环境保留 `-dev`。
 
 ## 结论
 

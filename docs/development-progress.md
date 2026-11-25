@@ -1,5 +1,9 @@
 # immich-cf 开发进度与剩余任务
 
+当前推进 P4 个人图库功能，已实现个人相册、收藏及回收站。dev 已提供身份、会话、onboarding、私有媒体读取和资产 Sync。JPEG、PNG、HEIC 照片及 Live Photo 的上传限制与分批导出见[媒体与存储说明](p2-live-photo-support.md)。
+
+[官方 iOS 小图片真机验收](p1-small-images.md#本轮真机验收结论)已由用户确认上传、显示与预览通过。Live Photo 的真机前后台备份、动态播放、系统相册恢复，以及真实图库规模、整库恢复与 G1 预算仍是独立的验收项。[Live Photo dev 验证记录](p2-live-photo-support-dev-deployment.md)
+
 2026-11-13 新版界面发布：已合并的 `refactor_ui_style` 以 `90d7864` 按 dev → test → prod 逐级发布。合并代码 328 项完整检查与 30 项隔离本机界面检查通过；线上 dev/test/prod 分别通过 49/47/49 项 HTTP 检查，各 22 项桌面/手机布局交互检查通过，7 份实际资源与构建摘要一致。三环境均承接 100% 新版本流量，38 项迁移和全局数据状态保持，dev 两份原件摘要通过，生产新旧地址正常；全部临时会话退出并清除本机认证文件。见 [发布记录](ui-refactor-deployment-2026-11-13.md)及[脱敏证据](contracts/ui-refactor-deployment-2026-11-13.json)。
 
 2026-11-13 测试与生产版本晋升：测试环境 47 项 HTTP 检查通过后，将同一已验证的 3.4.1 代码发布至生产，生产核心与补充检查共 53 项符合预期。两套既有 38 项迁移无需追加，账号数量、图库用量、资产/相册统计及限制保持，所有临时会话已退出；生产自定义域名与原地址均正常，跨环境凭据隔离通过。三环境当前均为 3.4.1，dev 运行版本保持。见 [晋升记录](upstream-v3.4.1.md#测试与生产晋升)及[脱敏验证证据](contracts/v3.4.1-test-prod-validation.json)。

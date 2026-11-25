@@ -5,16 +5,42 @@
 ## 目录
 
 ```text
-src/index.ts                    Worker 入口与基础路由
-src/http/                       HTTP 响应工具；未来协议适配层在此扩展
-migrations/                     D1 迁移（使用 Wrangler 管理应用历史）
-tests/                          本地运行时和存储集成检查
-docs/                           开发说明与阶段清单
-outputs/immich-cf-完整需求文档.md  已交付需求基线
-wrangler.json                   生产、dev、test 配置
+src/index.ts                  Worker 入口与基础路由
+src/http/                     HTTP 响应工具；未来协议适配层在此扩展
+migrations/                   D1 迁移（使用 Wrangler 管理应用历史）
+tests/                        本地运行时和存储集成检查
+docs/                         开发说明与阶段清单
+docs/immich-cf-完整需求文档.md  已交付需求基线
+wrangler.json                 生产、dev、test 配置
 ```
 
 核心业务表要在 P0 API/Sync 契约冻结后引入。初始迁移只保存项目名称，避免提前固化未经验证的用户/资产/游标设计。
+
+## 本地调试
+
+需要 Node.js 24（至少 24.9.0）、pnpm 11.25.0 和 Git。
+
+```sh
+pnpm install --frozen-lockfile
+```
+
+使用远程 dev 的 D1 和 R2 调试时，先完成 Wrangler 授权，再运行以下命令。
+
+```sh
+pnpm db:migrate:dev
+pnpm dev
+```
+
+Worker 代码在本机运行，D1 和 R2 使用远程 dev 绑定。**本地写入会影响公网 dev 客户端**。公网 dev 运行最近发布的代码，本地热更新仅作用于本机。
+
+使用模拟存储进行隔离调试时，运行以下命令。
+
+```sh
+pnpm db:migrate:local
+pnpm dev:local
+```
+
+两种模式启动后均可访问 <http://localhost:8787/healthz>。测试单独使用隔离的模拟存储。远程绑定和 TLS 排查见[环境指南](environments.md#本地调试)。
 
 ## 常用命令
 
@@ -29,7 +55,7 @@ wrangler.json                   生产、dev、test 配置
 
 远程开发环境命令：`pnpm db:migrate:dev` 应用开发库迁移；`pnpm deploy:dev` 发布开发 Worker。两条命令均显式指定 dev，执行前需要有效的 Wrangler 登录。
 
-`pnpm check` 中的 TypeScript 类型检查会自动生成 `worker-configuration.d.ts`。该文件随工具链重新生成，不提交。pnpm 仅允许 esbuild/workerd 的安装构建脚本，依赖版本及 lockfile 均固定。
+`pnpm check` 运行格式检查、静态检查、类型检查、本地 Worker/D1/R2 测试和 dry-run 构建。类型检查会自动生成 `worker-configuration.d.ts`，该文件与本地数据库文件、构建产物均由 Git 忽略。pnpm 仅允许 esbuild/workerd 的安装构建脚本，依赖版本及 lockfile 均固定。
 
 本地运行时检查不代表 Cloudflare Free CPU/请求预算已通过，也不代表官方 App 已兼容。完整质量矩阵以需求文档为准。
 
@@ -39,7 +65,7 @@ wrangler.json                   生产、dev、test 配置
 
 正式进入远程 PoC 时，按选定环境逐项创建 D1/R2、记录真实资源 ID、替换配置，再应用该环境迁移并部署。开发用 `--env dev`，验收用 `--env test`；生产显式使用 `--env prod`（推荐 `pnpm deploy:prod`），不要用空环境配置覆盖生产。不要在未指定环境时进行试验性远程操作。
 
-开发环境已于 2026-10-13 首次部署，详见[部署记录](deployment-dev.md)。生产和 test 已于 2026-11-10 首次部署，详见[发布记录](test-prod-deployment.md)。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见需求文档第 4、13 节。
+开发环境已于 2026-10-13 首次部署，详见[部署记录](deployment-dev.md)。生产和 test 已于 2026-11-10 首次部署，详见[发布记录](test-prod-deployment.md)。Cloudflare 免费用量与同账户其他项目共享，R2 超额可能计费；上线条件见[完整需求文档](immich-cf-完整需求文档.md)第 4、13 节。
 
 ## 配置与秘密
 

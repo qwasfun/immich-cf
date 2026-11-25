@@ -11,7 +11,7 @@
 - 移动端原生 `NetworkApiImpl.swift`、`URLSessionManager.swift` 与旧冻结源码逐字节相同。前台上传调整日志，后台取消增加 Live Photo 两组任务清理，不改变上传字段或照片与 MOV 的配对协议。
 - 更新隔离参考服务器的 3.4.1 amd64/arm64 摘要及官方 Compose 中的 Valkey 摘要；参考比较脚本从 manifest 读取预期版本。旧镜像验证记录独立保留。
 
-服务端协议版本独立于项目自身版本 `0.1.0`。本次不新增数据库迁移，不修改媒体格式、配额或原件。官方新增 Passkeys、FUTO 备份、JPEG XL、HIF 扩展仍处于本项目既有实现范围之外；Web 平面标签也不等同于官方移动端的层级标签 API/同步。
+项目自身版本为 `0.1.0`。客户端通过 `/api/server/version` 返回的协议版本选择对应分支。dev、test、prod 均启用已实现接口，未实现的写操作返回 HTTP 501。本次不新增数据库迁移，不修改媒体格式、配额或原件。官方新增 Passkeys、FUTO 备份、JPEG XL、HIF 扩展仍处于本项目既有实现范围之外；Web 平面标签也不等同于官方移动端的层级标签 API/同步。
 
 ## 验证
 

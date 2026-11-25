@@ -14,6 +14,8 @@
 | test | https://immich-cf-api-test.fun.workers.dev | immich-cf-api-test / immich-cf-db-test / immich-cf-media-test | 已发布，独立数据库与媒体 |
 | prod | https://immich.185036.xyz                  | immich-cf-api / immich-cf-db / immich-cf-media                | 已发布，独立数据库与媒体 |
 
+开发环境健康检查为 <https://immich-cf-api-dev.fun.workers.dev/healthz>。`/healthz` 仅用于检查 Worker 是否运行。资源详情和验证结果见[开发环境部署记录](deployment-dev.md)。
+
 官方 App 填写根地址即可，不需要自行加 `/api`。切换环境使用 App 现有服务器/账号入口；各环境分别登录，禁止复用 token。用户、图库、备份状态和同步检查点独立，首次切换后的本地缓存/重同步行为仍须当前所用 App 真机验收（当前协议目标为 3.4.1），不能把开发测试数据当作生产备份。
 
 生产增加 `https://immich.185036.xyz`，原 `https://immich-cf-api.fun.workers.dev` 继续可用，两者访问同一生产 Worker、账号和图库。浏览器登录 Cookie 按主机隔离，首次访问新域名需重新登录。域名配置仅在 `env.prod.routes` 中维护；后续生产发布会保留该绑定，dev/test 不绑定此域名。绑定与证书、验证结果见[生产域名说明](prod-custom-domain.md)。
@@ -24,20 +26,11 @@ dev 测试邮箱为 `dev@immich-cf.test`，随机密码保存在本机忽略目�
 
 ## 本地调试
 
-```sh
-pnpm dev
-```
-
-代码在本机执行，默认地址 `http://127.0.0.1:8787`；D1/R2 绑定配置 `remote: true`，操作真实 dev 资源。**本地写入会影响公网 dev 客户端**。不指向 test/prod。公网 dev 地址执行最近发布的代码，本地热更新不会自动改变公网代码。
+启动命令与存储模式见[开发指南](development.md#本地调试)。本机默认地址为 `http://127.0.0.1:8787`。Wrangler 通过 `remote: true` 连接 dev 的真实 D1/R2，通过 `--local` 使用模拟存储。
 
 当前网络上 Node TLS 握手间歇发生 ECONNRESET；使用 TLS 1.2 并重启连接后，授权检查和本地远程绑定冒烟均通过；网络仍可能间歇失败。`scripts/dev.mjs` 提供进程级 TLS 1.2 兼容尝试，保留证书验证，不修改系统代理；这只是本机兼容措施，不能保证网络稳定性。网络恢复后可直接 `pnpm exec wrangler dev --env dev` 使用默认协商。Wrangler 需要本机授权；OAuth 或 API token 不进入仓库。
 
-```sh
-pnpm dev:local
-pnpm db:migrate:local
-```
-
-以上用于离线隔离实验。`--local` 禁用远程绑定。自动化测试显式启用 forceLocal/remoteBindings=false，独立状态不使用 dev 数据；原骨架测试显式关闭 P1 开关。
+自动化测试显式启用 `forceLocal` 和 `remoteBindings=false`，独立状态不使用 dev 数据；原骨架测试显式关闭 P1 开关。
 
 官方依据：[远程绑定与本地模式](https://developers.cloudflare.com/workers/local-development/)。D1/R2 数据资源在配置层隔离，不依赖请求参数决定环境。
 
@@ -58,7 +51,11 @@ pnpm deploy:prod
 
 发布脚本要求当前分支与目标一致；test 的 HEAD 必须已在 dev 历史中，prod 必须已在 test 历史中。未填写真实 D1 ID 时拒绝发布；不会替你自动合并、建资源或修改密码。临时回退不能擅自回滚数据库，迁移保持向后兼容，破坏性变更单独规划。
 
-GitHub `Promote environment` 工作流为手动触发，不因推送自动发布。仓库需配置 dev/test/prod GitHub Environments 及各自 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人；本次通过已有本机 OAuth 和 CLI 发布，并已推送三个环境分支；没有新增或获取 deployment secrets。工作流 checkout 目标分支，跑完整检查后使用同一发布脚本。推送会运行 Checks；手动部署工作流仍依赖各环境的 secret 和 Environment 配置。
+在本机发布时，先通过 Wrangler 的 OAuth 登录或配置有目标环境权限的 `CLOUDFLARE_API_TOKEN`。
+
+通过 GitHub Actions 发布时，先为 dev、test、prod 分别配置 GitHub Environment 和 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人。推送已验收的目标分支后，手动运行 `Promote environment`，将 `environment` 设为要发布的环境。工作流检出同名分支，运行完整检查并调用同一发布脚本。推送触发 Checks，发布由手动触发。
+
+此前三环境发布使用本机已有的 OAuth 授权，三个环境分支均已推送，未新增或获取 deployment secrets。
 
 2026-11-10 首次晋升已显式为 test/prod 启用现有功能、Live Photo、Images 免费预览与每 5 分钟 Cron。基础配置继续在 dev 分支维护，确保三个分支可快进；资源、版本和验收边界见[测试与生产发布记录](test-prod-deployment.md)。
 
