@@ -1,6 +1,6 @@
 # 开发与环境说明
 
-当前环境策略以[三环境开发与发布](environments.md)为准：dev/test/prod 均已发布，后续仍按 dev → test → prod 逐级晋升。
+当前环境策略以[三环境开发与发布](environments.md)为准：dev/test/prod 均已发布，后续仍按 dev → test → main 逐级晋升。
 
 ## 目录
 

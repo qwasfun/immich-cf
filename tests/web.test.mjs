@@ -4179,7 +4179,16 @@ test('照片标签评分保留归档/Live Photo/相册/分享，删除恢复保�
   for (const p of [photo, motion])
     assert.deepEqual(Buffer.from(await (await bucket.get(p.key)).arrayBuffer()), p.content);
   assert.equal(
-    (await call('/api/assets', u, 'DELETE', { ids: [photo.id], force: true })).status,
+    // Wait for purge work before the separate local D1 client reads its index.
+    (
+      await call(
+        '/api/assets',
+        u,
+        'DELETE',
+        { ids: [photo.id], force: true },
+        { 'x-test-sync-preview': '1' },
+      )
+    ).status,
     204,
   );
   assert.equal(

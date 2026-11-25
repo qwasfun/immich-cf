@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 已验收并合并的目标分支（dev → test → prod）
+        description: 目标环境（prod 从 main 分支发布）
         required: true
         type: choice
         options: [dev, test, prod]
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.environment }}
+          ref: ${{ inputs.environment == 'prod' && 'main' || inputs.environment }}
           fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:

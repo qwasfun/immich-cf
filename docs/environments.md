@@ -1,4 +1,6 @@
-# dev → test → prod 开发与发布
+# dev → test → main 开发与发布
+
+本页记录维护者的三套环境。使用自己的 Cloudflare 账号从 Fork 的 `main` 部署，请参阅[网页控制台自部署指南](../README.md#从-github-部署到自己的-cloudflare-账号)。
 
 更新：2026-11-13。开发使用 dev，验收环境统一命名 test（替代旧规划 staging），生产资源不加 prod 后缀。环境间只晋升代码和迁移，不复制用户、密码、会话或媒体。
 
@@ -36,11 +38,11 @@ dev 测试邮箱为 `dev@immich-cf.test`，随机密码保存在本机忽略目�
 
 ## 逐级晋升
 
-使用同名 Git 分支 `dev`、`test`、`prod`。首次建立时共用环境配置基线，不代表同时向三个环境发布。`main` 保留既有历史；后续从 dev 开发。
+在 `dev` 开发，在 `test` 验收，通过后将同一提交快进到 `main`。生产环境名为 `prod`。
 
 1. 在 dev 开发、提交并运行 `pnpm check` 和 `pnpm contracts:verify`，发布到 dev 验证。
 2. 先在 dev 分支配置 test 独立 D1/R2 的真实 ID 并提交、验证。dev 本阶段通过后，将已验收提交快进到 test：`git switch test`、`git merge --ff-only dev`；避免直接在 test 修改公共配置造成分叉。
-3. test 验收通过后，`git switch prod`、`git merge --ff-only test`。生产独立资源配置同样先作为公共配置进入 dev/test，再晋升。
+3. test 验收通过后，`git switch main`、`git merge --ff-only test`。生产独立资源配置同样先作为公共配置进入 dev/test，再晋升。
 4. 发布前保持工作区干净；先检查、迁移目标环境，再部署。发布后记录 SHA、Worker 版本、迁移、健康/登录/同步验证。
 
 ```sh
@@ -49,11 +51,11 @@ pnpm deploy:test
 pnpm deploy:prod
 ```
 
-发布脚本要求当前分支与目标一致；test 的 HEAD 必须已在 dev 历史中，prod 必须已在 test 历史中。未填写真实 D1 ID 时拒绝发布；不会替你自动合并、建资源或修改密码。临时回退不能擅自回滚数据库，迁移保持向后兼容，破坏性变更单独规划。
+发布脚本校验分支和提交历史。`test` 的 HEAD 必须已在 `dev` 历史中，发布生产时 `main` 的 HEAD 必须已在 `test` 历史中。未填写真实 D1 ID 时拒绝发布；不会替你自动合并、建资源或修改密码。临时回退不能擅自回滚数据库，迁移保持向后兼容，破坏性变更单独规划。
 
 在本机发布时，先通过 Wrangler 的 OAuth 登录或配置有目标环境权限的 `CLOUDFLARE_API_TOKEN`。
 
-通过 GitHub Actions 发布时，先为 dev、test、prod 分别配置 GitHub Environment 和 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人。推送已验收的目标分支后，手动运行 `Promote environment`，将 `environment` 设为要发布的环境。工作流检出同名分支，运行完整检查并调用同一发布脚本。推送触发 Checks，发布由手动触发。
+通过 GitHub Actions 发布时，先为 dev、test、prod 分别配置 GitHub Environment 和 `CLOUDFLARE_API_TOKEN` secret，test/prod 建议设置审核人。推送已验收的目标分支后，手动运行 `Promote environment`，将 `environment` 设为要发布的环境。选择 `prod` 时工作流检出 `main`，选择 `dev` 或 `test` 时检出同名分支，然后运行完整检查并调用同一发布脚本。推送触发 Checks，发布由手动触发。
 
 此前三环境发布使用本机已有的 OAuth 授权，三个环境分支均已推送，未新增或获取 deployment secrets。
 

@@ -20,8 +20,10 @@
 
 ## 开发与部署
 
+- Fork 后从 Cloudflare 网页控制台部署自己的生产实例。[自部署指南](../README.md#从-github-部署到自己的-cloudflare-账号)
+
 - 本地调试、检查命令、仓库目录和资源配置。[开发与环境说明](development.md)
-- 客户端地址、环境资源和 dev → test → prod 发布流程。[三环境开发与发布](environments.md)
+- 客户端地址、环境资源和 dev → test → main 发布流程。[三环境开发与发布](environments.md)
 - 开发环境资源、验证结果与再次部署步骤。[开发环境部署记录](deployment-dev.md)
 - 测试和生产环境首次发布、登录方式与验收结果。[测试与生产部署记录](test-prod-deployment.md)
 - 中文网页版 V1 的 dev 发布与逐项验证。[Web dev 发布记录](web-v1-dev-deployment.md)

@@ -23,6 +23,7 @@
     "p2:real-media": "node scripts/real-media-check.mjs",
     "p1:create-local-user": "node scripts/create-local-user.mjs",
     "build": "pnpm web:build && wrangler deploy --env dev --dry-run --outdir dist/worker",
+    "deploy:selfhost": "node scripts/deploy-selfhost.mjs",
     "deploy:dev": "node scripts/release.mjs dev",
     "db:migrate:local": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --local",
     "db:migrate:dev": "wrangler d1 migrations apply IMMICH_CF_DB --env dev --remote",

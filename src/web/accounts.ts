@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { validAccountEmail, validAccountPassword } from '../account-credentials';
 import { authenticate, cookies, type Identity } from '../poc/auth';
 import { requireOperator } from '../poc/admin';
 import { body, HttpError, invalid, uuid7 } from '../poc/http';
@@ -19,7 +20,7 @@ function name(value: unknown) {
   return value.trim();
 }
 function password(value: unknown, key = 'password') {
-  if (typeof value !== 'string' || Array.from(value).length < 15 || bcrypt.truncates(value))
+  if (!validAccountPassword(value))
     field(
       key,
       key === 'newPassword' ? '新密码' : '密码',
@@ -28,12 +29,7 @@ function password(value: unknown, key = 'password') {
   return value;
 }
 function email(value: unknown) {
-  if (
-    typeof value !== 'string' ||
-    value.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-  )
-    field('email', '邮箱', '请填写有效邮箱，最多 254 个字符');
+  if (!validAccountEmail(value)) field('email', '邮箱', '请填写有效邮箱，最多 254 个字符');
   return value.trim().toLowerCase();
 }
 
